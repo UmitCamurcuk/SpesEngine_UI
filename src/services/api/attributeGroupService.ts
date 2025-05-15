@@ -53,7 +53,7 @@ const attributeGroupService = {
     limit: number;
   }> => {
     try {
-      const response = await api.get<ApiResponse<AttributeGroup[]>>('/attribute-groups', { 
+      const response = await api.get<ApiResponse<AttributeGroup[]>>('/attributeGroups', { 
         params 
       });
       
@@ -72,7 +72,7 @@ const attributeGroupService = {
   // Belirli bir öznitelik grubunu ID'ye göre getir
   getAttributeGroupById: async (id: string): Promise<AttributeGroup> => {
     try {
-      const response = await api.get<ApiResponse<AttributeGroup>>(`/attribute-groups/${id}`);
+      const response = await api.get<ApiResponse<AttributeGroup>>(`/attributeGroups/${id}`);
       return response.data.data;
     } catch (error) {
       console.error(`${id} ID'li öznitelik grubu getirilirken hata oluştu:`, error);
@@ -83,7 +83,7 @@ const attributeGroupService = {
   // Yeni öznitelik grubu oluştur
   createAttributeGroup: async (attributeGroupData: CreateAttributeGroupDto): Promise<AttributeGroup> => {
     try {
-      const response = await api.post<ApiResponse<AttributeGroup>>('/attribute-groups', attributeGroupData);
+      const response = await api.post<ApiResponse<AttributeGroup>>('/attributeGroups', attributeGroupData);
       return response.data.data;
     } catch (error) {
       console.error('Öznitelik grubu oluşturulurken hata oluştu:', error);
@@ -94,7 +94,7 @@ const attributeGroupService = {
   // Mevcut öznitelik grubunu güncelle
   updateAttributeGroup: async (id: string, attributeGroupData: Partial<CreateAttributeGroupDto>): Promise<AttributeGroup> => {
     try {
-      const response = await api.put<ApiResponse<AttributeGroup>>(`/attribute-groups/${id}`, attributeGroupData);
+      const response = await api.put<ApiResponse<AttributeGroup>>(`/attributeGroups/${id}`, attributeGroupData);
       return response.data.data;
     } catch (error) {
       console.error(`${id} ID'li öznitelik grubu güncellenirken hata oluştu:`, error);
@@ -105,7 +105,7 @@ const attributeGroupService = {
   // Öznitelik grubunu sil
   deleteAttributeGroup: async (id: string): Promise<void> => {
     try {
-      await api.delete(`/attribute-groups/${id}`);
+      await api.delete(`/attributeGroups/${id}`);
     } catch (error) {
       console.error(`${id} ID'li öznitelik grubu silinirken hata oluştu:`, error);
       throw error;

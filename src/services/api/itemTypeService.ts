@@ -55,7 +55,7 @@ const itemTypeService = {
     limit: number;
   }> => {
     try {
-      const response = await api.get<ApiResponse<ItemType[]>>('/item-types', { 
+      const response = await api.get<ApiResponse<ItemType[]>>('/ItemTypes', { 
         params 
       });
       
@@ -74,7 +74,7 @@ const itemTypeService = {
   // Belirli bir öğe tipini ID'ye göre getir
   getItemTypeById: async (id: string): Promise<ItemType> => {
     try {
-      const response = await api.get<ApiResponse<ItemType>>(`/item-types/${id}`);
+      const response = await api.get<ApiResponse<ItemType>>(`/ItemTypes/${id}`);
       return response.data.data;
     } catch (error) {
       console.error(`${id} ID'li öğe tipi getirilirken hata oluştu:`, error);
@@ -85,7 +85,7 @@ const itemTypeService = {
   // Yeni öğe tipi oluştur
   createItemType: async (itemTypeData: CreateItemTypeDto): Promise<ItemType> => {
     try {
-      const response = await api.post<ApiResponse<ItemType>>('/item-types', itemTypeData);
+      const response = await api.post<ApiResponse<ItemType>>('/ItemTypes', itemTypeData);
       return response.data.data;
     } catch (error) {
       console.error('Öğe tipi oluşturulurken hata oluştu:', error);
@@ -96,7 +96,7 @@ const itemTypeService = {
   // Mevcut öğe tipini güncelle
   updateItemType: async (id: string, itemTypeData: Partial<CreateItemTypeDto>): Promise<ItemType> => {
     try {
-      const response = await api.put<ApiResponse<ItemType>>(`/item-types/${id}`, itemTypeData);
+      const response = await api.put<ApiResponse<ItemType>>(`/ItemTypes/${id}`, itemTypeData);
       return response.data.data;
     } catch (error) {
       console.error(`${id} ID'li öğe tipi güncellenirken hata oluştu:`, error);
@@ -107,7 +107,7 @@ const itemTypeService = {
   // Öğe tipini sil
   deleteItemType: async (id: string): Promise<void> => {
     try {
-      await api.delete(`/item-types/${id}`);
+      await api.delete(`/ItemTypes/${id}`);
     } catch (error) {
       console.error(`${id} ID'li öğe tipi silinirken hata oluştu:`, error);
       throw error;

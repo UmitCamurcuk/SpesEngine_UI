@@ -11,6 +11,19 @@ import StepperAttributeCreatePage from '../pages/attributes/create/StepperCreate
 import AttributeGroupsListPage from '../pages/attributeGroups/list';
 import AttributeGroupCreatePage from '../pages/attributeGroups/create';
 import AttributeGroupDetailsPage from '../pages/attributeGroups/details';
+import ProfilePage from '../pages/profile';
+import FamiliesListPage from '../pages/families/list';
+import FamilyCreatePage from '../pages/families/create';
+import FamilyDetailsPage from '../pages/families/details';
+import ItemTypesListPage from '../pages/itemtypes/list';
+import ItemTypeCreatePage from '../pages/itemtypes/create';
+import ItemTypeDetailsPage from '../pages/itemtypes/details';
+import ItemsListPage from '../pages/items/list';
+import ItemDetailsPage from '../pages/items/details';
+import ItemCreatePage from '../pages/items/create';
+import CategoriesListPage from '../pages/categories/list';
+import CategoryCreatePage from '../pages/categories/create';
+import CategoryDetailsPage from '../pages/categories/details';
 
 // Ana sayfa için basit bir test component'i
 const HomePage = () => (
@@ -19,12 +32,6 @@ const HomePage = () => (
     <p className="text-gray-700 dark:text-gray-300">Bu alan yetkilendirilmiş kullanıcılar için görünür.</p>
   </div>
 );
-
-// Geçici placeholder sayfalar
-const ItemTypesListPage = () => <div>Öğe Tipleri sayfası (geliştiriliyor)</div>;
-const ItemsListPage = () => <div>Öğeler sayfası (geliştiriliyor)</div>;
-const CategoriesListPage = () => <div>Kategoriler sayfası (geliştiriliyor)</div>;
-const FamiliesListPage = () => <div>Aileler sayfası (geliştiriliyor)</div>;
 
 // Tüm uygulamanın route tanımları
 const routes: RouteObject[] = [
@@ -48,16 +55,26 @@ const routes: RouteObject[] = [
         path: 'auth/register',
         element: <RegisterPage />
       },
+      {
+        path: 'logout',
+        element: <LoginPage />
+      },
       
       // Ana Layout içindeki sayfalar
       {
         path: '/',
-        element: <AppLayout />,
+        element: <PrivateRoute><AppLayout /></PrivateRoute>,
         children: [
           // Ana Sayfa
           {
             index: true,
             element: <HomePage />
+          },
+          
+          // Profil Sayfası
+          {
+            path: 'profile',
+            element: <ProfilePage />
           },
           
           // Öznitelikler
@@ -97,11 +114,27 @@ const routes: RouteObject[] = [
             path: 'itemtypes/list',
             element: <ItemTypesListPage />
           },
+          {
+            path: 'itemtypes/create',
+            element: <ItemTypeCreatePage />
+          },
+          {
+            path: 'itemtypes/details/:id',
+            element: <ItemTypeDetailsPage />
+          },
           
           // Öğeler
           {
             path: 'items/list',
             element: <ItemsListPage />
+          },
+          {
+            path: 'items/create',
+            element: <ItemCreatePage />
+          },
+          {
+            path: 'items/details/:id',
+            element: <ItemDetailsPage />
           },
           
           // Kategoriler
@@ -109,11 +142,27 @@ const routes: RouteObject[] = [
             path: 'categories/list',
             element: <CategoriesListPage />
           },
+          {
+            path: 'categories/create',
+            element: <CategoryCreatePage />
+          },
+          {
+            path: 'categories/details/:id',
+            element: <CategoryDetailsPage />
+          },
           
           // Ürün Aileleri
           {
             path: 'families/list',
             element: <FamiliesListPage />
+          },
+          {
+            path: 'families/create',
+            element: <FamilyCreatePage />
+          },
+          {
+            path: 'families/details/:id',
+            element: <FamilyDetailsPage />
           }
         ]
       }

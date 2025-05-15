@@ -8,11 +8,8 @@ interface PrivateRouteProps {
 
 // Korumak istediğimiz route'lar için
 const PrivateRoute = ({ children }: PrivateRouteProps) => {
-  // Geliştirme sırasında auth kontrolünü devre dışı bırakıyoruz
-  const isAuthenticated = true; // Geçici olarak her zaman true
-  
-  // Gerçek auth kontrolü (şu an devre dışı)
-  // const { isAuthenticated } = useAppSelector((state) => state.auth);
+  // Redux auth state'inden isAuthenticated değerini al
+  const { isAuthenticated } = useAppSelector((state) => state.auth);
   
   const location = useLocation();
 

@@ -15,9 +15,17 @@ import AttributesListPage from './pages/attributes/list';
 import AttributeCreatePage from './pages/attributes/create';
 import AttributeDetailsPage from './pages/attributes/details';
 
+// Families
+import FamiliesListPage from './pages/families/list';
+import FamilyCreatePage from './pages/families/create';
+import FamilyDetailsPage from './pages/families/details';
+
 // Auth Pages
 import LoginPage from './pages/auth/login';
 import RegisterPage from './pages/auth/register';
+
+// Profile Page
+import ProfilePage from './pages/profile';
 
 // Ana Sayfa İçeriği
 const HomePage = () => (
@@ -31,6 +39,10 @@ const HomePage = () => (
         <a href="/attributeGroups/list" className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-800/30 transition-colors">
           <h2 className="text-lg font-semibold text-blue-700 dark:text-blue-400 mb-2">Öznitelik Grupları</h2>
           <p className="text-sm text-gray-600 dark:text-gray-400">Öznitelik gruplarını yönetin.</p>
+        </a>
+        <a href="/families/list" className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-100 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-800/30 transition-colors">
+          <h2 className="text-lg font-semibold text-green-700 dark:text-green-400 mb-2">Ürün Aileleri</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Ürün ailelerini yönetin.</p>
         </a>
       </div>
     </div>
@@ -50,6 +62,7 @@ function App() {
         {/* AppLayout ile sarılmış sayfalar */}
         <Route path="/" element={<AppLayout />}>
           <Route index element={<HomePage />} />
+          <Route path="profile" element={<ProfilePage />} />
         </Route>
         
         <Route path="/attributeGroups" element={<AppLayout />}>
@@ -62,6 +75,12 @@ function App() {
           <Route path="list" element={<AttributesListPage />} />
           <Route path="create" element={<AttributeCreatePage />} />
           <Route path=":id" element={<AttributeDetailsPage />} />
+        </Route>
+        
+        <Route path="/families" element={<AppLayout />}>
+          <Route path="list" element={<FamiliesListPage />} />
+          <Route path="create" element={<FamilyCreatePage />} />
+          <Route path="details/:id" element={<FamilyDetailsPage />} />
         </Route>
         
         {/* 404 Page */}

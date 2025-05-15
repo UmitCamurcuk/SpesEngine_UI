@@ -116,7 +116,7 @@ const Sidebar = ({ isOpen, closeSidebar }: SidebarProps) => {
       ]
     },
     {
-      name: 'Ürün Tipleri',
+      name: 'Öğe Tipleri',
       path: '/itemtypes',
       icon: (
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
@@ -129,7 +129,7 @@ const Sidebar = ({ isOpen, closeSidebar }: SidebarProps) => {
       ]
     },
     {
-      name: 'Ürünler',
+      name: 'Öğeler',
       path: '/items',
       icon: (
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
@@ -138,8 +138,8 @@ const Sidebar = ({ isOpen, closeSidebar }: SidebarProps) => {
         </svg>
       ),
       children: [
-        { name: 'Ürün Listesi', path: '/items/list' },
-        { name: 'Ürün Ekle', path: '/items/create' }
+        { name: 'Öğe Listesi', path: '/items/list' },
+        { name: 'Öğe Ekle', path: '/items/create' }
       ]
     },
     {

@@ -24,7 +24,15 @@ import ItemCreatePage from '../pages/items/create';
 import CategoriesListPage from '../pages/categories/list';
 import CategoryCreatePage from '../pages/categories/create';
 import CategoryDetailsPage from '../pages/categories/details';
-
+import RolesListPage from '../pages/roles/list';
+import RoleCreatePage from '../pages/roles/create';
+import RoleDetailsPage from '../pages/roles/details';
+import PermissionsListPage from '../pages/permissions/list';
+import PermissionCreatePage from '../pages/permissions/create';
+import PermissionDetailsPage from '../pages/permissions/details';
+import PermissionGroupCreatePage from '../pages/permissionGroups/create';
+import PermissionGroupsListPage from '../pages/permissionGroups/list';
+import PermissionGroupDetailsPage from '../pages/permissionGroups/details';
 // Ana sayfa için basit bir test component'i
 const HomePage = () => (
   <div>
@@ -163,6 +171,48 @@ const routes: RouteObject[] = [
           {
             path: 'families/details/:id',
             element: <FamilyDetailsPage />
+          },
+          
+          // Roller
+          {
+            path: 'roles/list',
+            element: <RolesListPage />
+          },
+          {
+            path: 'roles/create',
+            element: <RoleCreatePage />
+          },
+          {
+            path: 'roles/details/:id',
+            element: <RoleDetailsPage />
+          },
+          
+          // İzinler
+          {
+            path: 'permissions/list',
+            element: <PermissionsListPage />
+          },
+          {
+            path: 'permissions/create',
+            element: <PermissionCreatePage />
+          },
+          {
+            path: 'permissions/details/:id',
+            element: <PermissionDetailsPage />
+          },
+          
+          // İzin Grupları
+          {
+            path: 'permissionGroups/list',
+            element: <PermissionGroupsListPage />
+          },
+          {
+            path: 'permissionGroups/create',
+            element: <PermissionGroupCreatePage />
+          },
+          {
+            path: 'permissionGroups/details/:id',
+            element: <PermissionGroupDetailsPage />
           }
         ]
       }

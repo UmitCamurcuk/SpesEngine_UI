@@ -20,6 +20,11 @@ import FamiliesListPage from './pages/families/list';
 import FamilyCreatePage from './pages/families/create';
 import FamilyDetailsPage from './pages/families/details';
 
+// Localizations
+import LocalizationsListPage from './pages/localizations/list';
+import LocalizationCreatePage from './pages/localizations/create';
+import LocalizationDetailsPage from './pages/localizations/details';
+
 // Auth Pages
 import LoginPage from './pages/auth/login';
 import RegisterPage from './pages/auth/register';
@@ -81,6 +86,12 @@ function App() {
           <Route path="list" element={<FamiliesListPage />} />
           <Route path="create" element={<FamilyCreatePage />} />
           <Route path="details/:id" element={<FamilyDetailsPage />} />
+        </Route>
+        
+        <Route path="/localizations" element={<AppLayout />}>
+          <Route path="list" element={<LocalizationsListPage />} />
+          <Route path="create" element={<LocalizationCreatePage />} />
+          <Route path="details/:namespace/:key" element={<LocalizationDetailsPage />} />
         </Route>
         
         {/* 404 Page */}

@@ -6,10 +6,12 @@ import type { TypedUseSelectorHook } from 'react-redux';
 import { useDispatch, useSelector } from 'react-redux';
 
 import authReducer from './features/auth/authSlice';
+import localizationReducer from './features/localization/localizationSlice';
 
 // Root reducer
 const rootReducer = combineReducers({
   auth: authReducer,
+  localization: localizationReducer,
   // buraya diğer reducer'lar eklenebilir
 });
 
@@ -17,7 +19,7 @@ const rootReducer = combineReducers({
 const persistConfig = {
   key: 'root',
   storage,
-  whitelist: ['auth'], // sadece auth state'i persist edilecek
+  whitelist: ['auth', 'localization'], // auth ve localization state'leri persist edilecek
 };
 
 // Create persisted reducer
@@ -29,7 +31,13 @@ export const store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
-        ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE', 'auth/login/fulfilled', 'auth/register/fulfilled'],
+        ignoredActions: [
+          'persist/PERSIST', 
+          'persist/REHYDRATE', 
+          'auth/login/fulfilled', 
+          'auth/register/fulfilled',
+          'localization/fetchTranslations/fulfilled'
+        ],
       },
     }),
 });

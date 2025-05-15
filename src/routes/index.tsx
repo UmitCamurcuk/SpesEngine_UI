@@ -33,6 +33,9 @@ import PermissionDetailsPage from '../pages/permissions/details';
 import PermissionGroupCreatePage from '../pages/permissionGroups/create';
 import PermissionGroupsListPage from '../pages/permissionGroups/list';
 import PermissionGroupDetailsPage from '../pages/permissionGroups/details';
+import LocalizationsListPage from '../pages/localizations/list';
+import LocalizationCreatePage from '../pages/localizations/create';
+import LocalizationDetailsPage from '../pages/localizations/details';
 // Ana sayfa için basit bir test component'i
 const HomePage = () => (
   <div>
@@ -213,6 +216,20 @@ const routes: RouteObject[] = [
           {
             path: 'permissionGroups/details/:id',
             element: <PermissionGroupDetailsPage />
+          },
+          
+          // Lokalizasyon
+          {
+            path: 'localizations/list',
+            element: <LocalizationsListPage />
+          },
+          {
+            path: 'localizations/create',
+            element: <LocalizationCreatePage />
+          },
+          {
+            path: 'localizations/details/:namespace/:key',
+            element: <LocalizationDetailsPage />
           }
         ]
       }

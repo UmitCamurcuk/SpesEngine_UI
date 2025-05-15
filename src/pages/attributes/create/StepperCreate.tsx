@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
 import Stepper from '../../../components/ui/Stepper';
@@ -9,6 +9,7 @@ import type { AttributeGroup } from '../../../services/api/attributeGroupService
 import { AttributeType, AttributeTypeLabels } from '../../../types/attribute';
 import AttributeBadge from '../../../components/attributes/AttributeBadge';
 import ValidationFactory from '../../../components/attributes/validation/ValidationFactory';
+import { useTranslation } from '../../../context/i18nContext';
 
 // Adım 1: Genel bilgiler
 interface Step1FormData {
@@ -50,6 +51,7 @@ const initialFormData: FormData = {
 
 const StepperAttributeCreatePage: React.FC = () => {
   const navigate = useNavigate();
+  const { t, currentLanguage } = useTranslation();
   
   // Form durumu
   const [formData, setFormData] = useState<FormData>(initialFormData);
@@ -67,22 +69,22 @@ const StepperAttributeCreatePage: React.FC = () => {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Seçilen tip için gösterilecek açıklama
-  const typeDescriptions: Record<AttributeType, string> = {
-    [AttributeType.TEXT]: 'Metin girişi için kullanılır. Ürün açıklaması, model numarası gibi bilgiler için idealdir.',
-    [AttributeType.NUMBER]: 'Sayısal değerler için kullanılır. Fiyat, miktar, ağırlık gibi bilgiler için idealdir.',
-    [AttributeType.DATE]: 'Tarih bilgisi için kullanılır. Üretim tarihi, son kullanma tarihi gibi bilgiler için idealdir.',
-    [AttributeType.BOOLEAN]: 'Evet/Hayır tipinde bilgiler için kullanılır. Stokta var mı, aktif mi gibi bilgiler için idealdir.',
-    [AttributeType.SELECT]: 'Tek seçimlik listeler için kullanılır. Renk, beden, kategori gibi bilgiler için idealdir.',
-    [AttributeType.MULTISELECT]: 'Çoklu seçim gerektiren listeler için kullanılır. Özellikler, etiketler gibi bilgiler için idealdir.'
-  };
+  const typeDescriptions = useMemo(() => ({
+    [AttributeType.TEXT]: t('text_type_description', 'attribute_types'),
+    [AttributeType.NUMBER]: t('number_type_description', 'attribute_types'),
+    [AttributeType.DATE]: t('date_type_description', 'attribute_types'),
+    [AttributeType.BOOLEAN]: t('boolean_type_description', 'attribute_types'),
+    [AttributeType.SELECT]: t('select_type_description', 'attribute_types'),
+    [AttributeType.MULTISELECT]: t('multiselect_type_description', 'attribute_types')
+  }), [t, currentLanguage]);
   
   // Stepper adımları
-  const steps = [
-    { title: 'Genel Bilgiler', description: 'İsim, kod, açıklama' },
-    { title: 'Tip Seçimi', description: 'Öznitelik tipi ve gerekliliği' },
-    { title: 'Tip Özellikleri', description: 'Tipe özel bilgiler' },
-    { title: 'Doğrulama Kuralları', description: 'Validasyon kuralları' },
-  ];
+  const steps = useMemo(() => [
+    { title: t('general_info', 'attributes'), description: t('name_code_description', 'attributes') },
+    { title: t('type_selection', 'attributes'), description: t('attribute_type_and_requirement', 'attributes') },
+    { title: t('type_properties', 'attributes'), description: t('type_specific_info', 'attributes') },
+    { title: t('validation_rules', 'attributes'), description: t('validation_rules_desc', 'attributes') },
+  ], [t, currentLanguage]);
   
   // Öznitelik gruplarını yükle
   useEffect(() => {
@@ -91,12 +93,12 @@ const StepperAttributeCreatePage: React.FC = () => {
         const response = await attributeGroupService.getAttributeGroups({ isActive: true });
         setAttributeGroups(response.attributeGroups);
       } catch (err: any) {
-        console.error('Öznitelik grupları getirilirken hata oluştu:', err);
+        console.error(t('attribute_groups_fetch_error', 'attribute_groups'), err);
       }
     };
     
     fetchAttributeGroups();
-  }, []);
+  }, [t, currentLanguage]);
   
   // Form alanı değişikliği - genel
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -142,13 +144,13 @@ const StepperAttributeCreatePage: React.FC = () => {
     const errors: Record<string, string> = {};
     
     if (!formData.name.trim()) {
-      errors.name = 'Öznitelik adı zorunludur';
+      errors.name = t('name_required', 'attributes');
     }
     
     if (!formData.code.trim()) {
-      errors.code = 'Öznitelik kodu zorunludur';
+      errors.code = t('code_required', 'attributes');
     } else if (!/^[a-zA-Z0-9_]+$/.test(formData.code)) {
-      errors.code = 'Kod sadece harf, rakam ve alt çizgi içerebilir';
+      errors.code = t('code_invalid_format', 'attributes');
     }
     
     setFormErrors(errors);
@@ -168,7 +170,7 @@ const StepperAttributeCreatePage: React.FC = () => {
       (formData.type === AttributeType.SELECT || formData.type === AttributeType.MULTISELECT) && 
       !formData.options.trim()
     ) {
-      errors.options = 'Seçim tipi için en az bir seçenek belirtmelisiniz';
+      errors.options = t('options_required', 'attributes');
     }
     
     setFormErrors(errors);
@@ -182,7 +184,7 @@ const StepperAttributeCreatePage: React.FC = () => {
     // Sayısal öznitelikler için validasyon zorunlu
     if (formData.type === AttributeType.NUMBER) {
       if (!formData.validations || Object.keys(formData.validations).length === 0) {
-        setError("Sayısal öznitelikler için en az bir doğrulama kuralı belirtmelisiniz (min, max, vb.)");
+        setError(t('number_validation_required', 'attributes'));
         return false;
       }
     }
@@ -191,7 +193,7 @@ const StepperAttributeCreatePage: React.FC = () => {
     if (formData.type === AttributeType.TEXT) {
       // Kullanıcıya bir uyarı göster ama engelleme - TEXT tipi için isteğe bağlı
       if (!formData.validations || Object.keys(formData.validations).length === 0) {
-        if (!confirm("Metin tipi için herhangi bir doğrulama kuralı belirtmediniz. Devam etmek istiyor musunuz?")) {
+        if (!confirm(t('text_no_validation_confirm', 'attributes'))) {
           return false;
         }
       }
@@ -201,7 +203,7 @@ const StepperAttributeCreatePage: React.FC = () => {
     if (formData.type === AttributeType.DATE) {
       // Kullanıcıya bir uyarı göster ama engelleme - DATE tipi için isteğe bağlı
       if (!formData.validations || Object.keys(formData.validations).length === 0) {
-        if (!confirm("Tarih tipi için herhangi bir doğrulama kuralı belirtmediniz. Devam etmek istiyor musunuz?")) {
+        if (!confirm(t('date_no_validation_confirm', 'attributes'))) {
           return false;
         }
       }
@@ -214,7 +216,7 @@ const StepperAttributeCreatePage: React.FC = () => {
           (!formData.validations || 
            (formData.validations.minSelections === undefined && 
             formData.validations.maxSelections === undefined))) {
-        if (!confirm("Çoklu seçim tipi için seçim sayısı sınırlaması belirtmediniz. Devam etmek istiyor musunuz?")) {
+        if (!confirm(t('multiselect_no_validation_confirm', 'attributes'))) {
           return false;
         }
       }
@@ -326,12 +328,12 @@ const StepperAttributeCreatePage: React.FC = () => {
       case 0:
         return (
           <div className="space-y-6">
-            <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">Genel Bilgiler</h3>
+            <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">{t('general_info', 'attributes')}</h3>
             
             {/* Ad */}
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Öznitelik Adı <span className="text-red-500">*</span>
+                {t('attribute_name', 'attributes')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -342,7 +344,7 @@ const StepperAttributeCreatePage: React.FC = () => {
                 className={`w-full px-3 py-2 border ${
                   formErrors.name ? 'border-red-500 dark:border-red-700' : 'border-gray-300 dark:border-gray-600'
                 } rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white`}
-                placeholder="Örn: Renk, Boyut, Marka, vb."
+                placeholder={t('name_placeholder', 'attributes')}
               />
               {formErrors.name && (
                 <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>
@@ -352,7 +354,7 @@ const StepperAttributeCreatePage: React.FC = () => {
             {/* Kod */}
             <div>
               <label htmlFor="code" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Öznitelik Kodu <span className="text-red-500">*</span>
+                {t('attribute_code', 'attributes')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -363,20 +365,20 @@ const StepperAttributeCreatePage: React.FC = () => {
                 className={`w-full px-3 py-2 border ${
                   formErrors.code ? 'border-red-500 dark:border-red-700' : 'border-gray-300 dark:border-gray-600'
                 } rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white`}
-                placeholder="Örn: color, size, brand, vb."
+                placeholder={t('code_placeholder', 'attributes')}
               />
               {formErrors.code && (
                 <p className="mt-1 text-sm text-red-500">{formErrors.code}</p>
               )}
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Öznitelik kodu sistem içinde kullanılacak benzersiz bir tanımlayıcıdır. Sadece harf, rakam ve alt çizgi içerebilir.
+                {t('code_help', 'attributes')}
               </p>
             </div>
             
             {/* Açıklama */}
             <div>
               <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Açıklama
+                {t('description', 'attributes')}
               </label>
               <textarea
                 id="description"
@@ -385,14 +387,14 @@ const StepperAttributeCreatePage: React.FC = () => {
                 onChange={handleChange}
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white"
-                placeholder="Özniteliğin amacını ve kullanımını açıklayın..."
+                placeholder={t('description_placeholder', 'attributes')}
               ></textarea>
             </div>
             
             {/* Öznitelik Grubu */}
             <div>
               <label htmlFor="attributeGroup" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Öznitelik Grubu
+                {t('attribute_group', 'attributes')}
               </label>
               <select
                 id="attributeGroup"
@@ -401,7 +403,7 @@ const StepperAttributeCreatePage: React.FC = () => {
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white"
               >
-                <option value="">Seçiniz (İsteğe bağlı)</option>
+                <option value="">{t('select_optional', 'attributes')}</option>
                 {attributeGroups.length > 0 ? (
                   attributeGroups.map((group) => (
                     <option key={group._id} value={group._id}>
@@ -409,11 +411,11 @@ const StepperAttributeCreatePage: React.FC = () => {
                     </option>
                   ))
                 ) : (
-                  <option value="" disabled>Henüz öznitelik grubu bulunmuyor</option>
+                  <option value="" disabled>{t('no_groups', 'attributes')}</option>
                 )}
               </select>
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Bu özniteliği bir gruba dahil etmek istiyorsanız seçebilirsiniz
+                {t('group_help', 'attributes')}
               </p>
             </div>
           </div>
@@ -422,17 +424,17 @@ const StepperAttributeCreatePage: React.FC = () => {
       case 1:
         return (
           <div className="space-y-6">
-            <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">Öznitelik Tipi Seçimi</h3>
+            <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">{t('type_selection', 'attributes')}</h3>
             
             {/* Öznitelik Tipi */}
             <div>
               <label htmlFor="type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                Öznitelik Tipi <span className="text-red-500">*</span>
+                {t('attribute_type', 'attributes')} <span className="text-red-500">*</span>
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
                 {Object.values(AttributeType).map((type) => (
                   <div 
-                    key={type}
+                    key={`${type}-${currentLanguage}`}
                     className={`flex flex-col items-center p-3 rounded-lg border-2 cursor-pointer transition-colors
                       ${formData.type === type 
                         ? 'border-primary-light dark:border-primary-dark bg-primary-light/10 dark:bg-primary-dark/10' 
@@ -450,7 +452,7 @@ const StepperAttributeCreatePage: React.FC = () => {
                   >
                     <AttributeBadge type={type} showLabel={false} />
                     <span className="mt-2 text-sm font-medium text-center">
-                      {AttributeTypeLabels[type]}
+                      {t(AttributeTypeLabels[type].key, AttributeTypeLabels[type].namespace, { use: true })}
                     </span>
                   </div>
                 ))}
@@ -472,11 +474,11 @@ const StepperAttributeCreatePage: React.FC = () => {
                   className="h-4 w-4 text-primary-light dark:text-primary-dark focus:ring-primary-light dark:focus:ring-primary-dark rounded border-gray-300 dark:border-gray-600"
                 />
                 <label htmlFor="isRequired" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                  Bu öznitelik ürün oluşturulurken zorunlu olsun
+                  {t('is_required_description', 'attributes')}
                 </label>
               </div>
               <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 ml-6">
-                Bu seçenek işaretlenirse, bu özniteliğe sahip ürünler oluşturulurken bir değer girilmesi zorunlu olacaktır.
+                {t('is_required_help', 'attributes')}
               </p>
             </div>
           </div>
@@ -485,13 +487,13 @@ const StepperAttributeCreatePage: React.FC = () => {
       case 2:
         return (
           <div className="space-y-6">
-            <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">Tip Özellikleri</h3>
+            <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">{t('type_properties', 'attributes')}</h3>
             
             {/* Seçenekler (SELECT veya MULTISELECT tipi için) */}
             {(formData.type === AttributeType.SELECT || formData.type === AttributeType.MULTISELECT) ? (
               <div>
                 <label htmlFor="options" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Seçenekler <span className="text-red-500">*</span>
+                  {t('options', 'attributes')} <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   id="options"
@@ -502,20 +504,20 @@ const StepperAttributeCreatePage: React.FC = () => {
                   className={`w-full px-3 py-2 border ${
                     formErrors.options ? 'border-red-500 dark:border-red-700' : 'border-gray-300 dark:border-gray-600'
                   } rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white`}
-                  placeholder="Seçenekleri virgülle ayırarak yazın. Örn: Kırmızı, Mavi, Yeşil, Sarı"
+                  placeholder={t('options_placeholder', 'attributes')}
                 ></textarea>
                 {formErrors.options && (
                   <p className="mt-1 text-sm text-red-500">{formErrors.options}</p>
                 )}
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Seçenekleri virgülle ayırın (örn: Kırmızı, Mavi, Yeşil)
+                  {t('options_info', 'attributes')}
                 </p>
                 
                 {/* Seçenek önizleme */}
                 {formData.options.trim() && (
                   <div className="mt-4">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Seçenek Önizleme
+                      {t('preview', 'attributes')}
                     </label>
                     <div className="flex flex-wrap gap-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700">
                       {formData.options
@@ -524,7 +526,7 @@ const StepperAttributeCreatePage: React.FC = () => {
                         .filter(option => option.length > 0)
                         .map((option, index) => (
                           <span
-                            key={index}
+                            key={`option-${index}-${option}-${currentLanguage}`}
                             className="inline-flex px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
                           >
                             {option}
@@ -543,8 +545,8 @@ const StepperAttributeCreatePage: React.FC = () => {
                   </svg>
                   <div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      <strong>{AttributeTypeLabels[formData.type]}</strong> tipi için ek özellik gerekmiyor.
-                      Bir sonraki adıma geçerek doğrulama kuralları tanımlayabilirsiniz.
+                      <strong>{t(AttributeTypeLabels[formData.type].key, AttributeTypeLabels[formData.type].namespace, { use: true })}</strong> {t('type_no_extra_properties', 'attributes')}
+                      {t('proceed_to_validation', 'attributes')}
                     </p>
                   </div>
                 </div>
@@ -579,10 +581,10 @@ const StepperAttributeCreatePage: React.FC = () => {
               <svg className="w-6 h-6 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              Yeni Öznitelik Oluştur
+              {t('create_new_attribute', 'attributes')}
             </h1>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              Ürün ve hizmetleriniz için yeni bir öznitelik tanımlayın
+              {t('define_new_attribute', 'attributes')}
             </p>
           </div>
           
@@ -594,7 +596,7 @@ const StepperAttributeCreatePage: React.FC = () => {
             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-            <span>Listeye Dön</span>
+            <span>{t('return_to_list', 'attributes')}</span>
           </Button>
         </div>
       </div>
@@ -635,7 +637,7 @@ const StepperAttributeCreatePage: React.FC = () => {
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
-                Önceki Adım
+                {t('previous_step', 'attributes')}
               </Button>
               
               {currentStep < steps.length - 1 ? (
@@ -644,7 +646,7 @@ const StepperAttributeCreatePage: React.FC = () => {
                   type="button"
                   onClick={handleNextStep}
                 >
-                  Sonraki Adım
+                  {t('next_step', 'attributes')}
                   <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
@@ -663,7 +665,7 @@ const StepperAttributeCreatePage: React.FC = () => {
                   <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Özniteliği Oluştur
+                  {t('create_attribute', 'attributes')}
                 </Button>
               )}
             </div>
@@ -674,4 +676,12 @@ const StepperAttributeCreatePage: React.FC = () => {
   );
 };
 
-export default StepperAttributeCreatePage; 
+export default StepperAttributeCreatePage;
+
+// Dil değiştiğinde bileşeni zorla yeniden oluşturmak için key prop kullanıyoruz
+const StepperAttributeCreatePageWrapper: React.FC = () => {
+  const { currentLanguage } = useTranslation();
+  return <StepperAttributeCreatePage key={`stepper-attribute-create-${currentLanguage}`} />;
+};
+
+export { StepperAttributeCreatePageWrapper }; 

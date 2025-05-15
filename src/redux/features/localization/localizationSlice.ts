@@ -25,9 +25,12 @@ export const fetchTranslations = createAsyncThunk(
   'localization/fetchTranslations',
   async (lang: string, { rejectWithValue }) => {
     try {
+      console.log(`[localizationSlice] fetchTranslations çağrıldı, dil: ${lang}`);
       const response = await localizationService.getTranslations(lang);
+      console.log('[localizationSlice] API yanıtı:', response);
       return response.data;
     } catch (error: any) {
+      console.error('[localizationSlice] Çeviriler alınırken hata:', error);
       return rejectWithValue(error.response?.data?.message || 'Çeviriler alınamadı');
     }
   }
@@ -37,9 +40,12 @@ export const fetchSupportedLanguages = createAsyncThunk(
   'localization/fetchSupportedLanguages',
   async (_, { rejectWithValue }) => {
     try {
+      console.log('[localizationSlice] Desteklenen diller getiriliyor');
       const response = await localizationService.getSupportedLanguages();
+      console.log('[localizationSlice] Desteklenen diller yanıtı:', response);
       return response.data;
     } catch (error: any) {
+      console.error('[localizationSlice] Desteklenen diller alınırken hata:', error);
       return rejectWithValue(error.response?.data?.message || 'Desteklenen diller alınamadı');
     }
   }
@@ -51,10 +57,12 @@ const localizationSlice = createSlice({
   initialState,
   reducers: {
     setLanguage: (state, action: PayloadAction<string>) => {
+      console.log(`[localizationSlice] Dil değiştiriliyor: ${action.payload}`);
       state.currentLanguage = action.payload;
       localStorage.setItem('language', action.payload);
     },
     clearTranslations: (state) => {
+      console.log('[localizationSlice] Çeviriler temizleniyor');
       state.translations = {};
     }
   },
@@ -62,27 +70,33 @@ const localizationSlice = createSlice({
     builder
       // fetchTranslations
       .addCase(fetchTranslations.pending, (state) => {
+        console.log('[localizationSlice] fetchTranslations.pending');
         state.loading = true;
         state.error = null;
       })
       .addCase(fetchTranslations.fulfilled, (state, action) => {
+        console.log('[localizationSlice] fetchTranslations.fulfilled, veri:', action.payload);
         state.loading = false;
         state.translations = action.payload;
       })
       .addCase(fetchTranslations.rejected, (state, action) => {
+        console.error('[localizationSlice] fetchTranslations.rejected, hata:', action.payload);
         state.loading = false;
         state.error = action.payload as string;
       })
       // fetchSupportedLanguages
       .addCase(fetchSupportedLanguages.pending, (state) => {
+        console.log('[localizationSlice] fetchSupportedLanguages.pending');
         state.loading = true;
         state.error = null;
       })
       .addCase(fetchSupportedLanguages.fulfilled, (state, action) => {
+        console.log('[localizationSlice] fetchSupportedLanguages.fulfilled, veri:', action.payload);
         state.loading = false;
         state.supportedLanguages = action.payload;
       })
       .addCase(fetchSupportedLanguages.rejected, (state, action) => {
+        console.error('[localizationSlice] fetchSupportedLanguages.rejected, hata:', action.payload);
         state.loading = false;
         state.error = action.payload as string;
       });

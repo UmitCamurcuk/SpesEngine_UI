@@ -5,12 +5,14 @@ import Button from '../../../components/ui/Button';
 import { useTheme } from '../../../context/ThemeContext';
 import { useAppDispatch, useAppSelector } from '../../../redux/store';
 import { register } from '../../../redux/features/auth/authSlice';
+import { useTranslation } from '../../../context/i18nContext';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useAppDispatch();
   const { themeType, toggleTheme } = useTheme();
+  const { t } = useTranslation();
   
   const { isAuthenticated, loading, error } = useAppSelector((state) => state.auth);
   
@@ -35,7 +37,7 @@ const RegisterPage = () => {
     e.preventDefault();
     
     if (password !== confirmPassword) {
-      setPasswordError('Şifreler eşleşmiyor.');
+      setPasswordError(t('passwords_dont_match', 'auth'));
       return;
     }
     
@@ -56,7 +58,7 @@ const RegisterPage = () => {
         <button
           onClick={toggleTheme}
           className="p-2 rounded-lg bg-white dark:bg-gray-800 shadow-md"
-          aria-label={themeType === 'dark' ? 'Açık temaya geç' : 'Koyu temaya geç'}
+          aria-label={themeType === 'dark' ? t('switch_to_light', 'theme') : t('switch_to_dark', 'theme')}
         >
           {themeType === 'dark' ? (
             <svg className="w-6 h-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -77,12 +79,12 @@ const RegisterPage = () => {
           </div>
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
-          Yeni hesap oluşturun
+          {t('register_account', 'auth')}
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-          Veya{' '}
+          {t('or', 'common')}{' '}
           <Link to="/auth/login" className="font-medium text-primary-light dark:text-primary-dark hover:text-blue-500">
-            mevcut hesabınızla giriş yapın
+            {t('login_with_existing', 'auth')}
           </Link>
         </p>
       </div>
@@ -98,7 +100,7 @@ const RegisterPage = () => {
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Input
-                label="Ad"
+                label={t('first_name', 'auth')}
                 type="text"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
@@ -106,7 +108,7 @@ const RegisterPage = () => {
                 fullWidth
               />
               <Input
-                label="Soyad"
+                label={t('last_name', 'auth')}
                 type="text"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
@@ -116,7 +118,7 @@ const RegisterPage = () => {
             </div>
 
             <Input
-              label="E-posta Adresi"
+              label={t('email_address', 'auth')}
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -126,7 +128,7 @@ const RegisterPage = () => {
             />
 
             <Input
-              label="Şifre"
+              label={t('password', 'auth')}
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -136,14 +138,14 @@ const RegisterPage = () => {
             />
 
             <Input
-              label="Şifreyi Doğrula"
+              label={t('confirm_password', 'auth')}
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
               fullWidth
               autoComplete="new-password"
-              error={password !== confirmPassword && confirmPassword !== '' ? 'Şifreler eşleşmiyor' : ''}
+              error={password !== confirmPassword && confirmPassword !== '' ? t('passwords_dont_match', 'auth') : ''}
             />
 
             <div className="flex items-center">
@@ -159,13 +161,13 @@ const RegisterPage = () => {
               <label htmlFor="agree_terms" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
                 <span>
                   <a href="#" className="font-medium text-primary-light dark:text-primary-dark">
-                    Kullanım Koşulları
+                    {t('terms_of_service', 'auth')}
                   </a>{' '}
-                  ve{' '}
+                  {t('and', 'common')}{' '}
                   <a href="#" className="font-medium text-primary-light dark:text-primary-dark">
-                    Gizlilik Politikası
+                    {t('privacy_policy', 'auth')}
                   </a>
-                  'nı kabul ediyorum
+                  {t('accept_terms', 'auth')}
                 </span>
               </label>
             </div>
@@ -178,7 +180,7 @@ const RegisterPage = () => {
                 isLoading={loading}
                 disabled={!agreeTerms || password !== confirmPassword}
               >
-                Kaydol
+                {t('register', 'auth')}
               </Button>
             </div>
           </form>
@@ -190,7 +192,7 @@ const RegisterPage = () => {
               </div>
               <div className="relative flex justify-center text-sm">
                 <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
-                  Veya şununla devam et
+                  {t('or_continue_with', 'auth')}
                 </span>
               </div>
             </div>

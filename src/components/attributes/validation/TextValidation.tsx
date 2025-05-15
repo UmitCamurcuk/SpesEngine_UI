@@ -1,5 +1,6 @@
 import React from 'react';
 import { AttributeValidation } from '../../../services/api/attributeService';
+import { useTranslation } from '../../../context/i18nContext';
 
 interface TextValidationProps {
   validation: Partial<AttributeValidation>;
@@ -7,6 +8,8 @@ interface TextValidationProps {
 }
 
 const TextValidation: React.FC<TextValidationProps> = ({ validation, onChange }) => {
+  const { t, currentLanguage } = useTranslation();
+  
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const numValue = name !== 'pattern' ? parseInt(value) || undefined : undefined;
@@ -19,13 +22,13 @@ const TextValidation: React.FC<TextValidationProps> = ({ validation, onChange })
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-2">Metin Doğrulama Kuralları</h3>
+      <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-2">{t('text_validation_rules', 'validation')}</h3>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Minimum Uzunluk */}
         <div>
           <label htmlFor="minLength" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Minimum Uzunluk
+            {t('min_length', 'validation')}
           </label>
           <input
             type="number"
@@ -35,17 +38,17 @@ const TextValidation: React.FC<TextValidationProps> = ({ validation, onChange })
             value={validation.minLength || ''}
             onChange={handleChange}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white"
-            placeholder="Örn: 3"
+            placeholder={t('min_length_placeholder', 'validation')}
           />
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Minimum karakter sayısı (doldurmayın: sınır yok)
+            {t('min_length_help', 'validation')}
           </p>
         </div>
         
         {/* Maximum Uzunluk */}
         <div>
           <label htmlFor="maxLength" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Maksimum Uzunluk
+            {t('max_length', 'validation')}
           </label>
           <input
             type="number"
@@ -55,10 +58,10 @@ const TextValidation: React.FC<TextValidationProps> = ({ validation, onChange })
             value={validation.maxLength || ''}
             onChange={handleChange}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white"
-            placeholder="Örn: 100"
+            placeholder={t('max_length_placeholder', 'validation')}
           />
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Maximum karakter sayısı (doldurmayın: sınır yok)
+            {t('max_length_help', 'validation')}
           </p>
         </div>
       </div>
@@ -66,7 +69,7 @@ const TextValidation: React.FC<TextValidationProps> = ({ validation, onChange })
       {/* Regex Pattern */}
       <div>
         <label htmlFor="pattern" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          Desen (Regex)
+          {t('pattern', 'validation')}
         </label>
         <input
           type="text"
@@ -75,10 +78,10 @@ const TextValidation: React.FC<TextValidationProps> = ({ validation, onChange })
           value={validation.pattern || ''}
           onChange={handleChange}
           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white"
-          placeholder="Örn: ^[a-zA-Z0-9]+$"
+          placeholder={t('pattern_placeholder', 'validation')}
         />
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          Değer bu desene (regex) uygun olmalıdır (doldurmayın: serbest)
+          {t('pattern_help', 'validation')}
         </p>
       </div>
     </div>

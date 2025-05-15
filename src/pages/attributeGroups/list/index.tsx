@@ -5,9 +5,11 @@ import type { TableColumn, SortParams, FilterParams, PaginationParams } from '..
 import Button from '../../../components/ui/Button';
 import attributeGroupService from '../../../services/api/attributeGroupService';
 import type { AttributeGroup, AttributeGroupApiParams } from '../../../services/api/attributeGroupService';
+import { useTranslation } from '../../../context/i18nContext';
 
 const AttributeGroupsListPage: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   
   // State tanımlamaları
   const [attributeGroups, setAttributeGroups] = useState<AttributeGroup[]>([]);
@@ -88,7 +90,7 @@ const AttributeGroupsListPage: React.FC = () => {
         });
       }
     } catch (err: any) {
-      setError(err.message || 'Öznitelik grupları getirilirken bir hata oluştu');
+      setError(err.message || t('attribute_groups_fetch_error', 'attribute_groups'));
     } finally {
       setIsLoading(false);
     }
@@ -134,13 +136,13 @@ const AttributeGroupsListPage: React.FC = () => {
   
   // Silme işlemi handler
   const handleDeleteAttributeGroup = async (id: string, name: string) => {
-    if (window.confirm(`"${name}" öznitelik grubunu silmek istediğinize emin misiniz?`)) {
+    if (window.confirm(`${t('confirm_delete_attribute_group', 'attribute_groups')}`.replace('{{name}}', name))) {
       try {
         await attributeGroupService.deleteAttributeGroup(id);
         // Silme başarılı olduğunda listeyi yenile
         fetchAttributeGroups();
       } catch (err: any) {
-        setError(err.message || 'Öznitelik grubu silinirken bir hata oluştu');
+        setError(err.message || t('attribute_group_delete_error', 'attribute_groups'));
       }
     }
   };
@@ -149,7 +151,7 @@ const AttributeGroupsListPage: React.FC = () => {
   const columns: TableColumn<AttributeGroup>[] = [
     {
       key: 'name',
-      header: 'Ad',
+      header: t('name', 'common'),
       sortable: true,
       filterable: true,
       render: (row) => (
@@ -162,7 +164,7 @@ const AttributeGroupsListPage: React.FC = () => {
     },
     {
       key: 'code',
-      header: 'Kod',
+      header: t('code', 'common'),
       sortable: true,
       filterable: true,
       render: (row) => (
@@ -173,16 +175,16 @@ const AttributeGroupsListPage: React.FC = () => {
     },
     {
       key: 'description',
-      header: 'Açıklama',
+      header: t('description', 'common'),
       render: (row) => (
         <div className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={row.description}>
-          {row.description || <span className="text-gray-400 italic">Açıklama yok</span>}
+          {row.description || <span className="text-gray-400 italic">{t('no_description', 'common')}</span>}
         </div>
       )
     },
     {
       key: 'attributes',
-      header: 'Öznitelik Sayısı',
+      header: t('attribute_count', 'attribute_groups'),
       render: (row) => (
         <div className="text-sm text-gray-600 dark:text-gray-400">
           {Array.isArray(row.attributes) ? row.attributes.length : 0}
@@ -191,7 +193,7 @@ const AttributeGroupsListPage: React.FC = () => {
     },
     {
       key: 'isActive',
-      header: 'Durum',
+      header: t('status', 'common'),
       render: (row) => (
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
           row.isActive 
@@ -207,13 +209,13 @@ const AttributeGroupsListPage: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           )}
-          {row.isActive ? 'Aktif' : 'Pasif'}
+          {row.isActive ? t('active', 'common') : t('inactive', 'common')}
         </span>
       )
     },
     {
       key: 'updatedAt',
-      header: 'Son Güncelleme',
+      header: t('last_update', 'common'),
       sortable: true,
       render: (row) => (
         <div className="text-sm text-gray-500 dark:text-gray-400">
@@ -269,10 +271,10 @@ const AttributeGroupsListPage: React.FC = () => {
             <svg className="w-6 h-6 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
             </svg>
-            Öznitelik Grupları
+            {t('attribute_groups_title', 'attributes')}
           </h1>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Toplam {stats.total} grup, {stats.active} aktif
+            {t('total', 'common')} {stats.total} {t('group', 'common')}, {stats.active} {t('active', 'common')}
           </p>
         </div>
         
@@ -280,7 +282,7 @@ const AttributeGroupsListPage: React.FC = () => {
           <form onSubmit={handleSearch} className="flex">
             <input
               type="text"
-              placeholder="Ara..."
+              placeholder={t('search', 'common') + '...'}
               className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-l-md focus:outline-none focus:ring-1 focus:ring-primary-light dark:focus:ring-primary-dark dark:bg-gray-800 dark:text-white"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -300,7 +302,7 @@ const AttributeGroupsListPage: React.FC = () => {
             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
-            <span>Yeni Grup</span>
+            <span>{t('new_group', 'attributes')}</span>
           </Button>
         </div>
       </div>
@@ -308,7 +310,7 @@ const AttributeGroupsListPage: React.FC = () => {
       {/* Hata Mesajı */}
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative dark:bg-red-900 dark:border-red-700 dark:text-red-300" role="alert">
-          <strong className="font-bold">Hata! </strong>
+          <strong className="font-bold">{t('error', 'common')}! </strong>
           <span className="block sm:inline">{error}</span>
         </div>
       )}
@@ -329,7 +331,7 @@ const AttributeGroupsListPage: React.FC = () => {
           onFilter={handleFilter}
           onRowClick={handleRowClick}
           renderActions={renderActions}
-          emptyMessage="Öznitelik grubu bulunamadı"
+          emptyMessage={t('no_attribute_groups_found', 'attribute_groups')}
         />
       </div>
     </div>

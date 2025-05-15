@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
 import attributeService from '../../../services/api/attributeService';
@@ -7,6 +7,7 @@ import attributeGroupService from '../../../services/api/attributeGroupService';
 import type { AttributeGroup } from '../../../services/api/attributeGroupService';
 import { AttributeType, AttributeTypeLabels } from '../../../types/attribute';
 import AttributeBadge from '../../../components/attributes/AttributeBadge';
+import { useTranslation } from '../../../context/i18nContext';
 
 interface FormData {
   name: string;
@@ -20,6 +21,7 @@ interface FormData {
 
 const AttributeCreatePage: React.FC = () => {
   const navigate = useNavigate();
+  const { t, currentLanguage } = useTranslation();
   
   // Form durumu
   const [formData, setFormData] = useState<FormData>({
@@ -40,14 +42,28 @@ const AttributeCreatePage: React.FC = () => {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Seçilen tip için gösterilecek açıklama
-  const typeDescriptions: Record<AttributeType, string> = {
-    [AttributeType.TEXT]: 'Metin girişi için kullanılır. Ürün açıklaması, model numarası gibi bilgiler için idealdir.',
-    [AttributeType.NUMBER]: 'Sayısal değerler için kullanılır. Fiyat, miktar, ağırlık gibi bilgiler için idealdir.',
-    [AttributeType.DATE]: 'Tarih bilgisi için kullanılır. Üretim tarihi, son kullanma tarihi gibi bilgiler için idealdir.',
-    [AttributeType.BOOLEAN]: 'Evet/Hayır tipinde bilgiler için kullanılır. Stokta var mı, aktif mi gibi bilgiler için idealdir.',
-    [AttributeType.SELECT]: 'Tek seçimlik listeler için kullanılır. Renk, beden, kategori gibi bilgiler için idealdir.',
-    [AttributeType.MULTISELECT]: 'Çoklu seçim gerektiren listeler için kullanılır. Özellikler, etiketler gibi bilgiler için idealdir.'
-  };
+  const typeDescriptions = useMemo(() => ({
+    [AttributeType.TEXT]: t('text_type_description', 'attribute_types'),
+    [AttributeType.NUMBER]: t('number_type_description', 'attribute_types'),
+    [AttributeType.DATE]: t('date_type_description', 'attribute_types'),
+    [AttributeType.BOOLEAN]: t('boolean_type_description', 'attribute_types'),
+    [AttributeType.SELECT]: t('select_type_description', 'attribute_types'),
+    [AttributeType.MULTISELECT]: t('multiselect_type_description', 'attribute_types')
+  }), [t, currentLanguage]);
+  
+  // Dil değiştiğinde formda gösterilen default içerikleri güncelle
+  useEffect(() => {
+    // Eğer formda SELECT veya MULTISELECT tipi seçiliyse ve options değeri varsa, butonların çevirisini güncelle
+    if ((formData.type === AttributeType.SELECT || formData.type === AttributeType.MULTISELECT) && formData.options) {
+      // Eğer options varsayılan değerleri içeriyorsa (Option 1, Option 2, Option 3) bunları çevir
+      if (/Option \d+/.test(formData.options)) {
+        setFormData(prev => ({ 
+          ...prev, 
+          options: `${t('option', 'attributes')} 1, ${t('option', 'attributes')} 2, ${t('option', 'attributes')} 3`
+        }));
+      }
+    }
+  }, [currentLanguage, t]);
   
   // Öznitelik gruplarını yükle
   useEffect(() => {
@@ -56,12 +72,12 @@ const AttributeCreatePage: React.FC = () => {
         const response = await attributeGroupService.getAttributeGroups({ isActive: true });
         setAttributeGroups(response.attributeGroups);
       } catch (err: any) {
-        console.error('Öznitelik grupları getirilirken hata oluştu:', err);
+        console.error(t('attribute_groups_fetch_error', 'attribute_groups'), err);
       }
     };
     
     fetchAttributeGroups();
-  }, []);
+  }, [t, currentLanguage]);
   
   // Form değişiklik işleyicisi
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -78,7 +94,7 @@ const AttributeCreatePage: React.FC = () => {
         setFormData(prev => ({ 
           ...prev, 
           [name]: value,
-          options: 'Seçenek 1, Seçenek 2, Seçenek 3'
+          options: `${t('option', 'attributes')} 1, ${t('option', 'attributes')} 2, ${t('option', 'attributes')} 3`
         }));
       } else {
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -110,20 +126,20 @@ const AttributeCreatePage: React.FC = () => {
     const errors: Record<string, string> = {};
     
     if (!formData.name.trim()) {
-      errors.name = 'Öznitelik adı zorunludur';
+      errors.name = t('name_required', 'attributes');
     }
     
     if (!formData.code.trim()) {
-      errors.code = 'Öznitelik kodu zorunludur';
+      errors.code = t('code_required', 'attributes');
     } else if (!/^[a-z0-9_]+$/.test(formData.code)) {
-      errors.code = 'Kod yalnızca küçük harfler, sayılar ve alt çizgi içerebilir';
+      errors.code = t('code_invalid_format', 'attributes');
     }
     
     if (
       (formData.type === AttributeType.SELECT || formData.type === AttributeType.MULTISELECT) &&
       !formData.options.trim()
     ) {
-      errors.options = 'Seçim tipi için en az bir seçenek belirtmelisiniz';
+      errors.options = t('options_required', 'attributes');
     }
     
     setFormErrors(errors);
@@ -168,11 +184,18 @@ const AttributeCreatePage: React.FC = () => {
       // Başarılı oluşturma sonrası listeye dön
       navigate('/attributes/list');
     } catch (err: any) {
-      setError(err.message || 'Öznitelik oluşturulurken bir hata oluştu');
+      setError(err.message || t('attribute_create_error', 'attributes'));
     } finally {
       setIsSubmitting(false);
     }
   };
+  
+  const typeLabels = useMemo(() => {
+    return Object.values(AttributeType).map(type => ({
+      type,
+      label: t(AttributeTypeLabels[type].key, AttributeTypeLabels[type].namespace, { use: true })
+    }));
+  }, [t, currentLanguage]);
   
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -184,10 +207,10 @@ const AttributeCreatePage: React.FC = () => {
               <svg className="w-6 h-6 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              Yeni Öznitelik Oluştur
+              {t('create_new_attribute', 'attributes')}
             </h1>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              Ürün ve hizmetleriniz için yeni bir öznitelik tanımlayın
+              {t('define_new_attribute', 'attributes')}
             </p>
           </div>
           
@@ -199,7 +222,7 @@ const AttributeCreatePage: React.FC = () => {
             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-            <span>Listeye Dön</span>
+            <span>{t('return_to_list', 'attributes')}</span>
           </Button>
         </div>
       </div>
@@ -223,18 +246,18 @@ const AttributeCreatePage: React.FC = () => {
                 <svg className="w-5 h-5 mr-1.5 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                Temel Bilgiler
+                {t('basic_info', 'attributes')}
               </h3>
               
               {/* Öznitelik Tipi - Önce seçilir */}
               <div>
                 <label htmlFor="type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Öznitelik Tipi <span className="text-red-500">*</span>
+                  {t('type', 'attributes')} <span className="text-red-500">*</span>
                 </label>
                 <div className="grid grid-cols-3 gap-2">
-                  {Object.values(AttributeType).map((type) => (
+                  {typeLabels.map(({ type, label }) => (
                     <div 
-                      key={type}
+                      key={`${type}-${currentLanguage}`}
                       className={`flex flex-col items-center p-2 rounded-lg border-2 cursor-pointer transition-colors
                         ${formData.type === type 
                           ? 'border-primary-light dark:border-primary-dark bg-primary-light/10 dark:bg-primary-dark/10' 
@@ -245,7 +268,7 @@ const AttributeCreatePage: React.FC = () => {
                     >
                       <AttributeBadge type={type} showLabel={false} />
                       <span className="mt-1 text-xs font-medium text-center">
-                        {AttributeTypeLabels[type]}
+                        {label}
                       </span>
                     </div>
                   ))}
@@ -270,10 +293,10 @@ const AttributeCreatePage: React.FC = () => {
                   </div>
                   <div className="ml-3 text-sm">
                     <label htmlFor="isRequired" className="font-medium text-gray-700 dark:text-gray-300">
-                      Zorunlu Alan
+                      {t('is_required', 'attributes')}
                     </label>
                     <p className="text-gray-500 dark:text-gray-400">
-                      Bu özniteliğin doldurulması zorunlu olsun mu?
+                      {t('is_required_help', 'attributes')}
                     </p>
                   </div>
                 </div>
@@ -288,13 +311,13 @@ const AttributeCreatePage: React.FC = () => {
                   <svg className="w-5 h-5 mr-1.5 text-secondary-light dark:text-secondary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  Detay Bilgiler
+                  {t('detail_info', 'attributes')}
                 </h3>
                 
                 {/* Ad */}
                 <div className="mb-4">
                   <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Öznitelik Adı <span className="text-red-500">*</span>
+                    {t('name', 'attributes')} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -305,7 +328,7 @@ const AttributeCreatePage: React.FC = () => {
                     className={`w-full px-3 py-2 border ${
                       formErrors.name ? 'border-red-500 dark:border-red-700' : 'border-gray-300 dark:border-gray-600'
                     } rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white`}
-                    placeholder="Örn: Renk, Boyut, Marka, vb."
+                    placeholder={t('name_placeholder', 'attributes')}
                   />
                   {formErrors.name && (
                     <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>
@@ -315,7 +338,7 @@ const AttributeCreatePage: React.FC = () => {
                 {/* Kod */}
                 <div>
                   <label htmlFor="code" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Öznitelik Kodu <span className="text-red-500">*</span>
+                    {t('code', 'attributes')} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -326,13 +349,13 @@ const AttributeCreatePage: React.FC = () => {
                     className={`w-full px-3 py-2 border ${
                       formErrors.code ? 'border-red-500 dark:border-red-700' : 'border-gray-300 dark:border-gray-600'
                     } rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white font-mono`}
-                    placeholder="Örn: color, size, brand, vb."
+                    placeholder={t('code_placeholder', 'attributes')}
                   />
                   {formErrors.code && (
                     <p className="mt-1 text-sm text-red-500">{formErrors.code}</p>
                   )}
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Yalnızca küçük harfler, sayılar ve alt çizgi kullanabilirsiniz (örn: color_code_1)
+                    {t('code_help', 'attributes')}
                   </p>
                 </div>
               </div>
@@ -340,7 +363,7 @@ const AttributeCreatePage: React.FC = () => {
               {/* Açıklama */}
               <div>
                 <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Açıklama
+                  {t('description', 'attributes')}
                 </label>
                 <textarea
                   id="description"
@@ -349,14 +372,14 @@ const AttributeCreatePage: React.FC = () => {
                   onChange={handleChange}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white"
-                  placeholder="Bu öznitelik hakkında açıklayıcı bilgiler..."
+                  placeholder={t('description_placeholder', 'attributes')}
                 ></textarea>
               </div>
               
               {/* Öznitelik Grubu */}
               <div>
                 <label htmlFor="attributeGroup" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Öznitelik Grubu
+                  {t('attribute_group', 'attributes')}
                 </label>
                 <select
                   id="attributeGroup"
@@ -365,7 +388,7 @@ const AttributeCreatePage: React.FC = () => {
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white"
                 >
-                  <option value="">Seçiniz (İsteğe bağlı)</option>
+                  <option value="">{t('select_group', 'attributes')}</option>
                   {attributeGroups.length > 0 ? (
                     attributeGroups.map((group) => (
                       <option key={group._id} value={group._id}>
@@ -373,11 +396,11 @@ const AttributeCreatePage: React.FC = () => {
                       </option>
                     ))
                   ) : (
-                    <option value="" disabled>Henüz öznitelik grubu bulunmuyor</option>
+                    <option value="" disabled>{t('no_groups', 'attributes')}</option>
                   )}
                 </select>
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Bu özniteliği bir gruba dahil etmek istiyorsanız seçebilirsiniz
+                  {t('group_help', 'attributes')}
                 </p>
               </div>
               
@@ -385,7 +408,7 @@ const AttributeCreatePage: React.FC = () => {
               {(formData.type === AttributeType.SELECT || formData.type === AttributeType.MULTISELECT) && (
                 <div>
                   <label htmlFor="options" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Seçenekler <span className="text-red-500">*</span>
+                    {t('options', 'attributes')} <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     id="options"
@@ -393,7 +416,7 @@ const AttributeCreatePage: React.FC = () => {
                     value={formData.options}
                     onChange={handleChange}
                     rows={3}
-                    placeholder="Seçenekleri virgülle ayırarak girin"
+                    placeholder={t('options_placeholder', 'attributes')}
                     className={`w-full px-3 py-2 border ${
                       formErrors.options ? 'border-red-500 dark:border-red-700' : 'border-gray-300 dark:border-gray-600'
                     } rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white`}
@@ -402,13 +425,13 @@ const AttributeCreatePage: React.FC = () => {
                     <p className="mt-1 text-sm text-red-500">{formErrors.options}</p>
                   )}
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Seçenekleri virgülle ayırın (örn: Kırmızı, Mavi, Yeşil)
+                    {t('options_info', 'attributes')}
                   </p>
                   
                   {/* Önizleme */}
                   {formData.options && (
                     <div className="mt-3">
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Önizleme:</p>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('preview', 'attributes')}:</p>
                       <div className="flex flex-wrap gap-2 p-2 rounded-md bg-gray-50 dark:bg-gray-800">
                         {formData.options
                           .split(',')
@@ -416,7 +439,7 @@ const AttributeCreatePage: React.FC = () => {
                           .filter(option => option.length > 0)
                           .map((option, index) => (
                             <span 
-                              key={index} 
+                              key={`option-${index}-${option}-${currentLanguage}`}
                               className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
                             >
                               {option}
@@ -438,7 +461,7 @@ const AttributeCreatePage: React.FC = () => {
               variant="outline"
               onClick={() => navigate('/attributes/list')}
             >
-              İptal
+              {t('cancel', 'attributes')}
             </Button>
             <Button 
               type="submit" 
@@ -447,7 +470,7 @@ const AttributeCreatePage: React.FC = () => {
               disabled={isSubmitting}
               className="px-8"
             >
-              {isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}
+              {isSubmitting ? t('saving', 'attributes') : t('save', 'attributes')}
             </Button>
           </div>
         </form>
@@ -456,4 +479,10 @@ const AttributeCreatePage: React.FC = () => {
   );
 };
 
-export default AttributeCreatePage; 
+// Dil değiştiğinde bileşeni zorla yeniden oluşturmak için key prop kullanıyoruz
+const AttributeCreatePageWrapper: React.FC = () => {
+  const { currentLanguage } = useTranslation();
+  return <AttributeCreatePage key={`attribute-create-${currentLanguage}`} />;
+};
+
+export default AttributeCreatePageWrapper; 

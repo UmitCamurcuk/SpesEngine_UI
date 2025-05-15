@@ -1,5 +1,6 @@
 import React from 'react';
 import { AttributeType, AttributeTypeLabels } from '../../types/attribute';
+import { useTranslation } from '../../context/i18nContext';
 
 export interface AttributeBadgeProps {
   type: AttributeType;
@@ -8,6 +9,8 @@ export interface AttributeBadgeProps {
 }
 
 const AttributeBadge: React.FC<AttributeBadgeProps> = ({ type, size = 'md', showLabel = true }) => {
+  const { t } = useTranslation();
+  
   const getColorByType = (): string => {
     switch (type) {
       case AttributeType.TEXT:
@@ -77,7 +80,7 @@ const AttributeBadge: React.FC<AttributeBadgeProps> = ({ type, size = 'md', show
   return (
     <span className={`flex items-center ${getColorByType()} ${sizeClasses} rounded-full font-medium`}>
       {getIcon()}
-      {showLabel && <span className="ml-1">{AttributeTypeLabels[type]}</span>}
+      {showLabel && <span className="ml-1">{t(AttributeTypeLabels[type].key, AttributeTypeLabels[type].namespace, { use: true })}</span>}
     </span>
   );
 };

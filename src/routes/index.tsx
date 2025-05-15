@@ -7,7 +7,7 @@ import PrivateRoute from '../components/layout/PrivateRoute';
 import AttributesListPage from '../pages/attributes/list';
 import AttributeCreatePage from '../pages/attributes/create';
 import AttributeDetailsPage from '../pages/attributes/details';
-import StepperAttributeCreatePage from '../pages/attributes/create/StepperCreate';
+import { StepperAttributeCreatePageWrapper } from '../pages/attributes/create/StepperCreate';
 import AttributeGroupsListPage from '../pages/attributeGroups/list';
 import AttributeGroupCreatePage from '../pages/attributeGroups/create';
 import AttributeGroupDetailsPage from '../pages/attributeGroups/details';
@@ -95,7 +95,7 @@ const routes: RouteObject[] = [
           },
           {
             path: 'attributes/create',
-            element: <StepperAttributeCreatePage />
+            element: <StepperAttributeCreatePageWrapper />
           },
           {
             path: 'attributes/create/simple',

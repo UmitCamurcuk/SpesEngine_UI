@@ -4,6 +4,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAppDispatch, useAppSelector } from '../../redux/store';
 import { logout } from '../../redux/features/auth/authSlice';
 import LanguageSwitcher from '../common/LanguageSwitcher';
+import { useTranslation } from '../../context/i18nContext';
 
 interface NavbarProps {
   toggleSidebar: () => void;
@@ -15,6 +16,7 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const { t } = useTranslation();
 
   const handleLogout = () => {
     dispatch(logout());
@@ -40,7 +42,7 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
             </svg>
           </button>
           <Link to="/" className="flex items-center">
-            <span className="text-primary-light dark:text-primary-dark text-xl font-semibold whitespace-nowrap">MDM</span>
+            <span className="text-primary-light dark:text-primary-dark text-xl font-semibold whitespace-nowrap">{t('app_name')}</span>
           </Link>
         </div>
 
@@ -53,7 +55,7 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
           <button
             onClick={toggleTheme}
             className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            aria-label={themeType === 'dark' ? 'Açık temaya geç' : 'Koyu temaya geç'}
+            aria-label={themeType === 'dark' ? t('switch_to_light', 'theme') : t('switch_to_dark', 'theme')}
           >
             {themeType === 'dark' ? (
               <svg className="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -81,7 +83,7 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
               className="flex text-sm bg-gray-100 dark:bg-gray-700 rounded-full focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark"
               onClick={toggleUserMenu}
             >
-              <span className="sr-only">Kullanıcı menüsünü aç</span>
+              <span className="sr-only">{t('open_user_menu', 'nav')}</span>
               <div className="w-8 h-8 rounded-full flex items-center justify-center bg-primary-light dark:bg-primary-dark text-white">
                 {user?.firstName?.charAt(0) || 'U'}
               </div>
@@ -95,15 +97,15 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
                   <div className="text-xs truncate">{user?.email}</div>
                 </div>
                 
-                <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Profilim</Link>
-                <Link to="/settings" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Ayarlar</Link>
+                <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">{t('my_profile', 'nav')}</Link>
+                <Link to="/settings" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">{t('settings', 'common')}</Link>
                 
                 <div className="border-t border-gray-200 dark:border-gray-700">
                   <button
                     onClick={handleLogout}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                   >
-                    Çıkış Yap
+                    {t('logout', 'common')}
                   </button>
                 </div>
               </div>

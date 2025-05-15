@@ -1,4 +1,3 @@
-import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { RouterProvider } from 'react-router-dom'
 import { Provider } from 'react-redux'
@@ -10,7 +9,8 @@ import { I18nProvider } from './context/i18nContext'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
+  // StrictMode development ortamında çift render yapıyor, geçici olarak kaldırıldı
+  // <React.StrictMode>
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
         <ThemeProvider>
@@ -20,5 +20,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         </ThemeProvider>
       </PersistGate>
     </Provider>
-  </React.StrictMode>,
+  // </React.StrictMode>,
 )

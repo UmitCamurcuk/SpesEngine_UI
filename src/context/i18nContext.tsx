@@ -11,7 +11,7 @@ import { useAppSelector } from '../redux/store';
 
 // Context tipi
 interface I18nContextType {
-  t: (key: string, namespace?: string) => string;
+  t: (key: string, namespace?: string, options?: { use?: boolean }) => string;
   changeLanguage: (lang: string) => void;
   currentLanguage: string;
   supportedLanguages: string[];
@@ -35,27 +35,52 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const translations = useAppSelector(selectTranslations);
   const supportedLanguages = useAppSelector(selectSupportedLanguages);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [loadedLanguage, setLoadedLanguage] = useState('');
 
   // Dil değiştirme fonksiyonu
   const changeLanguage = (lang: string) => {
+    console.log(`[i18n] Dil değiştiriliyor: ${lang}`);
     dispatch(setLanguage(lang));
   };
 
   // Çeviri fonksiyonu
-  const t = (key: string, namespace: string = 'common'): string => {
-    if (!translations || !translations[namespace]) {
+  const t = (key: string, namespace: string = 'common', options?: { use?: boolean }): string => {
+    if (!translations) {
+      console.log(`[i18n] Çeviriler bulunamadı! Key: ${key}, Namespace: ${namespace}`);
       return key;
     }
     
-    return translations[namespace][key] || key;
+    if (!translations[namespace]) {
+      console.log(`[i18n] Namespace bulunamadı! Key: ${key}, Namespace: ${namespace}`);
+      return key;
+    }
+    
+    const result = translations[namespace][key] || key;
+    
+    // Sadece debug modunda ve dahili kullanım değilse logla
+    if (!options?.use && (namespace === 'menu' || namespace === 'attribute_types')) {
+      console.log(`[i18n] Çeviri isteği: Key: "${key}", Namespace: "${namespace}", Dil: "${currentLanguage}", Sonuç: "${result}"`);
+    }
+    
+    return result;
   };
 
   // Dil değiştiğinde çevirileri yükle
   useEffect(() => {
-    // @ts-ignore
-    dispatch(fetchTranslations(currentLanguage));
-    setIsLoaded(true);
-  }, [currentLanguage, dispatch]);
+    console.log(`[i18n] useEffect: CurrentLang: ${currentLanguage}, LoadedLang: ${loadedLanguage}, isLoaded: ${isLoaded}`);
+    console.log(`[i18n] Mevcut çeviriler:`, translations);
+    
+    // Sadece dil değişmiş veya henüz yüklenmemişse API çağrısı yap
+    if (currentLanguage !== loadedLanguage) {
+      console.log(`[i18n] Çeviriler yükleniyor: ${currentLanguage}`);
+      // @ts-ignore
+      dispatch(fetchTranslations(currentLanguage));
+      setLoadedLanguage(currentLanguage);
+      setIsLoaded(true);
+    } else if (!isLoaded) {
+      setIsLoaded(true);
+    }
+  }, [currentLanguage, dispatch, isLoaded, loadedLanguage, translations]);
 
   // Context değerleri
   const contextValue: I18nContextType = {

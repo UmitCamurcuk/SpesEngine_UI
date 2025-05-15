@@ -19,13 +19,13 @@ export function isValidAttributeType(value: any): value is AttributeType {
 /**
  * AttributeType için insan tarafından okunabilir etiketler
  */
-export const AttributeTypeLabels: Record<AttributeType, string> = {
-  [AttributeType.TEXT]: 'Metin',
-  [AttributeType.NUMBER]: 'Sayı',
-  [AttributeType.DATE]: 'Tarih',
-  [AttributeType.BOOLEAN]: 'Evet/Hayır',
-  [AttributeType.SELECT]: 'Seçim',
-  [AttributeType.MULTISELECT]: 'Çoklu Seçim',
+export const AttributeTypeLabels: Record<AttributeType, { namespace: string; key: string }> = {
+  [AttributeType.TEXT]: { namespace: 'attribute_types', key: 'text' },
+  [AttributeType.NUMBER]: { namespace: 'attribute_types', key: 'number' },
+  [AttributeType.DATE]: { namespace: 'attribute_types', key: 'date' },
+  [AttributeType.BOOLEAN]: { namespace: 'attribute_types', key: 'boolean' },
+  [AttributeType.SELECT]: { namespace: 'attribute_types', key: 'select' },
+  [AttributeType.MULTISELECT]: { namespace: 'attribute_types', key: 'multiselect' }
 };
 
 /**

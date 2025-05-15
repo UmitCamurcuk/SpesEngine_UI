@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
 import attributeGroupService from '../../../services/api/attributeGroupService';
 import type { CreateAttributeGroupDto } from '../../../services/api/attributeGroupService';
+import { useTranslation } from '../../../context/i18nContext';
 
 const AttributeGroupCreatePage: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   
   // Form durumu
   const [formData, setFormData] = useState<CreateAttributeGroupDto>({
@@ -57,17 +59,17 @@ const AttributeGroupCreatePage: React.FC = () => {
     const errors: Record<string, string> = {};
     
     if (!formData.name.trim()) {
-      errors.name = 'Öznitelik grup adı zorunludur';
+      errors.name = t('group_name_required', 'attribute_groups');
     }
     
     if (!formData.code.trim()) {
-      errors.code = 'Öznitelik grup kodu zorunludur';
+      errors.code = t('group_code_required', 'attribute_groups');
     } else if (!/^[a-z0-9_]+$/.test(formData.code)) {
-      errors.code = 'Kod yalnızca küçük harfler, sayılar ve alt çizgi içerebilir';
+      errors.code = t('code_invalid_format', 'attributes');
     }
     
     if (!formData.description.trim()) {
-      errors.description = 'Açıklama zorunludur';
+      errors.description = t('description_required', 'common');
     }
     
     setFormErrors(errors);
@@ -98,7 +100,7 @@ const AttributeGroupCreatePage: React.FC = () => {
       // Başarılı oluşturma sonrası listeye dön
       navigate('/attributeGroups/list');
     } catch (err: any) {
-      setError(err.message || 'Öznitelik grubu oluşturulurken bir hata oluştu');
+      setError(err.message || t('attribute_group_create_error', 'attribute_groups'));
     } finally {
       setIsSubmitting(false);
     }
@@ -114,10 +116,10 @@ const AttributeGroupCreatePage: React.FC = () => {
               <svg className="w-6 h-6 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              Yeni Öznitelik Grubu Oluştur
+              {t('newAttributeGroup', 'attribute_groups')}
             </h1>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              Ürün ve hizmetleriniz için yeni bir öznitelik grubu tanımlayın
+              {t('createAttributeGroupDescription', 'attribute_groups')}
             </p>
           </div>
           
@@ -129,7 +131,7 @@ const AttributeGroupCreatePage: React.FC = () => {
             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-            <span>Listeye Dön</span>
+            <span>{t('returnToList', 'attribute_groups')}</span>
           </Button>
         </div>
       </div>
@@ -152,7 +154,7 @@ const AttributeGroupCreatePage: React.FC = () => {
               {/* Grup Adı */}
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Grup Adı <span className="text-red-500">*</span>
+                  {t('groupName', 'attribute_groups')} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -165,7 +167,7 @@ const AttributeGroupCreatePage: React.FC = () => {
                       ? 'border-red-300 focus:ring-red-500 dark:border-red-700'
                       : 'border-gray-300 focus:ring-primary-light dark:border-gray-700 dark:focus:ring-primary-dark'
                   } dark:bg-gray-800 dark:text-white`}
-                  placeholder="Örn: Temel Bilgiler"
+                  placeholder={t('enterGroupName', 'attribute_groups')}
                 />
                 {formErrors.name && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.name}</p>
@@ -175,7 +177,7 @@ const AttributeGroupCreatePage: React.FC = () => {
               {/* Grup Kodu */}
               <div>
                 <label htmlFor="code" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Grup Kodu <span className="text-red-500">*</span>
+                  {t('groupCode', 'attribute_groups')} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -188,13 +190,13 @@ const AttributeGroupCreatePage: React.FC = () => {
                       ? 'border-red-300 focus:ring-red-500 dark:border-red-700'
                       : 'border-gray-300 focus:ring-primary-light dark:border-gray-700 dark:focus:ring-primary-dark'
                   } dark:bg-gray-800 dark:text-white font-mono`}
-                  placeholder="Örn: temel_bilgiler"
+                  placeholder={t('enterGroupCode', 'attribute_groups')}
                 />
                 {formErrors.code && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.code}</p>
                 )}
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Yalnızca küçük harfler, sayılar ve alt çizgi kullanın. Boşluk olmamalıdır.
+                  {t('groupCodeInstructions', 'attribute_groups')}
                 </p>
               </div>
             </div>
@@ -204,7 +206,7 @@ const AttributeGroupCreatePage: React.FC = () => {
               {/* Açıklama */}
               <div>
                 <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Açıklama <span className="text-red-500">*</span>
+                  {t('description', 'common')} <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   id="description"
@@ -217,7 +219,7 @@ const AttributeGroupCreatePage: React.FC = () => {
                       ? 'border-red-300 focus:ring-red-500 dark:border-red-700'
                       : 'border-gray-300 focus:ring-primary-light dark:border-gray-700 dark:focus:ring-primary-dark'
                   } dark:bg-gray-800 dark:text-white`}
-                  placeholder="Bu grup hakkında kısa bir açıklama yazın..."
+                  placeholder={t('enterDescription', 'attribute_groups')}
                 />
                 {formErrors.description && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.description}</p>
@@ -235,7 +237,7 @@ const AttributeGroupCreatePage: React.FC = () => {
                   className="h-4 w-4 text-primary-light focus:ring-primary-light border-gray-300 rounded dark:border-gray-700 dark:bg-gray-800 dark:focus:ring-primary-dark"
                 />
                 <label htmlFor="isActive" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                  Aktif
+                  {t('active', 'common')}
                 </label>
               </div>
             </div>
@@ -249,14 +251,14 @@ const AttributeGroupCreatePage: React.FC = () => {
               onClick={() => navigate('/attributeGroups/list')}
               disabled={isSubmitting}
             >
-              İptal
+              {t('cancel', 'common')}
             </Button>
             <Button
               type="submit"
               variant="primary"
               isLoading={isSubmitting}
             >
-              Oluştur
+              {t('create', 'common')}
             </Button>
           </div>
         </form>

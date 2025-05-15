@@ -1,6 +1,7 @@
 import React from 'react';
 import { AttributeType } from '../../../types/attribute';
 import { AttributeValidation } from '../../../services/api/attributeService';
+import { useTranslation } from '../../../context/i18nContext';
 
 import TextValidation from './TextValidation';
 import NumberValidation from './NumberValidation';
@@ -14,6 +15,8 @@ interface ValidationFactoryProps {
 }
 
 const ValidationFactory: React.FC<ValidationFactoryProps> = ({ type, validation, onChange }) => {
+  const { t, currentLanguage } = useTranslation();
+  
   // Validasyonun boş olup olmadığını kontrol et
   const isValidationEmpty = !validation || Object.keys(validation).length === 0;
   
@@ -27,10 +30,10 @@ const ValidationFactory: React.FC<ValidationFactoryProps> = ({ type, validation,
             </svg>
             <div>
               <p className="text-sm font-medium text-yellow-700 dark:text-yellow-400">
-                Henüz doğrulama kuralı belirlemediniz
+                {t('no_validation_rules_yet', 'validation')}
               </p>
               <p className="mt-1 text-sm text-yellow-600 dark:text-yellow-500">
-                Veri doğruluğunu sağlamak için lütfen en az bir doğrulama kuralı ekleyin.
+                {t('add_validation_rules_prompt', 'validation')}
               </p>
             </div>
           </div>
@@ -66,9 +69,9 @@ const ValidationFactory: React.FC<ValidationFactoryProps> = ({ type, validation,
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
               </svg>
               <div>
-                <h3 className="text-sm font-medium text-blue-700 dark:text-blue-400 mb-1">Boolean Doğrulama Kuralları</h3>
+                <h3 className="text-sm font-medium text-blue-700 dark:text-blue-400 mb-1">{t('boolean_validation_rules', 'validation')}</h3>
                 <p className="text-sm text-blue-700 dark:text-blue-400">
-                  Boolean (Evet/Hayır) tipi için özel doğrulama kuralları gerekmez. Bu tip, sadece iki değer alabilir: true veya false.
+                  {t('boolean_validation_info', 'validation')}
                 </p>
               </div>
             </div>
@@ -78,7 +81,7 @@ const ValidationFactory: React.FC<ValidationFactoryProps> = ({ type, validation,
       default:
         return (
           <div className="text-gray-500 dark:text-gray-400 italic p-4 text-center">
-            Bu öznitelik tipi için doğrulama kuralları bulunmamaktadır.
+            {t('no_validation_rules_for_type', 'validation')}
           </div>
         );
     }

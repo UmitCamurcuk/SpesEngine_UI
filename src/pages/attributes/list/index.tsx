@@ -7,9 +7,11 @@ import AttributeBadge from '../../../components/attributes/AttributeBadge';
 import attributeService from '../../../services/api/attributeService';
 import type { Attribute, AttributeApiParams } from '../../../services/api/attributeService';
 import { AttributeType } from '../../../types/attribute';
+import { useTranslation } from '../../../context/i18nContext';
 
 const AttributesListPage: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   
   // State tanımlamaları
   const [attributes, setAttributes] = useState<Attribute[]>([]);
@@ -150,7 +152,7 @@ const AttributesListPage: React.FC = () => {
   
   // Silme işlemi handler
   const handleDeleteAttribute = async (id: string, name: string) => {
-    if (window.confirm(`"${name}" özniteliğini silmek istediğinize emin misiniz?`)) {
+    if (window.confirm(`"${name}" ${t('delete_confirm', 'attributes')}`)) {
       try {
         await attributeService.deleteAttribute(id);
         // Silme başarılı olduğunda listeyi yenile
@@ -165,7 +167,7 @@ const AttributesListPage: React.FC = () => {
   const columns: TableColumn<Attribute>[] = [
     {
       key: 'name',
-      header: 'Ad',
+      header: t('name', 'attributes'),
       sortable: true,
       filterable: true,
       render: (row) => (
@@ -178,7 +180,7 @@ const AttributesListPage: React.FC = () => {
     },
     {
       key: 'code',
-      header: 'Kod',
+      header: t('code', 'attributes'),
       sortable: true,
       filterable: true,
       render: (row) => (
@@ -189,22 +191,23 @@ const AttributesListPage: React.FC = () => {
     },
     {
       key: 'type',
-      header: 'Tip',
+      header: t('type', 'attributes'),
       sortable: true,
       render: (row) => <AttributeBadge type={row.type as AttributeType} showLabel={true} />
     },
     {
       key: 'description',
-      header: 'Açıklama',
+      header: t('description', 'attributes'),
       render: (row) => (
         <div className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={row.description}>
-          {row.description || <span className="text-gray-400 italic">Açıklama yok</span>}
+          {row.description || <span className="text-gray-400 italic">{t('no_description', 'attributes')}</span>}
         </div>
       )
     },
     {
       key: 'isRequired',
-      header: 'Zorunlu',
+      header: t('is_required', 'attributes'),
+      sortable: true,
       render: (row) => (
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
           row.isRequired 
@@ -220,13 +223,13 @@ const AttributesListPage: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           )}
-          {row.isRequired ? 'Evet' : 'Hayır'}
+          {row.isRequired ? t('yes', 'attributes') : t('no', 'attributes')}
         </span>
       )
     },
     {
       key: 'updatedAt',
-      header: 'Son Güncelleme',
+      header: t('last_update', 'attributes'),
       sortable: true,
       render: (row) => (
         <div className="text-sm text-gray-500 dark:text-gray-400">
@@ -252,7 +255,7 @@ const AttributesListPage: React.FC = () => {
           e.stopPropagation();
           navigate(`/attributes/${attribute._id}`);
         }}
-        title="Görüntüle"
+        title={t('view', 'attributes')}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -266,7 +269,7 @@ const AttributesListPage: React.FC = () => {
           e.stopPropagation();
           handleDeleteAttribute(attribute._id, attribute.name);
         }}
-        title="Sil"
+        title={t('delete', 'attributes')}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -285,10 +288,10 @@ const AttributesListPage: React.FC = () => {
               <svg className="w-6 h-6 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
               </svg>
-              Öznitelikler
+              {t('attributes_title', 'attributes')}
             </h1>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              Ürün ve hizmetleriniz için öznitelikleri yönetin
+              {t('manage_attributes', 'attributes')}
             </p>
           </div>
           
@@ -301,7 +304,7 @@ const AttributesListPage: React.FC = () => {
               <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              <span>Yeni Öznitelik</span>
+              <span>{t('new_attribute', 'attributes')}</span>
             </Button>
           </div>
         </div>
@@ -309,26 +312,26 @@ const AttributesListPage: React.FC = () => {
         {/* İstatistik kartları */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-900">
-            <div className="text-blue-500 dark:text-blue-400 text-sm font-medium">Toplam Öznitelik</div>
+            <div className="text-blue-500 dark:text-blue-400 text-sm font-medium">{t('total_attributes', 'attributes')}</div>
             <div className="mt-2 flex items-baseline">
               <span className="text-2xl font-bold text-blue-700 dark:text-blue-300">{stats.total}</span>
-              <span className="ml-2 text-xs text-blue-500 dark:text-blue-400">adet</span>
+              <span className="ml-2 text-xs text-blue-500 dark:text-blue-400">{t('count_unit', 'attributes')}</span>
             </div>
           </div>
           
           <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-100 dark:border-green-900">
-            <div className="text-green-500 dark:text-green-400 text-sm font-medium">Zorunlu Olan</div>
+            <div className="text-green-500 dark:text-green-400 text-sm font-medium">{t('required_attributes', 'attributes')}</div>
             <div className="mt-2 flex items-baseline">
               <span className="text-2xl font-bold text-green-700 dark:text-green-300">{stats.required}</span>
-              <span className="ml-2 text-xs text-green-500 dark:text-green-400">adet</span>
+              <span className="ml-2 text-xs text-green-500 dark:text-green-400">{t('count_unit', 'attributes')}</span>
             </div>
           </div>
           
           <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-100 dark:border-purple-900">
-            <div className="text-purple-500 dark:text-purple-400 text-sm font-medium">Bu Sayfada</div>
+            <div className="text-purple-500 dark:text-purple-400 text-sm font-medium">{t('on_this_page', 'attributes')}</div>
             <div className="mt-2 flex items-baseline">
               <span className="text-2xl font-bold text-purple-700 dark:text-purple-300">{attributes.length}</span>
-              <span className="ml-2 text-xs text-purple-500 dark:text-purple-400">/{stats.total} öznitelik</span>
+              <span className="ml-2 text-xs text-purple-500 dark:text-purple-400">/{stats.total} {t('count_unit', 'attributes')}</span>
             </div>
           </div>
         </div>
@@ -346,7 +349,7 @@ const AttributesListPage: React.FC = () => {
             <input
               type="text"
               className="block w-full p-2 pl-10 text-sm border border-gray-300 rounded-l-lg focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
-              placeholder="Öznitelik adı, kodu veya açıklaması ara..."
+              placeholder={t('search_attributes', 'attributes')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -356,7 +359,7 @@ const AttributesListPage: React.FC = () => {
             variant="primary"
             className="rounded-l-none"
           >
-            Ara
+            {t('search', 'attributes')}
           </Button>
         </form>
       </div>
@@ -387,7 +390,7 @@ const AttributesListPage: React.FC = () => {
               <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Henüz hiç öznitelik bulunamadı</p>
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{t('no_attributes_found', 'attributes')}</p>
               <div className="mt-4">
                 <Button
                   variant="primary"
@@ -397,7 +400,7 @@ const AttributesListPage: React.FC = () => {
                   <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                   </svg>
-                  İlk Özniteliği Ekle
+                  {t('add_first_attribute', 'attributes')}
                 </Button>
               </div>
             </div>

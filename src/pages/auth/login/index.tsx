@@ -5,12 +5,14 @@ import Button from '../../../components/ui/Button';
 import { useTheme } from '../../../context/ThemeContext';
 import { useAppDispatch, useAppSelector } from '../../../redux/store';
 import { login } from '../../../redux/features/auth/authSlice';
+import { useTranslation } from '../../../context/i18nContext';
 
 const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useAppDispatch();
   const { themeType, toggleTheme } = useTheme();
+  const { t } = useTranslation();
   
   const { isAuthenticated, loading, error, accessToken, refreshToken } = useAppSelector((state) => state.auth);
   
@@ -51,7 +53,7 @@ const LoginPage = () => {
         <button
           onClick={toggleTheme}
           className="p-2 rounded-lg bg-white dark:bg-gray-800 shadow-md"
-          aria-label={themeType === 'dark' ? 'Açık temaya geç' : 'Koyu temaya geç'}
+          aria-label={themeType === 'dark' ? t('switch_to_light', 'theme') : t('switch_to_dark', 'theme')}
         >
           {themeType === 'dark' ? (
             <svg className="w-6 h-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -72,12 +74,12 @@ const LoginPage = () => {
           </div>
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
-          Hesabınıza giriş yapın
+          {t('login_to_account', 'auth')}
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-          Veya{' '}
+          {t('or', 'common')}{' '}
           <Link to="/auth/register" className="font-medium text-primary-light dark:text-primary-dark hover:text-blue-500">
-            yeni bir hesap oluşturun
+            {t('create_new_account', 'auth')}
           </Link>
         </p>
       </div>
@@ -92,7 +94,7 @@ const LoginPage = () => {
           
           <form className="space-y-6" onSubmit={handleSubmit}>
             <Input
-              label="E-posta Adresi"
+              label={t('email_address', 'auth')}
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -103,7 +105,7 @@ const LoginPage = () => {
 
             <div>
               <Input
-                label="Şifre"
+                label={t('password', 'auth')}
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -113,7 +115,7 @@ const LoginPage = () => {
               />
               <div className="text-sm text-right mt-1">
                 <Link to="/auth/forgot-password" className="font-medium text-primary-light dark:text-primary-dark hover:text-blue-500">
-                  Şifrenizi mi unuttunuz?
+                  {t('forgot_password', 'auth')}
                 </Link>
               </div>
             </div>
@@ -129,7 +131,7 @@ const LoginPage = () => {
                   onChange={(e) => setRememberMe(e.target.checked)}
                 />
                 <label htmlFor="remember_me" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
-                  Beni hatırla
+                  {t('remember_me', 'auth')}
                 </label>
               </div>
             </div>
@@ -142,7 +144,7 @@ const LoginPage = () => {
                 className="w-full py-2"
                 isLoading={loading}
               >
-                Giriş Yap
+                {t('login', 'auth')}
               </Button>
             </div>
           </form>
@@ -154,7 +156,7 @@ const LoginPage = () => {
               </div>
               <div className="relative flex justify-center text-sm">
                 <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
-                  Veya şununla devam et
+                  {t('or_continue_with', 'auth')}
                 </span>
               </div>
             </div>

@@ -10,6 +10,7 @@ import { AttributeType, AttributeTypeLabels } from '../../../types/attribute';
 import dayjs from 'dayjs';
 import 'dayjs/locale/tr';
 import AttributeHistoryList from '../../../components/attributes/AttributeHistoryList';
+import { useTranslation } from '../../../context/i18nContext';
 
 interface EditableAttributeFields {
   name: string;
@@ -24,6 +25,7 @@ interface EditableAttributeFields {
 const AttributeDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   
   // State tanımlamaları
   const [attribute, setAttribute] = useState<Attribute | null>(null);
@@ -75,18 +77,18 @@ const AttributeDetailsPage: React.FC = () => {
             const groupData = await attributeGroupService.getAttributeGroupById(groupId);
             setAttributeGroup(groupData);
           } catch (err) {
-            console.error('Öznitelik grubu getirilirken hata oluştu:', err);
+            console.error(t('attribute_group_fetch_error', 'attributes'), err);
           }
         }
       } catch (err: any) {
-        setError(err.message || 'Öznitelik bilgileri getirilirken bir hata oluştu');
+        setError(err.message || t('attribute_details_fetch_error', 'attributes'));
       } finally {
         setIsLoading(false);
       }
     };
     
     fetchAttributeDetails();
-  }, [id]);
+  }, [id, t]);
   
   // Form değişikliği handler
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -119,7 +121,7 @@ const AttributeDetailsPage: React.FC = () => {
     const errors: Record<string, string> = {};
     
     if (!editableFields.name.trim()) {
-      errors.name = 'Öznitelik adı zorunludur';
+      errors.name = t('name_required', 'attributes');
     }
     
     if (
@@ -127,7 +129,7 @@ const AttributeDetailsPage: React.FC = () => {
       (attribute.type === AttributeType.SELECT || attribute.type === AttributeType.MULTISELECT) && 
       !editableFields.options.trim()
     ) {
-      errors.options = 'Seçim tipi için en az bir seçenek belirtmelisiniz';
+      errors.options = t('options_required', 'attributes');
     }
     
     setFormErrors(errors);
@@ -168,9 +170,9 @@ const AttributeDetailsPage: React.FC = () => {
       setIsEditing(false);
       
       // Başarı bildirimi göster
-      alert('Öznitelik başarıyla güncellendi');
+      alert(t('attribute_updated_success', 'attributes'));
     } catch (err: any) {
-      setError(err.message || 'Öznitelik güncellenirken bir hata oluştu');
+      setError(err.message || t('attribute_update_error', 'attributes'));
     } finally {
       setIsSaving(false);
     }
@@ -199,12 +201,12 @@ const AttributeDetailsPage: React.FC = () => {
   const handleDelete = async () => {
     if (!id || !attribute) return;
     
-    if (window.confirm(`"${attribute.name}" özniteliğini silmek istediğinize emin misiniz?`)) {
+    if (window.confirm(`${t('confirm_delete_attribute', 'attributes')}`.replace('{{name}}', attribute.name))) {
       try {
         await attributeService.deleteAttribute(id);
         navigate('/attributes/list');
       } catch (err: any) {
-        setError(err.message || 'Öznitelik silinirken bir hata oluştu');
+        setError(err.message || t('attribute_delete_error', 'attributes'));
       }
     }
   };
@@ -230,7 +232,7 @@ const AttributeDetailsPage: React.FC = () => {
           <svg className="w-6 h-6 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
-          <h3 className="text-lg font-semibold">Hata</h3>
+          <h3 className="text-lg font-semibold">{t('error', 'common')}</h3>
         </div>
         <p className="mb-3">{error}</p>
         <Button 
@@ -238,7 +240,7 @@ const AttributeDetailsPage: React.FC = () => {
           onClick={() => navigate('/attributes/list')}
           className="mt-2"
         >
-          Listeye Dön
+          {t('back_to_list', 'common')}
         </Button>
       </div>
     );
@@ -251,15 +253,15 @@ const AttributeDetailsPage: React.FC = () => {
           <svg className="w-6 h-6 mr-2 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
           </svg>
-          <h3 className="text-lg font-semibold">Bulunamadı</h3>
+          <h3 className="text-lg font-semibold">{t('not_found', 'common')}</h3>
         </div>
-        <p className="mb-3">İstenen öznitelik bulunamadı.</p>
+        <p className="mb-3">{t('attribute_not_found', 'attributes')}</p>
         <Button 
           variant="outline" 
           onClick={() => navigate('/attributes/list')}
           className="mt-2"
         >
-          Listeye Dön
+          {t('back_to_list', 'common')}
         </Button>
       </div>
     );
@@ -278,8 +280,8 @@ const AttributeDetailsPage: React.FC = () => {
         <div className="absolute top-2 right-4 flex flex-col items-end">
           <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-md px-3 py-2 text-xs text-gray-600 dark:text-gray-300 font-mono shadow-sm">
             <div>ID: <span className="font-semibold">{attribute._id}</span></div>
-            <div className="mt-1">Oluşturulma: <span className="font-semibold">{formatDate(attribute.createdAt)}</span></div>
-            <div className="mt-1">Son Güncelleme: <span className="font-semibold">{formatDate(attribute.updatedAt)}</span></div>
+            <div className="mt-1">{t('created_at', 'common')}: <span className="font-semibold">{formatDate(attribute.createdAt)}</span></div>
+            <div className="mt-1">{t('updated_at', 'common')}: <span className="font-semibold">{formatDate(attribute.updatedAt)}</span></div>
           </div>
         </div>
         
@@ -328,7 +330,7 @@ const AttributeDetailsPage: React.FC = () => {
                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span>Kaydet</span>
+                    <span>{t('save', 'common')}</span>
                   </Button>
                   <Button
                     variant="outline"
@@ -339,7 +341,7 @@ const AttributeDetailsPage: React.FC = () => {
                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
-                    <span>İptal</span>
+                    <span>{t('cancel', 'common')}</span>
                   </Button>
                 </>
               ) : (
@@ -352,7 +354,7 @@ const AttributeDetailsPage: React.FC = () => {
                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                     </svg>
-                    <span>Listeye Dön</span>
+                    <span>{t('back_to_list', 'common')}</span>
                   </Button>
                   <Button
                     variant="primary"
@@ -362,7 +364,7 @@ const AttributeDetailsPage: React.FC = () => {
                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                     </svg>
-                    <span>Düzenle</span>
+                    <span>{t('edit', 'common')}</span>
                   </Button>
                   <Button
                     variant="secondary"
@@ -372,7 +374,7 @@ const AttributeDetailsPage: React.FC = () => {
                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
-                    <span>Sil</span>
+                    <span>{t('delete', 'common')}</span>
                   </Button>
                 </>
               )}
@@ -391,26 +393,26 @@ const AttributeDetailsPage: React.FC = () => {
               <svg className="w-5 h-5 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              Temel Bilgiler
+              {t('basic_information', 'common')}
             </h3>
             
             <div className="space-y-6">
               <div>
-                <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Kod</div>
+                <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">{t('code', 'common')}</div>
                 <div className="text-gray-800 dark:text-gray-200 font-mono bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-md">
                   {attribute.code}
                 </div>
               </div>
               
               <div>
-                <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Tip</div>
+                <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">{t('type', 'common')}</div>
                 <div className="text-gray-800 dark:text-gray-200">
-                  {AttributeTypeLabels[attribute.type]}
+                  {t(AttributeTypeLabels[attribute.type].key, AttributeTypeLabels[attribute.type].namespace)}
                 </div>
               </div>
               
               <div>
-                <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Zorunlu</div>
+                <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">{t('required', 'common')}</div>
                 {isEditing ? (
                   <div className="flex items-center">
                     <input
@@ -422,7 +424,7 @@ const AttributeDetailsPage: React.FC = () => {
                       className="h-4 w-4 text-primary-light dark:text-primary-dark focus:ring-primary-light dark:focus:ring-primary-dark rounded border-gray-300 dark:border-gray-600"
                     />
                     <label htmlFor="isRequired" className="ml-2 text-gray-800 dark:text-gray-200">
-                      {editableFields.isRequired ? 'Evet' : 'Hayır'}
+                      {editableFields.isRequired ? t('yes', 'common') : t('no', 'common')}
                     </label>
                   </div>
                 ) : (
@@ -435,7 +437,7 @@ const AttributeDetailsPage: React.FC = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         )}
                       </svg>
-                      {attribute.isRequired ? 'Evet' : 'Hayır'}
+                      {attribute.isRequired ? t('yes', 'common') : t('no', 'common')}
                     </span>
                   </div>
                 )}
@@ -443,7 +445,7 @@ const AttributeDetailsPage: React.FC = () => {
               
               {attributeGroup && (
                 <div>
-                  <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Öznitelik Grubu</div>
+                  <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">{t('attribute_group', 'attributes')}</div>
                   <div className="text-gray-800 dark:text-gray-200 flex items-center">
                     <svg className="w-4 h-4 mr-1 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
@@ -461,12 +463,12 @@ const AttributeDetailsPage: React.FC = () => {
               <svg className="w-5 h-5 mr-2 text-secondary-light dark:text-secondary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              Detaylar
+              {t('details', 'common')}
             </h3>
             
             <div className="space-y-6">
               <div>
-                <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Açıklama</div>
+                <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">{t('description', 'common')}</div>
                 {isEditing ? (
                   <textarea
                     name="description"
@@ -477,21 +479,21 @@ const AttributeDetailsPage: React.FC = () => {
                   ></textarea>
                 ) : (
                   <div className="text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-800 p-3 rounded-md min-h-[5rem]">
-                    {attribute.description || <span className="text-gray-400 italic">Açıklama yok</span>}
+                    {attribute.description || <span className="text-gray-400 italic">{t('no_description', 'common')}</span>}
                   </div>
                 )}
               </div>
               
               {(attribute.type === AttributeType.SELECT || attribute.type === AttributeType.MULTISELECT) && (
                 <div>
-                  <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Seçenekler</div>
+                  <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">{t('options', 'common')}</div>
                   {isEditing ? (
                     <div>
                       <textarea
                         name="options"
                         value={editableFields.options}
                         onChange={handleInputChange}
-                        placeholder="Seçenekleri virgülle ayırarak yazın"
+                        placeholder={t('options_placeholder', 'attributes')}
                         rows={3}
                         className={`w-full px-3 py-2 border ${
                           formErrors.options ? 'border-red-500 dark:border-red-700' : 'border-gray-300 dark:border-gray-600'
@@ -501,7 +503,7 @@ const AttributeDetailsPage: React.FC = () => {
                         <p className="mt-1 text-sm text-red-500 dark:text-red-400">{formErrors.options}</p>
                       )}
                       <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        Seçenekleri virgülle ayırın (örn: Kırmızı, Mavi, Yeşil)
+                        {t('options_help', 'attributes')}
                       </p>
                     </div>
                   ) : (
@@ -517,7 +519,7 @@ const AttributeDetailsPage: React.FC = () => {
                         ))}
                       </div>
                     ) : (
-                      <span className="text-gray-400 italic">Seçenek yok</span>
+                      <span className="text-gray-400 italic">{t('no_options', 'attributes')}</span>
                     )
                   )}
                 </div>
@@ -532,7 +534,7 @@ const AttributeDetailsPage: React.FC = () => {
             <svg className="w-5 h-5 mr-2 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
             </svg>
-            Sistem Bilgileri ve İşlem Geçmişi
+            {t('system_info_and_history', 'attributes')}
           </h3>
           
           <div className="mb-6">

@@ -7,6 +7,7 @@ import attributeService from '../../../services/api/attributeService';
 import type { Attribute } from '../../../services/api/attributeService';
 import dayjs from 'dayjs';
 import 'dayjs/locale/tr';
+import { useTranslation } from '../../../context/i18nContext';
 
 interface EditableAttributeGroupFields {
   name: string;
@@ -18,6 +19,7 @@ interface EditableAttributeGroupFields {
 const AttributeGroupDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   
   // State tanımlamaları
   const [attributeGroup, setAttributeGroup] = useState<AttributeGroup | null>(null);
@@ -67,18 +69,18 @@ const AttributeGroupDetailsPage: React.FC = () => {
             const attributeResults = await Promise.all(attributePromises);
             setAttributes(attributeResults);
           } catch (err) {
-            console.error('İlişkili öznitelikler getirilirken hata oluştu:', err);
+            console.error(t('related_attributes_fetch_error', 'attribute_groups'), err);
           }
         }
       } catch (err: any) {
-        setError(err.message || 'Öznitelik grubu bilgileri getirilirken bir hata oluştu');
+        setError(err.message || t('attribute_group_details_fetch_error', 'attribute_groups'));
       } finally {
         setIsLoading(false);
       }
     };
     
     fetchAttributeGroupDetails();
-  }, [id]);
+  }, [id, t]);
   
   // Form değişikliği handler
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -111,11 +113,11 @@ const AttributeGroupDetailsPage: React.FC = () => {
     const errors: Record<string, string> = {};
     
     if (!editableFields.name.trim()) {
-      errors.name = 'Öznitelik grup adı zorunludur';
+      errors.name = t('group_name_required', 'attribute_groups');
     }
     
     if (!editableFields.description.trim()) {
-      errors.description = 'Açıklama zorunludur';
+      errors.description = t('description_required', 'common');
     }
     
     setFormErrors(errors);
@@ -146,9 +148,9 @@ const AttributeGroupDetailsPage: React.FC = () => {
       setIsEditing(false);
       
       // Başarı bildirimi göster
-      alert('Öznitelik grubu başarıyla güncellendi');
+      alert(t('attribute_group_updated_success', 'attribute_groups'));
     } catch (err: any) {
-      setError(err.message || 'Öznitelik grubu güncellenirken bir hata oluştu');
+      setError(err.message || t('attribute_group_update_error', 'attribute_groups'));
     } finally {
       setIsSaving(false);
     }
@@ -174,12 +176,12 @@ const AttributeGroupDetailsPage: React.FC = () => {
   const handleDelete = async () => {
     if (!id || !attributeGroup) return;
     
-    if (window.confirm(`"${attributeGroup.name}" öznitelik grubunu silmek istediğinize emin misiniz?`)) {
+    if (window.confirm(t('confirm_delete_attribute_group', 'attribute_groups').replace('{{name}}', attributeGroup.name))) {
       try {
         await attributeGroupService.deleteAttributeGroup(id);
         navigate('/attributeGroups/list');
       } catch (err: any) {
-        setError(err.message || 'Öznitelik grubu silinirken bir hata oluştu');
+        setError(err.message || t('attribute_group_delete_error', 'attribute_groups'));
       }
     }
   };
@@ -205,7 +207,7 @@ const AttributeGroupDetailsPage: React.FC = () => {
           <svg className="w-6 h-6 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
-          <h3 className="text-lg font-semibold">Hata</h3>
+          <h3 className="text-lg font-semibold">{t('error', 'common')}</h3>
         </div>
         <p className="mb-3">{error}</p>
         <Button 
@@ -213,7 +215,7 @@ const AttributeGroupDetailsPage: React.FC = () => {
           onClick={() => navigate('/attributeGroups/list')}
           className="mt-2"
         >
-          Listeye Dön
+          {t('back_to_list', 'common')}
         </Button>
       </div>
     );
@@ -226,15 +228,15 @@ const AttributeGroupDetailsPage: React.FC = () => {
           <svg className="w-6 h-6 mr-2 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
           </svg>
-          <h3 className="text-lg font-semibold">Bulunamadı</h3>
+          <h3 className="text-lg font-semibold">{t('not_found', 'common')}</h3>
         </div>
-        <p className="mb-3">Öznitelik grubu bulunamadı veya silinmiş olabilir.</p>
+        <p className="mb-3">{t('attribute_group_not_found', 'attribute_groups')}</p>
         <Button 
           variant="outline" 
           onClick={() => navigate('/attributeGroups/list')}
           className="mt-2"
         >
-          Listeye Dön
+          {t('back_to_list', 'common')}
         </Button>
       </div>
     );
@@ -250,31 +252,62 @@ const AttributeGroupDetailsPage: React.FC = () => {
               <svg className="w-6 h-6 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
-              {isEditing ? 'Öznitelik Grubu Düzenle' : attributeGroup.name}
+              {isEditing ? (
+                <input
+                  type="text"
+                  name="name"
+                  value={editableFields.name}
+                  onChange={handleInputChange}
+                  className={`px-2 py-1 ml-1 border ${
+                    formErrors.name ? 'border-red-500 dark:border-red-700' : 'border-gray-300 dark:border-gray-600'
+                  } rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark w-full`}
+                  placeholder={t('attribute_group_name', 'attribute_groups')}
+                />
+              ) : (
+                attributeGroup.name
+              )}
             </h1>
-            {!isEditing && (
-              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                {attributeGroup.description}
-              </p>
-            )}
+            
+            <div className="flex mt-2 items-center space-x-2">
+              <div className="font-mono text-sm bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-gray-700 dark:text-gray-300">
+                {attributeGroup.code}
+              </div>
+              
+              <div className={`text-xs px-2 py-1 rounded-full font-medium ${
+                attributeGroup.isActive 
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' 
+                  : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+              }`}>
+                {attributeGroup.isActive ? t('active', 'common') : t('inactive', 'common')}
+              </div>
+            </div>
           </div>
           
-          <div className="flex mt-4 md:mt-0 space-x-3">
+          <div className="flex items-start md:items-center space-x-2 mt-4 md:mt-0">
             {isEditing ? (
               <>
                 <Button
+                  variant="primary"
+                  className="flex items-center"
+                  onClick={handleSave}
+                  isLoading={isSaving}
+                  disabled={isSaving}
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>{t('save', 'common')}</span>
+                </Button>
+                <Button
                   variant="outline"
+                  className="flex items-center"
                   onClick={handleCancelEdit}
                   disabled={isSaving}
                 >
-                  İptal
-                </Button>
-                <Button
-                  variant="primary"
-                  onClick={handleSave}
-                  isLoading={isSaving}
-                >
-                  Kaydet
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <span>{t('cancel', 'common')}</span>
                 </Button>
               </>
             ) : (
@@ -287,25 +320,27 @@ const AttributeGroupDetailsPage: React.FC = () => {
                   <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                   </svg>
-                  <span>Listeye Dön</span>
+                  <span>{t('back_to_list', 'common')}</span>
                 </Button>
                 <Button
                   variant="primary"
+                  className="flex items-center"
                   onClick={() => setIsEditing(true)}
                 >
-                  <svg className="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
-                  <span>Düzenle</span>
+                  <span>{t('edit', 'common')}</span>
                 </Button>
                 <Button
-                  variant="danger"
+                  variant="secondary"
+                  className="flex items-center text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900"
                   onClick={handleDelete}
                 >
-                  <svg className="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
-                  <span>Sil</span>
+                  <span>{t('delete', 'common')}</span>
                 </Button>
               </>
             )}
@@ -313,182 +348,155 @@ const AttributeGroupDetailsPage: React.FC = () => {
         </div>
       </div>
       
-      {/* İçerik Kartı */}
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
-        {isEditing ? (
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Sol Kolon */}
-              <div className="space-y-6">
-                {/* Grup Adı */}
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Grup Adı <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={editableFields.name}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                      formErrors.name
-                        ? 'border-red-300 focus:ring-red-500 dark:border-red-700'
-                        : 'border-gray-300 focus:ring-primary-light dark:border-gray-700 dark:focus:ring-primary-dark'
-                    } dark:bg-gray-800 dark:text-white`}
-                  />
-                  {formErrors.name && (
-                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.name}</p>
-                  )}
-                </div>
-                
-                {/* Grup Kodu (salt okunur) */}
-                <div>
-                  <label htmlFor="code" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Grup Kodu
-                  </label>
-                  <input
-                    type="text"
-                    id="code"
-                    name="code"
-                    value={editableFields.code}
-                    disabled
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 font-mono"
-                  />
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Kod değiştirilemez
-                  </p>
-                </div>
+      {/* Ana İçerik */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Sol Panel */}
+        <div className="md:col-span-1 space-y-6">
+          {/* Meta Bilgiler */}
+          <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+              <svg className="w-5 h-5 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {t('metadata', 'common')}
+            </h3>
+            
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="font-medium text-gray-500 dark:text-gray-400">{t('created_at', 'common')}</span>
+                <span className="text-gray-800 dark:text-gray-200">{formatDate(attributeGroup.createdAt)}</span>
               </div>
               
-              {/* Sağ Kolon */}
-              <div className="space-y-6">
-                {/* Açıklama */}
-                <div>
-                  <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Açıklama <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    id="description"
-                    name="description"
-                    value={editableFields.description}
-                    onChange={handleInputChange}
-                    rows={5}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                      formErrors.description
-                        ? 'border-red-300 focus:ring-red-500 dark:border-red-700'
-                        : 'border-gray-300 focus:ring-primary-light dark:border-gray-700 dark:focus:ring-primary-dark'
-                    } dark:bg-gray-800 dark:text-white`}
-                  />
-                  {formErrors.description && (
-                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.description}</p>
-                  )}
-                </div>
-                
-                {/* Aktif/Pasif Durumu */}
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="isActive"
-                    name="isActive"
-                    checked={editableFields.isActive}
-                    onChange={handleInputChange}
-                    className="h-4 w-4 text-primary-light focus:ring-primary-light border-gray-300 rounded dark:border-gray-700 dark:bg-gray-800 dark:focus:ring-primary-dark"
-                  />
-                  <label htmlFor="isActive" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                    Aktif
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Genel Bilgiler */}
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Genel Bilgiler</h3>
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 space-y-4">
-                  <div>
-                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Grup Kodu</p>
-                    <p className="mt-1 font-mono text-gray-900 dark:text-white">{attributeGroup.code}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Durum</p>
-                    <p className="mt-1">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        attributeGroup.isActive 
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' 
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
-                      }`}>
-                        {attributeGroup.isActive ? 'Aktif' : 'Pasif'}
-                      </span>
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Oluşturulma Tarihi</p>
-                    <p className="mt-1 text-gray-900 dark:text-white">{formatDate(attributeGroup.createdAt)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Son Güncelleme</p>
-                    <p className="mt-1 text-gray-900 dark:text-white">{formatDate(attributeGroup.updatedAt)}</p>
-                  </div>
-                </div>
+              <div className="flex justify-between">
+                <span className="font-medium text-gray-500 dark:text-gray-400">{t('updated_at', 'common')}</span>
+                <span className="text-gray-800 dark:text-gray-200">{formatDate(attributeGroup.updatedAt)}</span>
               </div>
               
-              {/* İlişkili Öznitelikler */}
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center justify-between">
-                  <span>İlişkili Öznitelikler</span>
-                  <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
-                    {Array.isArray(attributeGroup.attributes) ? attributeGroup.attributes.length : 0} öznitelik
-                  </span>
-                </h3>
-                
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                  {Array.isArray(attributeGroup.attributes) && attributeGroup.attributes.length > 0 ? (
-                    <div className="space-y-2">
-                      {attributes.length > 0 ? (
-                        attributes.map((attribute) => (
-                          <div 
-                            key={attribute._id}
-                            className="flex items-center justify-between p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-md"
-                          >
-                            <div>
-                              <p className="font-medium text-gray-900 dark:text-white">{attribute.name}</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">{attribute.code}</p>
-                            </div>
-                            <Button
-                              variant="outline"
-                              className="text-sm p-1"
-                              onClick={() => navigate(`/attributes/${attribute._id}`)}
-                            >
-                              Görüntüle
-                            </Button>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-center py-4 text-gray-500 dark:text-gray-400">
-                          <svg className="w-8 h-8 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
-                          </svg>
-                          <p>Öznitelik detayları yükleniyor...</p>
-                        </div>
-                      )}
+              <div className="flex justify-between">
+                <span className="font-medium text-gray-500 dark:text-gray-400">ID</span>
+                <span className="text-gray-800 dark:text-gray-200 font-mono text-xs truncate" style={{ maxWidth: '180px' }}>{attributeGroup._id}</span>
+              </div>
+              
+              <div className="flex justify-between">
+                <span className="font-medium text-gray-500 dark:text-gray-400">{t('status', 'common')}</span>
+                <span className={`${
+                  attributeGroup.isActive 
+                    ? 'text-green-600 dark:text-green-400' 
+                    : 'text-red-600 dark:text-red-400'
+                }`}>
+                  {isEditing ? (
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="isActive"
+                        name="isActive"
+                        checked={editableFields.isActive}
+                        onChange={handleInputChange}
+                        className="h-4 w-4 text-primary-light focus:ring-primary-light border-gray-300 rounded"
+                      />
+                      <label htmlFor="isActive" className="ml-2">
+                        {editableFields.isActive ? t('active', 'common') : t('inactive', 'common')}
+                      </label>
                     </div>
                   ) : (
-                    <div className="text-center py-4 text-gray-500 dark:text-gray-400">
-                      <svg className="w-8 h-8 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <p>Bu gruba bağlı öznitelik bulunmuyor</p>
-                    </div>
+                    attributeGroup.isActive ? t('active', 'common') : t('inactive', 'common')
                   )}
-                </div>
+                </span>
               </div>
             </div>
           </div>
-        )}
+        </div>
+        
+        {/* Sağ Panel */}
+        <div className="md:col-span-2 space-y-6">
+          {/* Açıklama */}
+          <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+              {t('description', 'common')}
+            </h3>
+            
+            {isEditing ? (
+              <div>
+                <textarea
+                  name="description"
+                  value={editableFields.description}
+                  onChange={handleInputChange}
+                  rows={4}
+                  className={`w-full px-3 py-2 border ${
+                    formErrors.description ? 'border-red-500 dark:border-red-700' : 'border-gray-300 dark:border-gray-600'
+                  } rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark`}
+                  placeholder={t('description_placeholder', 'attributes')}
+                ></textarea>
+                {formErrors.description && (
+                  <p className="mt-1 text-sm text-red-500 dark:text-red-400">{formErrors.description}</p>
+                )}
+              </div>
+            ) : (
+              <div className="prose prose-sm dark:prose-invert max-w-none">
+                <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line">
+                  {attributeGroup.description || <span className="text-gray-400 italic">{t('no_description', 'common')}</span>}
+                </p>
+              </div>
+            )}
+          </div>
+          
+          {/* İlişkili Öznitelikler */}
+          <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center justify-between">
+                <span>{t('related_attributes', 'attribute_groups')}</span>
+                <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
+                  {Array.isArray(attributeGroup.attributes) ? attributeGroup.attributes.length : 0} {t('attribute', 'attribute_groups')}
+                </span>
+              </h3>
+              
+              <div className="space-y-4">
+                {attributes.length > 0 ? (
+                  attributes.map(attribute => (
+                    <div 
+                      key={attribute._id}
+                      className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-750 transition duration-150"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-medium text-gray-900 dark:text-white">{attribute.name}</h4>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 font-mono mt-1">{attribute.code}</p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/attributes/details/${attribute._id}`)}
+                          >
+                            {t('view', 'common')}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : Array.isArray(attributeGroup.attributes) && attributeGroup.attributes.length > 0 ? (
+                  <div className="flex items-center justify-center py-6 text-gray-500 dark:text-gray-400">
+                    <svg className="animate-spin mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <svg className="w-5 h-5 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
+                    </svg>
+                    <p>{t('attributes_loading', 'attribute_groups')}</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8 text-gray-500 dark:text-gray-400">
+                    <svg className="w-12 h-12 mb-3 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p>{t('no_related_attributes', 'attribute_groups')}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

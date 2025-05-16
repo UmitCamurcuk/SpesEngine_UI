@@ -1,34 +1,10 @@
 import api from './config';
-
-export interface PermissionGroup {
-  _id: string;
-  name: string;
-  description: string;
-  code: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CreatePermissionGroupDto {
-  name: string;
-  description: string;
-  code: string;
-  isActive?: boolean;
-}
-
-export interface UpdatePermissionGroupDto {
-  name?: string;
-  description?: string;
-  code?: string;
-  isActive?: boolean;
-}
-
-export interface PermissionGroupListParams {
-  page?: number;
-  limit?: number;
-  search?: string;
-}
+import {
+  PermissionGroup,
+  CreatePermissionGroupDto,
+  UpdatePermissionGroupDto,
+  PermissionGroupListParams
+} from '../../types/permissionGroup';
 
 const permissionGroupService = {
   /**

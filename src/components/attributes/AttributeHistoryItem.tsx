@@ -1,5 +1,5 @@
 import React from 'react';
-import { History, ActionType } from '../../services/api/historyService';
+import { History, ActionType } from '../../types/history';
 import dayjs from 'dayjs';
 import 'dayjs/locale/tr';
 

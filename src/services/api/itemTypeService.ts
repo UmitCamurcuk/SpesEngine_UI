@@ -1,49 +1,10 @@
 import api from './config';
-
-// API parametreleri
-export interface ItemTypeApiParams {
-  page?: number;
-  limit?: number;
-  sort?: string;
-  direction?: 'asc' | 'desc';
-  search?: string;
-  isActive?: boolean;
-  [key: string]: any;
-}
-
-// ItemType modeli
-export interface ItemType {
-  _id: string;
-  name: string;
-  code: string;
-  description: string;
-  attributeGroups?: string[];
-  attributes?: string[];
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// Response için tip tanımı
-interface ApiResponse<T> {
-  success: boolean;
-  data: T;
-  count?: number;
-  total?: number;
-  page?: number;
-  limit?: number;
-  message?: string;
-}
-
-// Yeni ItemType için tip tanımı
-export interface CreateItemTypeDto {
-  name: string;
-  code: string;
-  description: string;
-  attributeGroups?: string[];
-  attributes?: string[];
-  isActive?: boolean;
-}
+import {
+  ItemTypeApiParams,
+  ItemType,
+  ApiResponse,
+  CreateItemTypeDto
+} from '../../types/itemType';
 
 // ItemType servisi
 const itemTypeService = {

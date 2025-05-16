@@ -6,6 +6,19 @@ export interface Role {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  history?: HistoryEntry[];
+}
+
+export interface HistoryEntry {
+  _id: string;
+  action: string;
+  changedBy: string;
+  changedAt: string;
+  changes: {
+    field: string;
+    oldValue: any;
+    newValue: any;
+  }[];
 }
 
 export interface CreateRoleDto {

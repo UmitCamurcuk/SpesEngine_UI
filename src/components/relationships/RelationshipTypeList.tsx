@@ -130,16 +130,10 @@ const RelationshipTypeList = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end space-x-2">
                       <button
-                        onClick={() => navigate(`/relationships/types/${type._id}`)}
+                        onClick={() => navigate(`/relationships/types/details/${type._id}`)}
                         className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
                       >
                         {t('view', 'common')}
-                      </button>
-                      <button
-                        onClick={() => navigate(`/relationships/types/edit/${type._id}`)}
-                        className="text-yellow-600 dark:text-yellow-400 hover:text-yellow-800 dark:hover:text-yellow-300"
-                      >
-                        {t('edit', 'common')}
                       </button>
                       <button
                         onClick={() => handleDelete(type._id)}

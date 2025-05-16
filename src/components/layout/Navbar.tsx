@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { useAppDispatch, useAppSelector } from '../../redux/store';
 import { logout } from '../../redux/features/auth/authSlice';
-import LanguageSwitcher from '../common/LanguageSwitcher';
 import { useTranslation } from '../../context/i18nContext';
 
 interface NavbarProps {
@@ -48,9 +47,6 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
 
         {/* Sağ Taraf: Tema Değiştirici ve Kullanıcı Menü */}
         <div className="flex items-center space-x-3">
-          {/* Dil Değiştirici */}
-          <LanguageSwitcher />
-
           {/* Tema Değiştirici */}
           <button
             onClick={toggleTheme}

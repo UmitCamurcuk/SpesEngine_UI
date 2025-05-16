@@ -37,8 +37,10 @@ import LocalizationsListPage from '../pages/localizations/list';
 import LocalizationCreatePage from '../pages/localizations/create';
 import LocalizationDetailsPage from '../pages/localizations/details';
 import RelationshipTypesListPage from '../pages/relationships/types/list';
-import CreateRelationshipTypePage from '../pages/relationships/types/create';
-import EditRelationshipTypePage from '../pages/relationships/types/edit';
+import CreateRelationshipTypePage from '../pages/relationships/types/create/index';
+import RelationshipTypeDetailsPage from '../pages/relationships/types/details';
+import SystemSettingsPage from '../pages/system/settings';
+
 // Ana sayfa için basit bir test component'i
 const HomePage = () => (
   <div>
@@ -189,8 +191,14 @@ const routes: RouteObject[] = [
             element: <CreateRelationshipTypePage />
           },
           {
-            path: 'relationships/types/edit/:id',
-            element: <EditRelationshipTypePage />
+            path: 'relationships/types/details/:id',
+            element: <RelationshipTypeDetailsPage />
+          },
+          
+          // Sistem Ayarları
+          {
+            path: 'system/settings',
+            element: <SystemSettingsPage />
           },
           
           // Roller

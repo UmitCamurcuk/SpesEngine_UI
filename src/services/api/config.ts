@@ -63,6 +63,10 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
+    // Mevcut dil bilgisini localStorage'dan al ve Accept-Language header'ına ekle
+    const currentLanguage = localStorage.getItem('language') || 'tr';
+    config.headers['Accept-Language'] = currentLanguage;
+    
     // Validasyon alanlarını temizle (POST ve PUT isteklerinde)
     if ((config.method === 'post' || config.method === 'put') && config.data) {
       //console.log('[API Config] Veri gönderilmeden önce tüm veri:', JSON.stringify(config.data, null, 2));

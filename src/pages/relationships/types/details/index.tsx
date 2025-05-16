@@ -4,7 +4,7 @@ import { RelationshipTypeForm } from '../../../../components/relationships';
 import { relationshipService } from '../../../../services';
 import { useTranslation } from '../../../../context/i18nContext';
 
-const EditRelationshipTypePage = () => {
+const RelationshipTypeDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -20,11 +20,11 @@ const EditRelationshipTypePage = () => {
     <div className="container mx-auto px-4 py-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          {t('edit_relationship_type', 'relationships')}
+          {t('relationship_type_details', 'relationships')}
         </h1>
         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-          {t('edit_relationship_type_description', 'relationships') || 
-            'İlişki tipi ayarlarını güncelleyin ve yönetin.'}
+          {t('relationship_type_details_description', 'relationships') || 
+            'İlişki tipi detaylarını görüntüleyin ve düzenleyin.'}
         </p>
       </div>
       
@@ -45,4 +45,4 @@ const EditRelationshipTypePage = () => {
   );
 };
 
-export default EditRelationshipTypePage; 
+export default RelationshipTypeDetailsPage; 

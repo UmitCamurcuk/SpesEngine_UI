@@ -1,4 +1,4 @@
-import axios from 'axios';
+import api from './config';
 import { API_URL } from '../../constants/apiConfig';
 
 // Çeviri API'leri için service
@@ -7,17 +7,12 @@ const localizationService = {
   getTranslations: async (lang: string) => {
     try {
       console.log(`[localizationService] ${lang} dili için çeviriler isteniyor`);
-      const token = localStorage.getItem('accessToken');
-      console.log(`[localizationService] Token durumu:`, token ? 'Token var' : 'Token yok');
       
       const requestUrl = `${API_URL}/localizations/${lang}`;
       console.log(`[localizationService] İstek URL: ${requestUrl}`);
       
-      const response = await axios.get(requestUrl, {
-        headers: {
-          'Accept-Language': lang,
-          'Authorization': token ? `Bearer ${token}` : ''
-        },
+      // Ortak API yapılandırmasını kullan
+      const response = await api.get(requestUrl, {
         withCredentials: true
       });
       
@@ -35,12 +30,8 @@ const localizationService = {
   getSupportedLanguages: async () => {
     try {
       console.log('[localizationService] Desteklenen diller isteniyor');
-      const token = localStorage.getItem('accessToken');
       
-      const response = await axios.get(`${API_URL}/localizations/languages`, {
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : ''
-        },
+      const response = await api.get(`${API_URL}/localizations/languages`, {
         withCredentials: true
       });
       
@@ -56,12 +47,8 @@ const localizationService = {
   upsertTranslation: async (data: { key: string, namespace?: string, translations: Record<string, string> }) => {
     try {
       console.log('[localizationService] Çeviri ekleniyor/güncelleniyor:', data);
-      const token = localStorage.getItem('accessToken');
       
-      const response = await axios.post(`${API_URL}/localizations`, data, {
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : ''
-        },
+      const response = await api.post(`${API_URL}/localizations`, data, {
         withCredentials: true
       });
       

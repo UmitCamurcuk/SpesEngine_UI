@@ -20,6 +20,11 @@ import FamiliesListPage from './pages/families/list';
 import FamilyCreatePage from './pages/families/create';
 import FamilyDetailsPage from './pages/families/details';
 
+// Relationships
+import RelationshipTypesListPage from './pages/relationships/types/list';
+import CreateRelationshipTypePage from './pages/relationships/types/create';
+import EditRelationshipTypePage from './pages/relationships/types/edit';
+
 // Localizations
 import LocalizationsListPage from './pages/localizations/list';
 import LocalizationCreatePage from './pages/localizations/create';
@@ -48,6 +53,10 @@ const HomePage = () => (
         <a href="/families/list" className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-100 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-800/30 transition-colors">
           <h2 className="text-lg font-semibold text-green-700 dark:text-green-400 mb-2">Ürün Aileleri</h2>
           <p className="text-sm text-gray-600 dark:text-gray-400">Ürün ailelerini yönetin.</p>
+        </a>
+        <a href="/relationships/types/list" className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-100 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-800/30 transition-colors">
+          <h2 className="text-lg font-semibold text-purple-700 dark:text-purple-400 mb-2">İlişki Tipleri</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Varlık ilişki tiplerini yönetin.</p>
         </a>
       </div>
     </div>
@@ -86,6 +95,14 @@ function App() {
           <Route path="list" element={<FamiliesListPage />} />
           <Route path="create" element={<FamilyCreatePage />} />
           <Route path="details/:id" element={<FamilyDetailsPage />} />
+        </Route>
+        
+        <Route path="/relationships" element={<AppLayout />}>
+          <Route path="types">
+            <Route path="list" element={<RelationshipTypesListPage />} />
+            <Route path="create" element={<CreateRelationshipTypePage />} />
+            <Route path="edit/:id" element={<EditRelationshipTypePage />} />
+          </Route>
         </Route>
         
         <Route path="/localizations" element={<AppLayout />}>

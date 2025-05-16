@@ -7,6 +7,79 @@ export enum AttributeType {
   MULTISELECT = 'multiselect'
 }
 
+// API parametreleri
+export interface AttributeApiParams {
+  page?: number;
+  limit?: number;
+  sort?: string;
+  direction?: 'asc' | 'desc';
+  search?: string;
+  [key: string]: any;
+}
+
+// Validation tipi
+export interface AttributeValidation {
+  // Metin tipi için
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  
+  // Sayı tipi için
+  min?: number;
+  max?: number;
+  isInteger?: boolean;
+  isPositive?: boolean;
+  isNegative?: boolean;
+  isZero?: boolean;
+  
+  // Tarih tipi için
+  minDate?: string; // ISO string formatında
+  maxDate?: string; // ISO string formatında
+  
+  // Select/MultiSelect için
+  minSelections?: number;
+  maxSelections?: number;
+}
+
+// Attribute modeli
+export interface Attribute {
+  _id: string;
+  name: string;
+  code: string;
+  type: AttributeType;
+  description: string;
+  isRequired: boolean;
+  options: string[];
+  attributeGroup?: string;
+  validations?: AttributeValidation;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Response için tip tanımı
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  count?: number;
+  total?: number;
+  page?: number;
+  limit?: number;
+  message?: string;
+}
+
+// Yeni attribute için tip tanımı
+export interface CreateAttributeDto {
+  name: string;
+  code: string;
+  type: AttributeType;
+  description?: string;
+  isRequired?: boolean;
+  options?: string[];
+  attributeGroup?: string;
+  validations?: AttributeValidation;
+}
+
 // Type-safe attribute tip kontrolleri için yardımcı fonksiyonlar
 
 /**

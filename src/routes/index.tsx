@@ -36,6 +36,9 @@ import PermissionGroupDetailsPage from '../pages/permissionGroups/details';
 import LocalizationsListPage from '../pages/localizations/list';
 import LocalizationCreatePage from '../pages/localizations/create';
 import LocalizationDetailsPage from '../pages/localizations/details';
+import RelationshipTypesListPage from '../pages/relationships/types/list';
+import CreateRelationshipTypePage from '../pages/relationships/types/create';
+import EditRelationshipTypePage from '../pages/relationships/types/edit';
 // Ana sayfa için basit bir test component'i
 const HomePage = () => (
   <div>
@@ -174,6 +177,20 @@ const routes: RouteObject[] = [
           {
             path: 'families/details/:id',
             element: <FamilyDetailsPage />
+          },
+          
+          // İlişkiler
+          {
+            path: 'relationships/types/list',
+            element: <RelationshipTypesListPage />
+          },
+          {
+            path: 'relationships/types/create',
+            element: <CreateRelationshipTypePage />
+          },
+          {
+            path: 'relationships/types/edit/:id',
+            element: <EditRelationshipTypePage />
           },
           
           // Roller

@@ -5,6 +5,7 @@ import type { TableColumn, SortParams, FilterParams, PaginationParams } from '..
 import Button from '../../../components/ui/Button';
 import localizationService from '../../../services/api/localizationService';
 import { useTranslation } from '../../../context/i18nContext';
+import { toast } from 'react-hot-toast';
 
 // Lokalizasyon tipi
 interface Localization {
@@ -77,100 +78,134 @@ const LocalizationsListPage: React.FC = () => {
     setError(null);
     
     try {
-      // API parametrelerini hazırla (şimdilik sadece Frontend'de filtreleme yapıyoruz)
-      // Backend servisi tamamlandığında API parametreleri eklenecek
+      // Tüm diller için çevirileri paralel olarak getir
+      const translationPromises = languages.map(lang => 
+        localizationService.getTranslations(lang)
+      );
       
-      // Basit bir demo için şu anda TR dilindeki tüm çevirileri alıyoruz
-      const result = await localizationService.getTranslations('tr');
+      const results = await Promise.all(translationPromises);
       
-      if (result.success && result.data) {
-        // Çevirileri düz bir diziye dönüştür
-        const allLocalizations: Localization[] = [];
+      // Her dilin çevirilerini birleştir
+      const allLocalizations: Localization[] = [];
+      const translationMap = new Map<string, Record<string, string>>();
+      
+      // Her dil için çevirileri işle
+      results.forEach((result, index) => {
+        const lang = languages[index];
         
-        // Her namespace için
-        Object.entries(result.data).forEach(([namespace, translations]) => {
-          // Her anahtar-değer çifti için
-          Object.entries(translations as Record<string, string>).forEach(([key, value]) => {
-            // Tüm dillerdeki çevirileri almak için ayrı request atılması gerekiyor
-            // Şimdilik sadece TR dilini gösteriyoruz
-            const translationObj: Record<string, string> = { tr: value };
-            
-            allLocalizations.push({
-              _id: `${namespace}:${key}`, // Geçici ID
-              key,
-              namespace,
-              translations: translationObj,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            });
-          });
-        });
-        
-        // Filtreleme, arama ve sıralama işlemlerini uygula
-        let filteredLocalizations = [...allLocalizations];
-        
-        // Arama terimini uygula
-        if (searchTerm) {
-          const lowerSearch = searchTerm.toLowerCase();
-          filteredLocalizations = filteredLocalizations.filter(
-            item => item.key.toLowerCase().includes(lowerSearch) ||
-                   item.namespace.toLowerCase().includes(lowerSearch)
-          );
-        }
-        
-        // Filtreleri uygula
-        if (filters.length > 0) {
-          filteredLocalizations = filteredLocalizations.filter(item => {
-            return filters.every(filter => {
-              if (filter.field === 'namespace') {
-                return item.namespace === filter.value;
+        if (result.success && result.data) {
+          // Her namespace için
+          Object.entries(result.data).forEach(([namespace, translations]) => {
+            // Her anahtar-değer çifti için
+            Object.entries(translations as Record<string, string>).forEach(([key, value]) => {
+              const localizationKey = `${namespace}:${key}`;
+              
+              // Eğer bu çeviri daha önce eklendiyse, sadece yeni dili ekle
+              if (translationMap.has(localizationKey)) {
+                const existingTranslations = translationMap.get(localizationKey)!;
+                translationMap.set(localizationKey, {
+                  ...existingTranslations,
+                  [lang]: value
+                });
+              } else {
+                // Yeni çeviri oluştur
+                translationMap.set(localizationKey, { [lang]: value });
+                
+                allLocalizations.push({
+                  _id: localizationKey,
+                  key,
+                  namespace,
+                  translations: { [lang]: value },
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
+                });
               }
-              return true;
             });
           });
         }
-        
-        // Sıralamayı uygula
-        if (sort) {
-          filteredLocalizations.sort((a, b) => {
-            if (sort.field === 'key') {
-              return sort.direction === 'asc' 
-                ? a.key.localeCompare(b.key)
-                : b.key.localeCompare(a.key);
+      });
+      
+      // Çevirileri güncelle
+      allLocalizations.forEach(loc => {
+        loc.translations = translationMap.get(loc._id) || loc.translations;
+      });
+      
+      // Filtreleme, arama ve sıralama işlemlerini uygula
+      let filteredLocalizations = [...allLocalizations];
+      
+      // Arama terimini uygula
+      if (searchTerm) {
+        const lowerSearch = searchTerm.toLowerCase();
+        filteredLocalizations = filteredLocalizations.filter(
+          item => item.key.toLowerCase().includes(lowerSearch) ||
+                 item.namespace.toLowerCase().includes(lowerSearch) ||
+                 Object.values(item.translations).some(translation => 
+                   translation.toLowerCase().includes(lowerSearch)
+                 )
+        );
+      }
+      
+      // Filtreleri uygula
+      if (filters.length > 0) {
+        filteredLocalizations = filteredLocalizations.filter(item => {
+          return filters.every(filter => {
+            if (filter.field === 'namespace') {
+              return item.namespace === filter.value;
             }
-            if (sort.field === 'namespace') {
-              return sort.direction === 'asc'
-                ? a.namespace.localeCompare(b.namespace)
-                : b.namespace.localeCompare(a.namespace);
-            }
-            return 0;
+            return true;
           });
-        }
-        
-        // Pagination işlemleri
-        const startIndex = (pagination.page - 1) * pagination.limit;
-        const endIndex = startIndex + pagination.limit;
-        const paginatedLocalizations = filteredLocalizations.slice(startIndex, endIndex);
-        
-        setLocalizations(paginatedLocalizations);
-        setPagination(prev => ({
-          ...prev,
-          total: filteredLocalizations.length
-        }));
-        
-        // İstatistikleri hesapla
-        const namespaces: Record<string, number> = {};
-        allLocalizations.forEach(item => {
-          namespaces[item.namespace] = (namespaces[item.namespace] || 0) + 1;
-        });
-        
-        setStats({
-          total: allLocalizations.length,
-          namespaces
         });
       }
+      
+      // Sıralamayı uygula
+      if (sort) {
+        filteredLocalizations.sort((a, b) => {
+          if (sort.field === 'key') {
+            return sort.direction === 'asc' 
+              ? a.key.localeCompare(b.key)
+              : b.key.localeCompare(a.key);
+          }
+          if (sort.field === 'namespace') {
+            return sort.direction === 'asc'
+              ? a.namespace.localeCompare(b.namespace)
+              : b.namespace.localeCompare(a.namespace);
+          }
+          if (sort.field.startsWith('translation_')) {
+            const lang = sort.field.replace('translation_', '');
+            const aValue = a.translations[lang] || '';
+            const bValue = b.translations[lang] || '';
+            return sort.direction === 'asc'
+              ? aValue.localeCompare(bValue)
+              : bValue.localeCompare(aValue);
+          }
+          return 0;
+        });
+      }
+      
+      // Pagination işlemleri
+      const startIndex = (pagination.page - 1) * pagination.limit;
+      const endIndex = startIndex + pagination.limit;
+      const paginatedLocalizations = filteredLocalizations.slice(startIndex, endIndex);
+      
+      setLocalizations(paginatedLocalizations);
+      setPagination(prev => ({
+        ...prev,
+        total: filteredLocalizations.length
+      }));
+      
+      // İstatistikleri hesapla
+      const namespaces: Record<string, number> = {};
+      allLocalizations.forEach(item => {
+        namespaces[item.namespace] = (namespaces[item.namespace] || 0) + 1;
+      });
+      
+      setStats({
+        total: allLocalizations.length,
+        namespaces
+      });
     } catch (err: any) {
       setError(err.message || 'Çeviriler getirilirken bir hata oluştu');
+      toast.error('Çeviriler getirilirken bir hata oluştu');
     } finally {
       setIsLoading(false);
     }
@@ -261,24 +296,16 @@ const LocalizationsListPage: React.FC = () => {
         </div>
       )
     },
-    {
-      key: 'tr',
-      header: 'Türkçe',
-      render: (row) => (
-        <div className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={row.translations['tr']}>
-          {row.translations['tr'] || '-'}
+    ...languages.map(lang => ({
+      key: `translation_${lang}`,
+      header: lang === 'tr' ? 'Türkçe' : lang === 'en' ? 'İngilizce' : lang.toUpperCase(),
+      sortable: true,
+      render: (row: Localization) => (
+        <div className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={row.translations[lang]}>
+          {row.translations[lang] || '-'}
         </div>
       )
-    },
-    {
-      key: 'en',
-      header: 'İngilizce',
-      render: (row) => (
-        <div className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={row.translations['en']}>
-          {row.translations['en'] || '-'}
-        </div>
-      )
-    },
+    })),
     {
       key: 'actions',
       header: 'İşlemler',

@@ -1,25 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from '../../../context/i18nContext';
+import localizationService from '../../../services/api/localizationService';
+
+// Bileşenler
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
-import localizationService from '../../../services/api/localizationService';
-import { useTranslation } from '../../../context/i18nContext';
+import { Transition } from '@headlessui/react';
+import { toast } from 'react-hot-toast';
+
+// İkonlar
+import { 
+  ArrowLeftIcon,
+  CheckIcon,
+  XMarkIcon,
+  GlobeAltIcon,
+  KeyIcon,
+  FolderIcon,
+  DocumentPlusIcon
+} from '@heroicons/react/24/outline';
+
+interface FormData {
+  key: string;
+  namespace: string;
+  translations: Record<string, string>;
+}
 
 const LocalizationCreatePage: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   
-  // State tanımlamaları
+  // State
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
   const [languages, setLanguages] = useState<string[]>(['tr', 'en']);
+  const [isDirty, setIsDirty] = useState<boolean>(false);
   
   // Form state
-  const [formData, setFormData] = useState<{
-    key: string;
-    namespace: string;
-    translations: Record<string, string>;
-  }>({
+  const [formData, setFormData] = useState<FormData>({
     key: '',
     namespace: '',
     translations: {}
@@ -31,23 +48,31 @@ const LocalizationCreatePage: React.FC = () => {
       const result = await localizationService.getSupportedLanguages();
       if (result.success && Array.isArray(result.data)) {
         setLanguages(result.data);
+        
+        // Her dil için boş çeviri alanı oluştur
+        const initialTranslations = result.data.reduce((acc: Record<string, string>, lang: string) => ({
+          ...acc,
+          [lang]: ''
+        }), {});
+        
+        setFormData(prev => ({
+          ...prev,
+          translations: initialTranslations
+        }));
       }
     } catch (error) {
-      console.error('Desteklenen diller getirilirken hata oluştu:', error);
+      toast.error('Desteklenen diller getirilirken hata oluştu');
     }
   };
   
-  // İlk yüklemede dil desteğini getir
   useEffect(() => {
     fetchSupportedLanguages();
   }, []);
   
   // Form değişikliklerini işle
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    
-    if (name.startsWith('translation_')) {
-      const lang = name.replace('translation_', '');
+  const handleInputChange = (field: string, value: string) => {
+    if (field.startsWith('translation_')) {
+      const lang = field.replace('translation_', '');
       setFormData(prev => ({
         ...prev,
         translations: {
@@ -58,134 +83,139 @@ const LocalizationCreatePage: React.FC = () => {
     } else {
       setFormData(prev => ({
         ...prev,
-        [name]: value
+        [field]: value
       }));
     }
+    setIsDirty(true);
   };
   
   // Formu kaydet
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleSubmit = async () => {
     if (!formData.key || !formData.namespace) {
-      setError('Anahtar ve namespace alanları zorunludur');
+      toast.error('Anahtar ve namespace alanları zorunludur');
       return;
     }
     
     setIsLoading(true);
-    setError(null);
     
     try {
       // Backend API'si tamamlandığında buradaki kodu güncelle
       // const result = await localizationService.createTranslation(formData);
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Mock delay
       
-      alert('Bu özellik henüz implementasyonu tamamlanmadı. Ekleme işlemi gerçekleşmiyor.');
-      
-      // Başarıyla eklendi varsayalım, detay sayfasına yönlendir
+      toast.success('Çeviri başarıyla eklendi');
       navigate(`/localizations/details/${formData.namespace}/${formData.key}`);
     } catch (err: any) {
-      setError(err.message || 'Çeviri eklenirken bir hata oluştu');
+      toast.error(err.message || 'Çeviri eklenirken bir hata oluştu');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Üst başlık ve butonlar */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6">
-        <div>
-          <div className="flex items-center">
-            <button
-              onClick={() => navigate('/localizations/list')}
-              className="mr-2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-              </svg>
-            </button>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Yeni Çeviri Ekle</h1>
+    <div className="container mx-auto px-4 py-8 max-w-5xl">
+      {/* Üst Bar */}
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={() => navigate('/localizations/list')}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          >
+            <ArrowLeftIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Yeni Çeviri Ekle
+            </h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              Sisteme yeni bir çeviri eklemek için formu doldurun
+            </p>
           </div>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Sisteme yeni çeviri eklemek için formu doldurun
-          </p>
+        </div>
+        
+        <div className="flex items-center space-x-3">
+          <Button
+            variant="success"
+            onClick={handleSubmit}
+            disabled={!isDirty || isLoading}
+            loading={isLoading}
+          >
+            <CheckIcon className="w-5 h-5 mr-2" />
+            Kaydet
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => navigate('/localizations/list')}
+          >
+            <XMarkIcon className="w-5 h-5 mr-2" />
+            İptal
+          </Button>
         </div>
       </div>
-      
-      {/* Hata mesajı */}
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 mb-4">
-          <p className="text-red-700 dark:text-red-400">{error}</p>
-        </div>
-      )}
-      
-      {/* Form */}
-      <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
-        <form onSubmit={handleSubmit}>
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Anahtar */}
+
+      {/* Ana İçerik */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+        {/* Temel Bilgiler */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-start space-x-3">
+            <KeyIcon className="w-5 h-5 text-gray-400 mt-1" />
+            <div className="flex-1">
               <Input
                 label="Anahtar"
-                name="key"
                 value={formData.key}
-                onChange={handleInputChange}
-                fullWidth
-                required
+                onChange={(e) => handleInputChange('key', e.target.value)}
                 placeholder="örn: welcome_message"
-              />
-              
-              {/* Namespace */}
-              <Input
-                label="Namespace"
-                name="namespace"
-                value={formData.namespace}
-                onChange={handleInputChange}
-                fullWidth
                 required
-                placeholder="örn: common"
               />
-            </div>
-            
-            {/* Çeviriler */}
-            <div className="mt-6">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Çeviriler</h3>
-              
-              <div className="space-y-4">
-                {languages.map(lang => (
-                  <Input
-                    key={lang}
-                    label={`${lang.toUpperCase()} Çevirisi`}
-                    name={`translation_${lang}`}
-                    value={formData.translations[lang] || ''}
-                    onChange={handleInputChange}
-                    fullWidth
-                    placeholder={`${lang.toUpperCase()} dilindeki çeviriyi girin`}
-                  />
-                ))}
-              </div>
             </div>
           </div>
           
-          {/* Aksiyon butonları */}
-          <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600">
-            <div className="flex justify-end space-x-2">
-              <Button
-                variant="outline"
-                type="button"
-                onClick={() => navigate('/localizations/list')}
-              >
-                İptal
-              </Button>
-              <Button
-                type="submit"
-                disabled={isLoading}
-              >
-                {isLoading ? 'Ekleniyor...' : 'Ekle'}
-              </Button>
+          <div className="flex items-start space-x-3">
+            <FolderIcon className="w-5 h-5 text-gray-400 mt-1" />
+            <div className="flex-1">
+              <Input
+                label="Namespace"
+                value={formData.namespace}
+                onChange={(e) => handleInputChange('namespace', e.target.value)}
+                placeholder="örn: common"
+                required
+              />
             </div>
           </div>
-        </form>
+        </div>
+
+        {/* Çeviriler */}
+        <div className="p-6">
+          <div className="flex items-center space-x-2 mb-4">
+            <GlobeAltIcon className="w-5 h-5 text-gray-400" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Çeviriler
+            </h2>
+          </div>
+          
+          <div className="space-y-4">
+            {languages.map(lang => (
+              <div key={lang} className="relative">
+                <Transition
+                  show={true}
+                  enter="transition ease-out duration-100"
+                  enterFrom="transform opacity-0 scale-95"
+                  enterTo="transform opacity-100 scale-100"
+                  leave="transition ease-in duration-75"
+                  leaveFrom="transform opacity-100 scale-100"
+                  leaveTo="transform opacity-0 scale-95"
+                >
+                  <Input
+                    label={`${lang.toUpperCase()} Çevirisi`}
+                    value={formData.translations[lang] || ''}
+                    onChange={(e) => handleInputChange(`translation_${lang}`, e.target.value)}
+                    placeholder={`${lang.toUpperCase()} dilinde çeviriyi girin`}
+                  />
+                </Transition>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

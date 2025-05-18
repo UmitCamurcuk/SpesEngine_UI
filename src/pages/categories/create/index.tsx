@@ -7,6 +7,8 @@ import attributeService from '../../../services/api/attributeService';
 import attributeGroupService from '../../../services/api/attributeGroupService';
 import familyService from '../../../services/api/familyService';
 import type { CreateCategoryDto } from '../../../types/category';
+import AttributeGroupSelector from '../../../components/attributes/AttributeGroupSelector';
+import PaginatedAttributeSelector from '../../../components/attributes/PaginatedAttributeSelector';
 
 interface CategoryOption {
   _id: string;
@@ -43,7 +45,7 @@ const CategoryCreatePage: React.FC = () => {
     parentCategory: '',
     family: '',
     attributes: [],
-    attributeGroup: '',
+    attributeGroups: [],
     isActive: true
   });
   
@@ -55,6 +57,7 @@ const CategoryCreatePage: React.FC = () => {
   
   // Seçili öğeler
   const [selectedAttributes, setSelectedAttributes] = useState<string[]>([]);
+  const [selectedAttributeGroups, setSelectedAttributeGroups] = useState<string[]>([]);
   
   // Loading ve error state
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -70,6 +73,7 @@ const CategoryCreatePage: React.FC = () => {
   const steps = useMemo(() => [
     { title: 'Temel Bilgiler', description: 'Kategori temel bilgileri' },
     { title: 'Hiyerarşi', description: 'Üst kategori seçimi' },
+    { title: 'Öznitelik Grupları', description: 'Kategoriye öznitelik grupları atama' },
     { title: 'Öznitelikler', description: 'Kategoriye ait öznitelikler' },
   ], []);
   
@@ -140,18 +144,15 @@ const CategoryCreatePage: React.FC = () => {
   };
   
   // Öznitelik seçimi değişiklik handler
-  const handleAttributeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const options = e.target.options;
-    const selectedValues: string[] = [];
-    
-    for (let i = 0; i < options.length; i++) {
-      if (options[i].selected) {
-        selectedValues.push(options[i].value);
-      }
-    }
-    
-    setSelectedAttributes(selectedValues);
-    setFormData(prev => ({ ...prev, attributes: selectedValues }));
+  const handleAttributeChange = (attributeIds: string[]) => {
+    setSelectedAttributes(attributeIds);
+    setFormData(prev => ({ ...prev, attributes: attributeIds }));
+  };
+  
+  // Öznitelik grubu seçimi değişiklik handler
+  const handleAttributeGroupChange = (attributeGroupIds: string[]) => {
+    setSelectedAttributeGroups(attributeGroupIds);
+    setFormData(prev => ({ ...prev, attributeGroups: attributeGroupIds }));
   };
   
   // Form gönderme handler
@@ -166,6 +167,7 @@ const CategoryCreatePage: React.FC = () => {
       const payload: CreateCategoryDto = {
         ...formData,
         attributes: selectedAttributes,
+        attributeGroups: selectedAttributeGroups,
         parentCategory: formData.parentCategory || undefined
       };
       
@@ -211,7 +213,12 @@ const CategoryCreatePage: React.FC = () => {
   };
   
   const validateStep3 = (): boolean => {
-    // Bu adımda zorunlu alan olmadığı için direkt true dönüyoruz
+    // Öznitelik grupları zorunlu değil
+    return true;
+  };
+  
+  const validateStep4 = (): boolean => {
+    // Öznitelikler zorunlu değil
     return true;
   };
   
@@ -225,6 +232,8 @@ const CategoryCreatePage: React.FC = () => {
       isValid = validateStep2();
     } else if (currentStep === 2) {
       isValid = validateStep3();
+    } else if (currentStep === 3) {
+      isValid = validateStep4();
     }
     
     if (isValid) {
@@ -382,60 +391,43 @@ const CategoryCreatePage: React.FC = () => {
                 Bu kategoriyi bir aile ile ilişkilendirmek isterseniz, bir aile seçebilirsiniz. Bu adım opsiyoneldir.
               </p>
             </div>
-            
-            {/* Öznitelik Grubu */}
-            <div>
-              <label htmlFor="attributeGroup" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Öznitelik Grubu
-              </label>
-              <select
-                id="attributeGroup"
-                name="attributeGroup"
-                value={formData.attributeGroup || ''}
-                onChange={handleChange}
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-              >
-                <option value="">Öznitelik grubu seçin (opsiyonel)</option>
-                {attributeGroupOptions.map(group => (
-                  <option key={group._id} value={group._id}>
-                    {group.name} ({group.code})
-                  </option>
-                ))}
-              </select>
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                Bu kategoriye ait özniteliklerin gruplanacağı bir öznitelik grubu seçebilirsiniz.
-              </p>
-            </div>
           </div>
         );
       
       case 2:
         return (
           <div className="space-y-4">
-            {/* Öznitelikler */}
-            <div>
-              <label htmlFor="attributes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Öznitelikler
-              </label>
-              <select
-                id="attributes"
-                name="attributes"
-                multiple
-                size={8}
-                value={selectedAttributes}
-                onChange={handleAttributeChange}
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-              >
-                {attributeOptions.map(attr => (
-                  <option key={attr._id} value={attr._id}>
-                    {attr.name} ({attr.code})
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Bu kategoriye ait öznitelikleri seçin (Çoklu seçim için CTRL tuşunu basılı tutun)
-              </p>
+            {/* Öznitelik Grupları */}
+            <AttributeGroupSelector
+              selectedAttributeGroups={selectedAttributeGroups}
+              onChange={handleAttributeGroupChange}
+            />
+            
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="flex items-start">
+                <svg className="w-5 h-5 mr-2 mt-0.5 text-blue-500 dark:text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <h4 className="text-sm font-medium text-blue-700 dark:text-blue-300">Bilgi</h4>
+                  <p className="mt-1 text-sm text-blue-600 dark:text-blue-400">
+                    Öznitelik grupları, bu kategoriye ait öğeler için hangi özniteliklerin kullanılabileceğini belirlemenize yardımcı olur.
+                    Seçtiğiniz öznitelik grupları, bu kategoriye ait öğelerin formlarında otomatik olarak gösterilecektir.
+                  </p>
+                </div>
+              </div>
             </div>
+          </div>
+        );
+      
+      case 3:
+        return (
+          <div className="space-y-4">
+            {/* Öznitelikler */}
+            <PaginatedAttributeSelector
+              selectedAttributes={selectedAttributes}
+              onChange={handleAttributeChange}
+            />
             
             <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
               <div className="flex items-start">
@@ -536,17 +528,17 @@ const CategoryCreatePage: React.FC = () => {
               Önceki
             </Button>
             
-            <Button
-              variant="primary"
+              <Button
+                variant="primary"
               onClick={handleNextStep}
               loading={isLoading}
-              className="flex items-center"
-            >
+                className="flex items-center"
+              >
               {currentStep === steps.length - 1 ? (
-                <>
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
+                  <>
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
                   Kaydet
                 </>
               ) : (
@@ -555,11 +547,11 @@ const CategoryCreatePage: React.FC = () => {
                   <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
-                </>
-              )}
-            </Button>
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
-        </div>
       </div>
     </div>
   );

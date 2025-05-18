@@ -6,11 +6,8 @@ import itemService from '../../../services/api/itemService';
 import itemTypeService from '../../../services/api/itemTypeService';
 import familyService from '../../../services/api/familyService';
 import categoryService from '../../../services/api/categoryService';
-import attributeService from '../../../services/api/attributeService';
-import attributeGroupService from '../../../services/api/attributeGroupService';
-import type { CreateItemDto, AttributeValue } from '../../../types/item';
-import type { Attribute, AttributeType } from '../../../types/attribute';
-import type { AttributeGroup } from '../../../types/attributeGroup';
+import type { CreateItemDto } from '../../../types/item';
+import type { Attribute } from '../../../types/attribute';
 
 interface ItemTypeOption {
   _id: string;

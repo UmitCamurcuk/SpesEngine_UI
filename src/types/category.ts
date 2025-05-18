@@ -18,7 +18,7 @@ export interface Category {
   family?: string;
   parentCategory?: string;
   attributes?: string[];
-  attributeGroup?: string;
+  attributeGroups?: string[];
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -43,6 +43,6 @@ export interface CreateCategoryDto {
   family?: string;
   parentCategory?: string;
   attributes?: string[];
-  attributeGroup?: string;
+  attributeGroups?: string[];
   isActive?: boolean;
 } 

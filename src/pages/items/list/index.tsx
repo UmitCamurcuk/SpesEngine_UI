@@ -4,7 +4,7 @@ import Table from '../../../components/ui/Table';
 import type { TableColumn, SortParams, FilterParams, PaginationParams } from '../../../components/ui/Table';
 import Button from '../../../components/ui/Button';
 import itemService from '../../../services/api/itemService';
-import type { Item, ItemApiParams } from '../../../services/api/itemService';
+import type { Item, ItemApiParams } from '../../../types/item';
 
 const ItemsListPage: React.FC = () => {
   const navigate = useNavigate();
@@ -185,7 +185,9 @@ const ItemsListPage: React.FC = () => {
       header: 'Öğe Tipi',
       render: (row) => (
         <div className="text-sm text-gray-600 dark:text-gray-400">
-          {row.itemType || <span className="text-gray-400 italic">Tip yok</span>}
+          {typeof row.itemType === 'object' && row.itemType && 'name' in row.itemType
+            ? (row.itemType as any).name
+            : row.itemType || <span className="text-gray-400 italic">Tip yok</span>}
         </div>
       )
     },
@@ -194,7 +196,9 @@ const ItemsListPage: React.FC = () => {
       header: 'Aile',
       render: (row) => (
         <div className="text-sm text-gray-600 dark:text-gray-400">
-          {row.family || <span className="text-gray-400 italic">Aile yok</span>}
+          {typeof row.family === 'object' && row.family && 'name' in row.family
+            ? (row.family as any).name
+            : row.family || <span className="text-gray-400 italic">Aile yok</span>}
         </div>
       )
     },

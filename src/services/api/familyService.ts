@@ -33,9 +33,19 @@ const familyService = {
   },
   
   // Belirli bir aileyi ID'ye göre getir
-  getFamilyById: async (id: string): Promise<Family> => {
+  getFamilyById: async (id: string, options?: { includeAttributes?: boolean, includeAttributeGroups?: boolean }): Promise<any> => {
     try {
-      const response = await api.get<ApiResponse<Family>>(`/families/${id}`);
+      let params = {};
+      if (options) {
+        if (options.includeAttributes) {
+          params = { ...params, includeAttributes: 'true' };
+        }
+        if (options.includeAttributeGroups) {
+          params = { ...params, includeAttributeGroups: 'true' };
+        }
+      }
+      
+      const response = await api.get<ApiResponse<any>>(`/families/${id}`, { params });
       return response.data.data;
     } catch (error) {
       console.error(`${id} ID'li aile getirilirken hata oluştu:`, error);

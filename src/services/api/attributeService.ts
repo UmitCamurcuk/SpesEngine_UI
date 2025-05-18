@@ -69,6 +69,17 @@ const attributeService = {
     }
   },
   
+  // Belirli bir attribute group'a ait attributeları getir
+  getAttributesByGroup: async (groupId: string): Promise<Attribute[]> => {
+    try {
+      const response = await api.get<ApiResponse<Attribute[]>>(`/attributes?attributeGroup=${groupId}`);
+      return response.data.data;
+    } catch (error) {
+      console.error(`Attribute group ID: ${groupId} için öznitelikler getirilirken hata oluştu:`, error);
+      throw error;
+    }
+  },
+  
   // Yeni öznitelik oluştur
   createAttribute: async (attributeData: CreateAttributeDto): Promise<Attribute> => {
     try {

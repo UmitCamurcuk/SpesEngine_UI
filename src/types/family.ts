@@ -16,6 +16,10 @@ export interface Family {
   code: string;
   description: string;
   parentFamily?: string;
+  parent?: string;
+  itemType?: string;
+  category?: string;
+  attributeGroups?: string[];
   attributes?: string[];
   isActive: boolean;
   createdAt: string;
@@ -39,6 +43,10 @@ export interface CreateFamilyDto {
   code: string;
   description: string;
   parentFamily?: string;
+  parent?: string;
+  itemType?: string;
+  category?: string;
+  attributeGroups?: string[];
   attributes?: string[];
   isActive?: boolean;
 } 

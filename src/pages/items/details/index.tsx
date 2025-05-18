@@ -4,11 +4,18 @@ import Button from '../../../components/ui/Button';
 import itemService from '../../../services/api/itemService';
 import itemTypeService from '../../../services/api/itemTypeService';
 import familyService from '../../../services/api/familyService';
-import type { Item, AttributeValue } from '../../../services/api/itemService';
+import attributeService from '../../../services/api/attributeService';
+import attributeGroupService from '../../../services/api/attributeGroupService';
+import type { Item, AttributeValue } from '../../../types/item';
+import type { Attribute } from '../../../types/attribute';
+import type { AttributeGroup } from '../../../types/attributeGroup';
 
 const ItemDetailsPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  
+  // Tab state'i
+  const [activeTab, setActiveTab] = useState<string>('general');
   
   // Veri state'i
   const [item, setItem] = useState<Item | null>(null);
@@ -17,6 +24,8 @@ const ItemDetailsPage: React.FC = () => {
   // İlişkili veriler
   const [itemTypeName, setItemTypeName] = useState<string>('');
   const [familyName, setFamilyName] = useState<string>('');
+  const [attributesMap, setAttributesMap] = useState<Record<string, Attribute>>({});
+  const [attributeGroupsMap, setAttributeGroupsMap] = useState<Record<string, AttributeGroup>>({});
   
   // Form state
   const [formData, setFormData] = useState<Partial<Item>>({
@@ -25,6 +34,7 @@ const ItemDetailsPage: React.FC = () => {
     description: '',
     itemType: '',
     family: '',
+    category: '',
     attributeValues: [],
     isActive: true
   });
@@ -35,7 +45,11 @@ const ItemDetailsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
   
-  // Veriyi getir
+  // itemType ve family detaylarını state olarak tut
+  const [itemTypeData, setItemTypeData] = useState<any>(null);
+  const [familyData, setFamilyData] = useState<any>(null);
+  
+  // Itemı yükle
   useEffect(() => {
     const fetchItemDetails = async () => {
       if (!id) return;
@@ -52,23 +66,65 @@ const ItemDetailsPage: React.FC = () => {
           description: itemData.description,
           itemType: itemData.itemType,
           family: itemData.family,
+          category: itemData.category,
           attributeValues: itemData.attributeValues,
           isActive: itemData.isActive
         });
         
         // İlişkili verileri getir
-        try {
-          if (itemData.itemType) {
-            const itemTypeData = await itemTypeService.getItemTypeById(itemData.itemType);
+        if (itemData.itemType) {
+          try {
+            const itemTypeData = await itemTypeService.getItemTypeById(itemData.itemType._id);
+            setItemTypeData(itemTypeData);
             setItemTypeName(itemTypeData.name);
+          } catch (err) {
+            console.error('Öğe tipi bilgisi getirilirken hata oluştu:', err);
           }
-          
-          if (itemData.family) {
-            const familyData = await familyService.getFamilyById(itemData.family);
+        }
+        
+        if (itemData.family) {
+          try {
+            const familyData = await familyService.getFamilyById(itemData.family._id);
+            setFamilyData(familyData);
             setFamilyName(familyData.name);
+          } catch (err) {
+            console.error('Aile bilgisi getirilirken hata oluştu:', err);
           }
-        } catch (err) {
-          console.error('İlişkili veriler yüklenirken hata oluştu:', err);
+        }
+        
+        // Attributeları yükle
+        if (itemData.attributeValues && itemData.attributeValues.length > 0) {
+          const attributeIds = itemData.attributeValues.map(av => av.attributeId);
+          
+          try {
+            const attributesData: Record<string, Attribute> = {};
+            
+            // Her bir attribute için detay bilgi al
+            for (const attrId of attributeIds) {
+              const attributeData = await attributeService.getAttributeById(attrId);
+              attributesData[attrId] = attributeData;
+            }
+            
+            setAttributesMap(attributesData);
+            
+            // Attribute gruplarını yükle
+            const attributeGroupIds = new Set<string>();
+            Object.values(attributesData).forEach(attr => {
+              if (attr.attributeGroup) {
+                attributeGroupIds.add(typeof attr.attributeGroup === 'string' ? attr.attributeGroup : attr.attributeGroup._id);
+              }
+            });
+            
+            const attributeGroupsData: Record<string, AttributeGroup> = {};
+            for (const groupId of attributeGroupIds) {
+              const groupData = await attributeGroupService.getAttributeGroupById(groupId);
+              attributeGroupsData[groupId] = groupData;
+            }
+            
+            setAttributeGroupsMap(attributeGroupsData);
+          } catch (err) {
+            console.error('Öznitelik bilgileri getirilirken hata oluştu:', err);
+          }
         }
         
       } catch (err: any) {
@@ -145,6 +201,34 @@ const ItemDetailsPage: React.FC = () => {
       }
     }
   };
+
+  // Tab değiştirme handler
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+  };
+  
+  // Attribute'ları gruplarına göre organize et
+  const getAttributesByGroup = () => {
+    if (!item?.attributeValues || item.attributeValues.length === 0) return {};
+    
+    const attributesByGroup: Record<string, AttributeValue[]> = {
+      'nogroup': []
+    };
+    
+    item.attributeValues.forEach(attrValue => {
+      const attribute = attributesMap[attrValue.attributeId];
+      if (attribute && attribute.attributeGroup) {
+        if (!attributesByGroup[attribute.attributeGroup]) {
+          attributesByGroup[attribute.attributeGroup] = [];
+        }
+        attributesByGroup[attribute.attributeGroup].push(attrValue);
+      } else {
+        attributesByGroup['nogroup'].push(attrValue);
+      }
+    });
+    
+    return attributesByGroup;
+  };
   
   if (isLoading) {
     return (
@@ -184,8 +268,7 @@ const ItemDetailsPage: React.FC = () => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
               <svg className="w-7 h-7 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               Öğe Detayları
             </h1>
@@ -233,240 +316,220 @@ const ItemDetailsPage: React.FC = () => {
         </div>
       </div>
       
-      {/* Ana İçerik */}
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-        {error && (
-          <div className="mb-4 bg-red-50 dark:bg-red-900/20 p-4 rounded-md border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 flex items-start">
-            <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      {/* Tab Bar */}
+      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+        <div className="flex border-b border-gray-200 dark:border-gray-700">
+          <button
+            onClick={() => handleTabChange('general')}
+            className={`relative flex items-center px-4 py-3 text-sm font-medium border-b-2 focus:outline-none transition-colors ${
+              activeTab === 'general'
+                ? 'border-primary-light dark:border-primary-dark text-primary-light dark:text-primary-dark'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
+            }`}
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
-            <span>{error}</span>
-          </div>
-        )}
-        
-        {success && (
-          <div className="mb-4 bg-green-50 dark:bg-green-900/20 p-4 rounded-md border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 flex items-start">
-            <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            Genel Bilgiler
+          </button>
+          
+          <button
+            onClick={() => handleTabChange('attributes')}
+            className={`relative flex items-center px-4 py-3 text-sm font-medium border-b-2 focus:outline-none transition-colors ${
+              activeTab === 'attributes'
+                ? 'border-primary-light dark:border-primary-dark text-primary-light dark:text-primary-dark'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
+            }`}
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
             </svg>
-            <span>Öğe başarıyla güncellendi!</span>
-          </div>
-        )}
+            Öznitelikler
+          </button>
+          
+          <button
+            onClick={() => handleTabChange('relationships')}
+            className={`relative flex items-center px-4 py-3 text-sm font-medium border-b-2 focus:outline-none transition-colors ${
+              activeTab === 'relationships'
+                ? 'border-primary-light dark:border-primary-dark text-primary-light dark:text-primary-dark'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
+            }`}
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+            </svg>
+            İlişkiler
+          </button>
+        </div>
         
-        {isEditing ? (
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Temel Bilgiler Başlığı */}
-              <div className="col-span-1 md:col-span-2">
+        {/* Tab İçerikleri */}
+        <div className="p-6">
+          {/* Genel Bilgiler Tab */}
+          {activeTab === 'general' && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Temel Bilgiler */}
+              <div className="col-span-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 h-fit">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Temel Bilgiler</h3>
-              </div>
-              
-              {/* İsim */}
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Öğe Adı <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name || ''}
-                  onChange={handleChange}
-                  required
-                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-                />
-              </div>
-              
-              {/* Kod */}
-              <div>
-                <label htmlFor="code" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Kod <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="code"
-                  name="code"
-                  value={formData.code || ''}
-                  onChange={handleChange}
-                  required
-                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-                />
-              </div>
-              
-              {/* Açıklama */}
-              <div className="col-span-1 md:col-span-2">
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Açıklama
-                </label>
-                <textarea
-                  id="description"
-                  name="description"
-                  value={formData.description || ''}
-                  onChange={handleChange}
-                  rows={3}
-                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-                />
-              </div>
-              
-              {/* Aktif/Pasif durumu */}
-              <div className="col-span-1 md:col-span-2">
-                <div className="flex items-start">
-                  <div className="flex items-center h-5">
-                    <input
-                      id="isActive"
-                      name="isActive"
-                      type="checkbox"
-                      checked={formData.isActive}
-                      onChange={e => setFormData({ ...formData, isActive: e.target.checked })}
-                      className="w-4 h-4 text-primary-light bg-gray-100 border-gray-300 rounded focus:ring-primary-light dark:focus:ring-primary-dark dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                    />
+                <div className="space-y-3">
+                  <div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Adı</span>
+                    <div className="font-semibold text-gray-900 dark:text-white">{item?.name || '-'}</div>
                   </div>
-                  <label htmlFor="isActive" className="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300">
-                    Aktif
-                  </label>
+                  <div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Kod</span>
+                    <div className="font-mono text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">{item?.code || '-'}</div>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Durum</span>
+                    <div className="mt-1">
+                      {item?.isActive ? (
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500">Aktif</span>
+                      ) : (
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-500">Pasif</span>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Oluşturulma Tarihi</span>
+                    <div className="text-sm text-gray-900 dark:text-white">{item?.createdAt ? new Date(item.createdAt).toLocaleString('tr-TR') : '-'}</div>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Açıklama</span>
+                    <div className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">{item?.description || '-'}</div>
+                  </div>
                 </div>
               </div>
-              
-              <div className="col-span-1 md:col-span-2 flex justify-end space-x-3">
-                <Button
-                  type="button"
-                  variant="danger"
-                  onClick={handleDelete}
-                  className="flex items-center"
-                  disabled={isSaving}
-                >
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+
+              {/* ItemType Detayları */}
+              <div className="col-span-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 h-fit">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+                  <svg className="w-5 h-5 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                   </svg>
-                  Sil
-                </Button>
-                
-                <Button
-                  type="submit"
-                  variant="primary"
-                  className="flex items-center"
-                  disabled={isSaving}
-                >
-                  {isSaving ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Kaydediliyor...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Kaydet
-                    </>
-                  )}
-                </Button>
+                  Öğe Tipi
+                </h3>
+                {itemTypeData ? (
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Adı</span>
+                      <div className="font-semibold text-gray-900 dark:text-white">{itemTypeData.name || '-'}</div>
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Kod</span>
+                      <div className="font-mono text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">{itemTypeData.code || '-'}</div>
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Açıklama</span>
+                      <div className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">{itemTypeData.description || '-'}</div>
+                    </div>
+                    {itemTypeData.parent && (
+                      <div>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">Üst Tip</span>
+                        <div className="text-sm text-gray-900 dark:text-white">{typeof itemTypeData.parent === 'object' ? itemTypeData.parent.name : itemTypeData.parent}</div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-gray-400 italic">Tip bilgisi yok</div>
+                )}
+              </div>
+
+              {/* Family Detayları */}
+              <div className="col-span-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 h-fit">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+                  <svg className="w-5 h-5 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                  Aile
+                </h3>
+                {familyData ? (
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Adı</span>
+                      <div className="font-semibold text-gray-900 dark:text-white">{familyData.name || '-'}</div>
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Kod</span>
+                      <div className="font-mono text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">{familyData.code || '-'}</div>
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Açıklama</span>
+                      <div className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">{familyData.description || '-'}</div>
+                    </div>
+                    {familyData.parent && (
+                      <div>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">Üst Aile</span>
+                        <div className="text-sm text-gray-900 dark:text-white">{typeof familyData.parent === 'object' ? familyData.parent.name : familyData.parent}</div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-gray-400 italic">Aile bilgisi yok</div>
+                )}
               </div>
             </div>
-          </form>
-        ) : (
-          <div className="space-y-6">
-            {/* Bilgi görüntüleme */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Temel Bilgiler Başlığı */}
-              <div className="col-span-1 md:col-span-2">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Temel Bilgiler</h3>
-              </div>
+          )}
+          
+          {/* Öznitelikler Tab */}
+          {activeTab === 'attributes' && (
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Öznitelikler</h3>
               
-              {/* İsim */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Öğe Adı</h4>
-                <p className="mt-1 text-gray-900 dark:text-white">{item?.name}</p>
-              </div>
-              
-              {/* Kod */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Kod</h4>
-                <p className="mt-1 text-gray-900 dark:text-white">{item?.code}</p>
-              </div>
-              
-              {/* Öğe Tipi */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Öğe Tipi</h4>
-                <p className="mt-1 text-gray-900 dark:text-white">{itemTypeName}</p>
-              </div>
-              
-              {/* Aile */}
-              {item?.family && (
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Aile</h4>
-                  <p className="mt-1 text-gray-900 dark:text-white">{familyName}</p>
+              {item?.attributeValues && item.attributeValues.length > 0 ? (
+                <div className="space-y-6">
+                  {Object.entries(getAttributesByGroup()).map(([groupId, attrs]) => {
+                    if (attrs.length === 0) return null;
+                    
+                    const groupName = groupId === 'nogroup' 
+                      ? 'Gruplanmamış Öznitelikler' 
+                      : attributeGroupsMap[groupId]?.name || 'Bilinmeyen Grup';
+                      
+                    return (
+                      <div key={groupId} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                        <div className="bg-gray-50 dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                          <h4 className="font-medium text-gray-800 dark:text-gray-200">{groupName}</h4>
+                        </div>
+                        <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                          {attrs.map((attrValue) => {
+                            const attribute = attributesMap[attrValue.attributeId];
+                            return (
+                              <div key={attrValue.attributeId} className="grid grid-cols-3 px-4 py-3">
+                                <div className="col-span-1 text-gray-600 dark:text-gray-400 font-medium">
+                                  {attribute?.name || 'Bilinmeyen Öznitelik'}
+                                </div>
+                                <div className="col-span-2 text-gray-900 dark:text-white">
+                                  {Array.isArray(attrValue.value) 
+                                    ? attrValue.value.join(', ') 
+                                    : typeof attrValue.value === 'boolean'
+                                      ? (attrValue.value ? 'Evet' : 'Hayır')
+                                      : attrValue.value?.toString() || '-'}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 text-gray-500 dark:text-gray-400 text-center">
+                  Bu öğeye tanımlanmış öznitelik değeri bulunmamaktadır.
                 </div>
               )}
-              
-              {/* Açıklama */}
-              <div className="col-span-1 md:col-span-2">
-                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Açıklama</h4>
-                <p className="mt-1 text-gray-900 dark:text-white whitespace-pre-wrap">{item?.description || '-'}</p>
-              </div>
-              
-              {/* Durum */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Durum</h4>
-                <div className="mt-1">
-                  {item?.isActive ? (
-                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500">
-                      Aktif
-                    </span>
-                  ) : (
-                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-500">
-                      Pasif
-                    </span>
-                  )}
-                </div>
-              </div>
-              
-              {/* Oluşturulma Tarihi */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Oluşturulma Tarihi</h4>
-                <p className="mt-1 text-gray-900 dark:text-white">
-                  {new Date(item?.createdAt || '').toLocaleString('tr-TR')}
-                </p>
+            </div>
+          )}
+          
+          {/* İlişkiler Tab */}
+          {activeTab === 'relationships' && (
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">İlişkiler</h3>
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 text-gray-500 dark:text-gray-400 text-center">
+                Bu öğe için ilişki tanımı bulunmamaktadır.
               </div>
             </div>
-            
-            {/* Öznitelik Değerleri */}
-            {item?.attributeValues && item.attributeValues.length > 0 && (
-              <div className="mt-8">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Öznitelik Değerleri</h3>
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg overflow-hidden">
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
-                    <thead className="bg-gray-100 dark:bg-gray-800">
-                      <tr>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          Öznitelik
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          Değer
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                      {item.attributeValues.map((attrValue: AttributeValue, index: number) => (
-                        <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                            {attrValue.attributeId}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                            {attrValue.value?.toString() || '-'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

@@ -33,9 +33,19 @@ const itemTypeService = {
   },
   
   // Belirli bir öğe tipini ID'ye göre getir
-  getItemTypeById: async (id: string): Promise<ItemType> => {
+  getItemTypeById: async (id: string, options?: { includeAttributes?: boolean, includeAttributeGroups?: boolean }): Promise<any> => {
     try {
-      const response = await api.get<ApiResponse<ItemType>>(`/ItemTypes/${id}`);
+      let params = {};
+      if (options) {
+        if (options.includeAttributes) {
+          params = { ...params, includeAttributes: 'true' };
+        }
+        if (options.includeAttributeGroups) {
+          params = { ...params, includeAttributeGroups: 'true' };
+        }
+      }
+      
+      const response = await api.get<ApiResponse<any>>(`/itemTypes/${id}`, { params });
       return response.data.data;
     } catch (error) {
       console.error(`${id} ID'li öğe tipi getirilirken hata oluştu:`, error);

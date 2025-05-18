@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
+import Stepper from '../../../components/ui/Stepper';
 import itemTypeService from '../../../services/api/itemTypeService';
 import attributeService from '../../../services/api/attributeService';
 import attributeGroupService from '../../../services/api/attributeGroupService';
-import type { CreateItemTypeDto } from '../../../services/api/itemTypeService';
+import familyService from '../../../services/api/familyService';
+import type { CreateItemTypeDto } from '../../../types/itemType';
 
 interface AttributeOption {
   _id: string;
@@ -18,6 +20,12 @@ interface AttributeGroupOption {
   code: string;
 }
 
+interface FamilyOption {
+  _id: string;
+  name: string;
+  code: string;
+}
+
 const ItemTypeCreatePage: React.FC = () => {
   const navigate = useNavigate();
   
@@ -26,6 +34,7 @@ const ItemTypeCreatePage: React.FC = () => {
     name: '',
     code: '',
     description: '',
+    family: '',
     attributeGroups: [],
     attributes: [],
     isActive: true
@@ -34,6 +43,7 @@ const ItemTypeCreatePage: React.FC = () => {
   // Seçenekler
   const [attributeOptions, setAttributeOptions] = useState<AttributeOption[]>([]);
   const [attributeGroupOptions, setAttributeGroupOptions] = useState<AttributeGroupOption[]>([]);
+  const [familyOptions, setFamilyOptions] = useState<FamilyOption[]>([]);
   
   // Seçili öğeler
   const [selectedAttributes, setSelectedAttributes] = useState<string[]>([]);
@@ -43,6 +53,18 @@ const ItemTypeCreatePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
+  
+  // Stepper state
+  const [currentStep, setCurrentStep] = useState<number>(0);
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  
+  // Stepper adımları
+  const steps = useMemo(() => [
+    { title: 'Temel Bilgiler', description: 'Öğe tipinin temel bilgileri' },
+    { title: 'Aile Seçimi', description: 'Öğe tipinin ait olduğu aile' },
+    { title: 'Öznitelikler', description: 'Öğe tipine ait öznitelikler' },
+  ], []);
   
   // Öznitelik ve öznitelik gruplarını yükle
   useEffect(() => {
@@ -63,6 +85,14 @@ const ItemTypeCreatePage: React.FC = () => {
           name: group.name,
           code: group.code
         })));
+
+        // Aileleri getir
+        const familiesResult = await familyService.getFamilies({ limit: 100 });
+        setFamilyOptions(familiesResult.families.map(family => ({
+          _id: family._id,
+          name: family.name,
+          code: family.code
+        })));
       } catch (err) {
         console.error('Seçenekler yüklenirken hata oluştu:', err);
       }
@@ -78,11 +108,20 @@ const ItemTypeCreatePage: React.FC = () => {
     // Checkbox için özel işlem
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
-      setFormData(prev => ({ ...prev, [name]: checked }));
+      setFormData((prev: CreateItemTypeDto) => ({ ...prev, [name]: checked }));
       return;
     }
     
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev: CreateItemTypeDto) => ({ ...prev, [name]: value }));
+    
+    // Formda hata varsa temizle
+    if (formErrors[name]) {
+      setFormErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
   };
   
   // Öznitelik seçimi değişiklik handler
@@ -97,7 +136,7 @@ const ItemTypeCreatePage: React.FC = () => {
     }
     
     setSelectedAttributes(selectedValues);
-    setFormData(prev => ({ ...prev, attributes: selectedValues }));
+    setFormData((prev: CreateItemTypeDto) => ({ ...prev, attributes: selectedValues }));
   };
   
   // Öznitelik grubu seçimi değişiklik handler
@@ -112,7 +151,7 @@ const ItemTypeCreatePage: React.FC = () => {
     }
     
     setSelectedAttributeGroups(selectedValues);
-    setFormData(prev => ({ ...prev, attributeGroups: selectedValues }));
+    setFormData((prev: CreateItemTypeDto) => ({ ...prev, attributeGroups: selectedValues }));
   };
   
   // Form gönderme handler
@@ -146,6 +185,262 @@ const ItemTypeCreatePage: React.FC = () => {
     }
   };
   
+  // Adımları doğrulama ve ilerleme
+  const validateStep1 = (): boolean => {
+    const errors: Record<string, string> = {};
+    
+    if (!formData.name.trim()) {
+      errors.name = 'Öğe tipi adı zorunludur';
+    }
+    
+    if (!formData.code.trim()) {
+      errors.code = 'Kod zorunludur';
+    }
+    
+    if (!formData.description.trim()) {
+      errors.description = 'Açıklama zorunludur';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+  
+  const validateStep2 = (): boolean => {
+    const errors: Record<string, string> = {};
+    
+    if (!formData.family) {
+      errors.family = 'Aile seçimi zorunludur';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+  
+  const validateStep3 = (): boolean => {
+    const errors: Record<string, string> = {};
+    
+    if (selectedAttributes.length === 0) {
+      errors.attributes = 'En az bir öznitelik seçilmelidir';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+  
+  const handleNextStep = () => {
+    let isValid = false;
+    
+    // Adıma göre validasyon yap
+    if (currentStep === 0) {
+      isValid = validateStep1();
+    } else if (currentStep === 1) {
+      isValid = validateStep2();
+    } else if (currentStep === 2) {
+      isValid = validateStep3();
+    }
+    
+    if (isValid) {
+      // Bu adımı tamamlandı olarak işaretle
+      if (!completedSteps.includes(currentStep)) {
+        setCompletedSteps((prev) => [...prev, currentStep]);
+      }
+      
+      // Son adımda değilse sonraki adıma geç
+      if (currentStep < steps.length - 1) {
+        setCurrentStep((prev) => prev + 1);
+      } else {
+        // Son adımda ise formu gönder
+        handleSubmit(new Event('submit') as any);
+      }
+    }
+  };
+  
+  const handlePrevStep = () => {
+    if (currentStep > 0) {
+      setCurrentStep((prev) => prev - 1);
+    }
+  };
+  
+  // Adım içeriğini render etme
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 0:
+        return (
+          <div className="space-y-4">
+            {/* İsim */}
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Öğe Tipi Adı <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                required
+                className={`bg-gray-50 border ${formErrors.name ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
+                placeholder="Öğe tipi adını girin"
+              />
+              {formErrors.name && (
+                <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>
+              )}
+            </div>
+            
+            {/* Kod */}
+            <div>
+              <label htmlFor="code" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Kod <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                id="code"
+                name="code"
+                value={formData.code}
+                onChange={handleChange}
+                required
+                className={`bg-gray-50 border ${formErrors.code ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
+                placeholder="Benzersiz kod girin (BÜYÜK_HARF)"
+              />
+              {formErrors.code && (
+                <p className="mt-1 text-sm text-red-500">{formErrors.code}</p>
+              )}
+            </div>
+            
+            {/* Açıklama */}
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Açıklama <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                id="description"
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                required
+                rows={3}
+                className={`bg-gray-50 border ${formErrors.description ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
+                placeholder="Öğe tipi hakkında açıklama girin"
+              />
+              {formErrors.description && (
+                <p className="mt-1 text-sm text-red-500">{formErrors.description}</p>
+              )}
+            </div>
+            
+            {/* Aktif/Pasif */}
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="isActive"
+                name="isActive"
+                checked={formData.isActive}
+                onChange={handleChange}
+                className="w-4 h-4 text-primary-light bg-gray-100 border-gray-300 rounded focus:ring-primary-light dark:focus:ring-primary-dark dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+              />
+              <label htmlFor="isActive" className="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300">
+                Aktif
+              </label>
+            </div>
+          </div>
+        );
+      
+      case 1:
+        return (
+          <div className="space-y-4">
+            {/* Aile Seçimi */}
+            <div>
+              <label htmlFor="family" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Aile <span className="text-red-500">*</span>
+              </label>
+              <select
+                id="family"
+                name="family"
+                value={formData.family}
+                onChange={handleChange}
+                required
+                className={`bg-gray-50 border ${formErrors.family ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
+              >
+                <option value="">Aile seçin</option>
+                {familyOptions.map((family) => (
+                  <option key={family._id} value={family._id}>
+                    {family.name} ({family.code})
+                  </option>
+                ))}
+              </select>
+              {formErrors.family && (
+                <p className="mt-1 text-sm text-red-500">{formErrors.family}</p>
+              )}
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                Öğe tipinin ait olduğu aileyi seçin. Bu, öğelerin organizasyonunu belirleyecektir.
+              </p>
+            </div>
+          </div>
+        );
+      
+      case 2:
+        return (
+          <div className="space-y-6">
+            {/* Öznitelik Grupları */}
+            <div>
+              <label htmlFor="attributeGroups" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Öznitelik Grupları
+              </label>
+              <select
+                id="attributeGroups"
+                name="attributeGroups"
+                value={selectedAttributeGroups}
+                onChange={handleAttributeGroupChange}
+                multiple
+                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
+                size={Math.min(attributeGroupOptions.length, 5)}
+              >
+                {attributeGroupOptions.map((group) => (
+                  <option key={group._id} value={group._id}>
+                    {group.name} ({group.code})
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Öğe tipine ait öznitelik gruplarını seçin (Çoklu seçim için CTRL tuşunu basılı tutun)
+              </p>
+            </div>
+            
+            {/* Öznitelikler */}
+            <div>
+              <label htmlFor="attributes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Öznitelikler <span className="text-red-500">*</span>
+              </label>
+              <select
+                id="attributes"
+                name="attributes"
+                value={selectedAttributes}
+                onChange={handleAttributeChange}
+                multiple
+                required
+                className={`bg-gray-50 border ${formErrors.attributes ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
+                size={Math.min(attributeOptions.length, 10)}
+              >
+                {attributeOptions.map((attr) => (
+                  <option key={attr._id} value={attr._id}>
+                    {attr.name} ({attr.code})
+                  </option>
+                ))}
+              </select>
+              {formErrors.attributes && (
+                <p className="mt-1 text-sm text-red-500">{formErrors.attributes}</p>
+              )}
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Öğe tipine ait öznitelikleri seçin (Çoklu seçim için CTRL tuşunu basılı tutun)
+              </p>
+            </div>
+          </div>
+        );
+      
+      default:
+        return null;
+    }
+  };
+  
   return (
     <div className="space-y-6">
       {/* Başlık */}
@@ -159,7 +454,7 @@ const ItemTypeCreatePage: React.FC = () => {
               Yeni Öğe Tipi Oluştur
             </h1>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              Yeni bir öğe tipi oluşturmak için aşağıdaki formu doldurun
+              Katalog için yeni bir öğe tipi tanımlayın
             </p>
           </div>
           
@@ -174,6 +469,15 @@ const ItemTypeCreatePage: React.FC = () => {
             Listeye Dön
           </Button>
         </div>
+      </div>
+      
+      {/* Stepper */}
+      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+        <Stepper 
+          steps={steps}
+          activeStep={currentStep}
+          completedSteps={completedSteps}
+        />
       </div>
       
       {/* Form */}
@@ -196,162 +500,48 @@ const ItemTypeCreatePage: React.FC = () => {
           </div>
         )}
         
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="col-span-1 md:col-span-2">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Temel Bilgiler</h3>
-            </div>
-            
-            {/* İsim */}
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Öğe Tipi Adı <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                required
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-                placeholder="Öğe tipi adını girin"
-              />
-            </div>
-            
-            {/* Kod */}
-            <div>
-              <label htmlFor="code" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Kod <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                id="code"
-                name="code"
-                value={formData.code}
-                onChange={handleChange}
-                required
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-                placeholder="Öğe tipi kodunu girin (örn: TYPE001)"
-              />
-            </div>
-            
-            {/* Açıklama */}
-            <div className="col-span-1 md:col-span-2">
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Açıklama
-              </label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                rows={3}
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-                placeholder="Öğe tipi açıklaması girin (opsiyonel)"
-              />
-            </div>
-            
-            <div className="col-span-1 md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-6">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Öznitelik İlişkileri</h3>
-            </div>
-            
-            {/* Öznitelik Grupları */}
-            <div>
-              <label htmlFor="attributeGroups" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Öznitelik Grupları
-              </label>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                Ctrl/Cmd tuşuna basılı tutarak çoklu seçim yapabilirsiniz
-              </p>
-              <select
-                id="attributeGroups"
-                name="attributeGroups"
-                multiple
-                value={selectedAttributeGroups}
-                onChange={handleAttributeGroupChange}
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-                size={5}
-              >
-                {attributeGroupOptions.map(group => (
-                  <option key={group._id} value={group._id}>
-                    {group.name} ({group.code})
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            {/* Öznitelikler */}
-            <div>
-              <label htmlFor="attributes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Öznitelikler
-              </label>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                Ctrl/Cmd tuşuna basılı tutarak çoklu seçim yapabilirsiniz
-              </p>
-              <select
-                id="attributes"
-                name="attributes"
-                multiple
-                value={selectedAttributes}
-                onChange={handleAttributeChange}
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-                size={5}
-              >
-                {attributeOptions.map(attr => (
-                  <option key={attr._id} value={attr._id}>
-                    {attr.name} ({attr.code})
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            {/* Aktif/Pasif Durum */}
-            <div className="col-span-1 md:col-span-2 flex items-center">
-              <input
-                type="checkbox"
-                id="isActive"
-                name="isActive"
-                checked={formData.isActive}
-                onChange={handleChange}
-                className="w-4 h-4 text-primary-light bg-gray-100 border-gray-300 rounded focus:ring-primary-light dark:focus:ring-primary-dark dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-              />
-              <label htmlFor="isActive" className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                Aktif
-              </label>
-            </div>
-          </div>
+        <div className="space-y-6">
+          {/* Adımlı form içeriği */}
+          {renderStepContent()}
           
-          {/* Form Butonları */}
-          <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+          {/* Navigasyon butonları */}
+          <div className="flex justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button
-              type="submit"
-              disabled={isLoading}
-              className="flex-1 md:flex-none"
+              variant="outline"
+              disabled={currentStep === 0}
+              onClick={handlePrevStep}
+              className="flex items-center"
             >
-              {isLoading ? (
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              ) : (
-                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              )}
-              {isLoading ? 'Kaydediliyor...' : 'Kaydet'}
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Önceki
             </Button>
             
             <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate('/itemtypes/list')}
-              className="flex-1 md:flex-none"
+              variant="primary"
+              onClick={handleNextStep}
+              loading={isLoading}
+              className="flex items-center"
             >
-              İptal
+              {currentStep === steps.length - 1 ? (
+                <>
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Kaydet
+                </>
+              ) : (
+                <>
+                  Sonraki
+                  <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </>
+              )}
             </Button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

@@ -1,3 +1,5 @@
+import { Attribute } from './attribute';
+
 // API parametreleri
 export interface ItemTypeApiParams {
   page?: number;
@@ -15,8 +17,9 @@ export interface ItemType {
   name: string;
   code: string;
   description: string;
+  family?: string;
   attributeGroups?: string[];
-  attributes?: string[];
+  attributes?: Attribute[];
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -38,6 +41,7 @@ export interface CreateItemTypeDto {
   name: string;
   code: string;
   description: string;
+  family?: string;
   attributeGroups?: string[];
   attributes?: string[];
   isActive?: boolean;

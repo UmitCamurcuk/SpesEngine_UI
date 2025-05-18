@@ -4,7 +4,7 @@ import Table from '../../../components/ui/Table';
 import type { TableColumn, SortParams, FilterParams, PaginationParams } from '../../../components/ui/Table';
 import Button from '../../../components/ui/Button';
 import itemTypeService from '../../../services/api/itemTypeService';
-import type { ItemType, ItemTypeApiParams } from '../../../services/api/itemTypeService';
+import type { ItemType, ItemTypeApiParams } from '../../../types/itemType';
 
 const ItemTypesListPage: React.FC = () => {
   const navigate = useNavigate();

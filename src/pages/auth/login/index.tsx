@@ -20,10 +20,9 @@ const LoginPage = () => {
 
   // Kullanıcı zaten giriş yapmışsa ana sayfaya yönlendir
   useEffect(() => {
-    if (isAuthenticated) {
-      // location.state?.from?.pathname varsa oraya, yoksa ana sayfaya yönlendir
-      const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
-      navigate(from);
+    if (isAuthenticated && location.pathname === '/auth/login') {
+      navigate('/auth/loading');
+      return;
     }
   }, [isAuthenticated, navigate, location]);
 

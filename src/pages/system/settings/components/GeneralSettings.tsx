@@ -1,7 +1,8 @@
 import React, { useState, useRef, ChangeEvent, useEffect } from 'react';
 import { useTranslation } from '../../../../context/i18nContext';
 import systemSettingsService, { ISystemSettings } from '../../../../services/api/systemSettingsService';
-import { toast } from 'react-toastify';
+import toast from '../../../../utils/toast';
+import 'react-toastify/dist/ReactToastify.css';
 
 interface GeneralFormData {
   companyName: string;
@@ -53,7 +54,8 @@ const GeneralSettings: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        const settings = await systemSettingsService.getSettings();
+        const response = await systemSettingsService.getSettings();
+        const settings = response.data;
         
         console.log('Backend\'den gelen ayarlar:', settings);
 
@@ -86,7 +88,7 @@ const GeneralSettings: React.FC = () => {
         console.error('Ayarlar yüklenirken hata:', error);
         const errorMessage = error instanceof Error ? error.message : 'Ayarlar yüklenirken bir hata oluştu';
         setError(errorMessage);
-        toast.error(t('settings_load_error', 'system'));
+        toast.loadError();
       } finally {
         setLoading(false);
       }
@@ -138,17 +140,11 @@ const GeneralSettings: React.FC = () => {
   };
 
   const handleSave = async (e?: React.FormEvent) => {
-    console.log('handleSave fonksiyonu çağrıldı');
-    
+    if (e) {
+      e.preventDefault();
+    }
+
     try {
-      if (e) {
-        e.preventDefault();
-        console.log('Form submit engellendi');
-      }
-
-      console.log('Mevcut form verileri:', formData);
-      console.log('Ref\'teki veriler:', currentFormData.current);
-
       setLoading(true);
       setError(null);
 
@@ -162,39 +158,29 @@ const GeneralSettings: React.FC = () => {
         logoUrl: formData.logoUrl
       };
 
-      console.log('Backend\'e gönderilecek veriler:', settingsUpdate);
+      const response = await systemSettingsService.updateSection('general', settingsUpdate);
 
-      try {
-        const response = await systemSettingsService.updateSection('general', settingsUpdate);
-        console.log('Backend\'den gelen yanıt:', response);
+      if (response.data) {
+        const updatedFormData = {
+          ...formData,
+          companyName: response.data.companyName || formData.companyName,
+          systemTitle: response.data.systemTitle || formData.systemTitle,
+          language: response.data.defaultLanguage || formData.language,
+          timezone: response.data.timezone || formData.timezone,
+          dateFormat: response.data.dateFormat || formData.dateFormat,
+          timeFormat: response.data.timeFormat || formData.timeFormat,
+          logoUrl: response.data.logoUrl || formData.logoUrl
+        };
 
-        if (response) {
-          const updatedFormData = {
-            ...formData,
-            companyName: response.companyName || formData.companyName,
-            systemTitle: response.systemTitle || formData.systemTitle,
-            language: response.defaultLanguage || formData.language,
-            timezone: response.timezone || formData.timezone,
-            dateFormat: response.dateFormat || formData.dateFormat,
-            timeFormat: response.timeFormat || formData.timeFormat,
-            logoUrl: response.logoUrl || formData.logoUrl
-          };
-
-          setFormData(updatedFormData);
-          currentFormData.current = updatedFormData;
-          console.log('Form verileri güncellendi:', updatedFormData);
-        }
-
-        toast.success(t('settings_saved', 'system'));
-      } catch (error) {
-        console.error('API hatası:', error);
-        throw error;
+        setFormData(updatedFormData);
+        currentFormData.current = updatedFormData;
+        toast.saveSuccess();
       }
     } catch (error) {
       console.error('Kayıt hatası:', error);
       const errorMessage = error instanceof Error ? error.message : 'Ayarlar kaydedilirken bir hata oluştu';
       setError(errorMessage);
-      toast.error(t('settings_save_error', 'system'));
+      toast.saveError();
     } finally {
       setLoading(false);
     }
@@ -221,10 +207,10 @@ const GeneralSettings: React.FC = () => {
 
       const response = await systemSettingsService.updateSection('general', settingsUpdate);
 
-      toast.success(t('language_updated', 'system'));
+      toast.languageUpdated();
     } catch (error) {
       console.error('Dil güncellenirken hata:', error);
-      toast.error(t('update_error', 'system'));
+      toast.updateError();
     } finally {
       setLoading(false);
     }
@@ -247,10 +233,10 @@ const GeneralSettings: React.FC = () => {
 
         // Logo URL'ini güncelle
         await systemSettingsService.updateSection('theme', { customLogoUrl: logoUrl });
-        toast.success(t('logo_updated', 'system'));
+        toast.uploadSuccess();
       } catch (error) {
         console.error('Logo yüklenirken hata:', error);
-        toast.error(t('logo_upload_error', 'system'));
+        toast.uploadError();
       }
     }
   };
@@ -264,13 +250,13 @@ const GeneralSettings: React.FC = () => {
       if (url) {
         setLogoPreview(url);
         await systemSettingsService.updateSection('theme', { customLogoUrl: url });
-        toast.success(t('logo_updated', 'system'));
+        toast.updateSuccess();
       } else {
         setLogoPreview('/logo.png');
       }
     } catch (error) {
       console.error('Logo URL güncellenirken hata:', error);
-      toast.error(t('logo_update_error', 'system'));
+      toast.updateError();
     }
   };
 

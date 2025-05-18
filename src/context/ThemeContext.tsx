@@ -70,8 +70,8 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
       try {
         // Eğer kullanıcı giriş yapmışsa backend'den ayarları al
         if (isAuthenticated) {
-          const settings = await systemSettingsService.getSettings();
-          const themeSettings = settings.theme;
+          const response = await systemSettingsService.getSettings();
+          const themeSettings = response.data.theme;
 
           // Backend'den gelen ayarları localStorage'a kaydet
           if (themeSettings.mode) {

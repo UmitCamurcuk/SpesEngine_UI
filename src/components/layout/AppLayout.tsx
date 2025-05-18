@@ -1,33 +1,39 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
-const AppLayout = () => {
+const AppLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
-
-  const closeSidebar = () => {
-    setSidebarOpen(false);
-  };
+  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+  const closeSidebar = () => setSidebarOpen(false);
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Navbar */}
-      <Navbar toggleSidebar={toggleSidebar} />
-
-      {/* Sidebar */}
+    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
       <Sidebar isOpen={sidebarOpen} closeSidebar={closeSidebar} />
-      
-      {/* Main Content */}
-      <main className="pt-14 md:ml-64 w-full min-h-screen transition-all duration-200">
-        <div className="p-4 md:p-6">
-          <Outlet />
-        </div>
-      </main>
+      <div className="flex flex-col flex-1 overflow-hidden">
+        <Navbar toggleSidebar={toggleSidebar} />
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-gray-900">
+          <div className="container mx-auto px-6 py-8">
+            <Outlet />
+          </div>
+        </main>
+      </div>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
+      />
     </div>
   );
 };

@@ -40,6 +40,8 @@ import RelationshipTypesListPage from '../pages/relationships/types/list';
 import CreateRelationshipTypePage from '../pages/relationships/types/create/index';
 import RelationshipTypeDetailsPage from '../pages/relationships/types/details';
 import SystemSettingsPage from '../pages/system/settings';
+import LoadingPage from '../pages/auth/loading';
+import LogoutPage from '../pages/auth/logout';
 
 // Ana sayfa için basit bir test component'i
 const HomePage = () => (
@@ -56,24 +58,20 @@ const routes: RouteObject[] = [
     children: [
       // Auth Routes - Layout dışında
       {
-        path: 'login',
-        element: <LoginPage />
-      },
-      {
-        path: 'register',
-        element: <RegisterPage />
-      },
-      {
         path: 'auth/login',
         element: <LoginPage />
+      },
+      {
+        path: 'auth/loading',
+        element: <LoadingPage />
       },
       {
         path: 'auth/register',
         element: <RegisterPage />
       },
       {
-        path: 'logout',
-        element: <LoginPage />
+        path: 'auth/logout',
+        element: <LogoutPage />
       },
       
       // Ana Layout içindeki sayfalar

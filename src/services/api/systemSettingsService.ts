@@ -220,14 +220,103 @@ class SystemSettingsService {
     return defaultSettings;
   }
 
-  async getSettings(): Promise<ISystemSettings> {
+  async getSettings(): Promise<{ success: boolean; data: ISystemSettings }> {
     try {
-      const response: AxiosResponse<ISystemSettings> = await api.get(this.baseUrl);
+      const response = await api.get('/system');
       localStorage.setItem('offlineSettings', JSON.stringify(response.data));
       return response.data;
     } catch (error) {
-      console.warn('API bağlantısı başarısız, çevrimdışı ayarlar kullanılıyor:', error);
-      return this.getOfflineSettings();
+      console.error('Sistem ayarları alınırken hata:', error);
+      
+      // Hata durumunda varsayılan ayarları döndür
+      const defaultSettings: ISystemSettings = {
+        _id: 'default',
+        companyName: 'SpesEngine',
+        systemTitle: 'SpesEngine',
+        defaultLanguage: 'tr',
+        timezone: 'Europe/Istanbul',
+        dateFormat: 'DD.MM.YYYY',
+        timeFormat: 'HH:mm',
+        logoUrl: '',
+        theme: {
+          mode: 'light',
+          primaryColor: '#1f6feb',
+          accentColor: '#f97316',
+          enableDarkMode: true,
+          defaultDarkMode: false,
+          enableCustomFonts: false,
+          customFont: 'Inter',
+          customLogoUrl: '',
+          enableCustomStyles: false,
+          customCSS: '',
+          showLogo: true,
+          showUserAvatar: true,
+          menuStyle: 'side'
+        },
+        backup: {
+          backupSchedule: 'daily',
+          backupTime: '00:00',
+          retentionPeriod: 30,
+          backupLocation: 'local',
+          s3Bucket: '',
+          s3Region: '',
+          backupDatabase: true,
+          backupUploads: true,
+          backupLogs: true,
+          compressionLevel: 'medium'
+        },
+        security: {
+          passwordPolicy: 'medium',
+          passwordExpiryDays: 90,
+          loginAttempts: 5,
+          sessionTimeout: 30,
+          allowedIPs: [],
+          enableTwoFactor: false,
+          enforceSSL: true
+        },
+        notifications: {
+          enableSystemNotifications: true,
+          enableEmailNotifications: false,
+          enablePushNotifications: false,
+          notifyUserOnLogin: true,
+          notifyUserOnPasswordChange: true,
+          notifyUserOnRoleChange: true,
+          notifyOnDataImport: true,
+          notifyOnDataExport: true,
+          notifyOnBulkChanges: true,
+          notifyOnSystemUpdates: true,
+          notifyOnBackupComplete: true,
+          notifyOnSystemErrors: true,
+          adminEmails: []
+        },
+        integrations: {
+          api: {
+            enabled: true,
+            rateLimit: 100
+          },
+          email: {
+            provider: 'smtp',
+            senderEmail: 'no-reply@spesengine.com'
+          },
+          sso: {
+            provider: ''
+          }
+        },
+        license: {
+          key: '',
+          type: 'community',
+          expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+          maxUsers: 10,
+          features: []
+        },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      return {
+        success: false,
+        data: defaultSettings
+      };
     }
   }
 
@@ -239,9 +328,9 @@ class SystemSettingsService {
   async updateSection<T extends keyof ISystemSettings>(
     section: T,
     data: Partial<ISystemSettings[T]>
-  ): Promise<ISystemSettings> {
+  ): Promise<{ success: boolean; data: ISystemSettings }> {
     try {
-      const response: AxiosResponse<ISystemSettings> = await api.patch(
+      const response: AxiosResponse<{ success: boolean; data: ISystemSettings }> = await api.put(
         `${this.baseUrl}/${section}`,
         data
       );
@@ -263,8 +352,10 @@ class SystemSettingsService {
         localSettings[section] = data as ISystemSettings[T];
       }
       
-      localStorage.setItem('offlineSettings', JSON.stringify(localSettings));
-      return localSettings;
+      return {
+        success: false,
+        data: localSettings
+      };
     }
   }
 

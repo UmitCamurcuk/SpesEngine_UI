@@ -54,18 +54,31 @@ class ThemeService {
   }
 
   applyTheme(theme: Partial<ISystemSettings['theme']>) {
-    if (theme.primaryColor && theme.accentColor) {
-      console.log('Renk değişkenleri güncelleniyor:', theme.primaryColor, theme.accentColor);
-      this.updateCSSVariables(theme.primaryColor, theme.accentColor);
+    try {
+      if (theme.primaryColor && theme.accentColor) {
+        this.updateCSSVariables(theme.primaryColor, theme.accentColor);
+      } else {
+        console.warn('Tema renkleri eksik:', theme);
+        
+        // LocalStorage'dan renkleri almayı dene
+        const savedThemeColors = localStorage.getItem('themeColors');
+        if (savedThemeColors) {
+          const colors = JSON.parse(savedThemeColors);
+          console.log('LocalStorage\'dan yüklenen renkler:', colors);
+          this.updateCSSVariables(colors.primaryColor, colors.accentColor);
+        }
+      }
+
+      // Karanlık mod ayarları
+      const shouldBeDark = 
+        theme.mode === 'dark' || 
+        (theme.mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches) ||
+        theme.defaultDarkMode;
+
+      document.documentElement.classList.toggle('dark', shouldBeDark);
+    } catch (error) {
+      console.error('Tema uygulama hatası:', error);
     }
-
-    // Karanlık mod ayarları
-    const shouldBeDark = 
-      theme.mode === 'dark' || 
-      (theme.mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches) ||
-      theme.defaultDarkMode;
-
-    document.documentElement.classList.toggle('dark', shouldBeDark);
   }
 }
 

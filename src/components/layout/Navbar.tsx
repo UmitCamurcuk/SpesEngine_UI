@@ -1,8 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { useAppDispatch, useAppSelector } from '../../redux/store';
-import { logout } from '../../redux/features/auth/authSlice';
 import { useTranslation } from '../../context/i18nContext';
 
 interface NavbarProps {
@@ -10,16 +9,35 @@ interface NavbarProps {
 }
 
 const Navbar = ({ toggleSidebar }: NavbarProps) => {
-  const { themeType, toggleTheme } = useTheme();
+  const { mode, toggleTheme } = useTheme();
   const { user } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { t } = useTranslation();
+  const [systemTitle, setSystemTitle] = useState('SpesEngine');
+  const [logoUrl, setLogoUrl] = useState('/logo.png');
+
+  useEffect(() => {
+    // LocalStorage'dan sistem ayarlarını al
+    const systemSettings = localStorage.getItem('systemSettings');
+    if (systemSettings) {
+      try {
+        const settings = JSON.parse(systemSettings);
+        if (settings.systemTitle) {
+          setSystemTitle(settings.systemTitle);
+        }
+        if (settings.logoUrl) {
+          setLogoUrl(settings.logoUrl);
+        }
+      } catch (error) {
+        console.error('Sistem ayarları parse edilirken hata:', error);
+      }
+    }
+  }, []);
 
   const handleLogout = () => {
-    dispatch(logout());
-    navigate('/logout');
+    navigate('/auth/logout');
   };
 
   const toggleUserMenu = () => {
@@ -40,8 +58,16 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
               <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd"></path>
             </svg>
           </button>
-          <Link to="/" className="flex items-center">
-            <span className="text-primary-light dark:text-primary-dark text-xl font-semibold whitespace-nowrap">{t('app_name')}</span>
+          <Link to="/" className="flex items-center space-x-2">
+            <img 
+              src={logoUrl} 
+              alt={systemTitle}
+              className="h-8 w-auto"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/logo.png';
+              }}
+            />
+            <span className="text-primary-light dark:text-primary-dark text-xl font-semibold whitespace-nowrap">{systemTitle}</span>
           </Link>
         </div>
 
@@ -51,9 +77,9 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
           <button
             onClick={toggleTheme}
             className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            aria-label={themeType === 'dark' ? t('switch_to_light', 'theme') : t('switch_to_dark', 'theme')}
+            aria-label={mode === 'dark' ? t('switch_to_light', 'theme') : t('switch_to_dark', 'theme')}
           >
-            {themeType === 'dark' ? (
+            {mode === 'dark' ? (
               <svg className="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
               </svg>

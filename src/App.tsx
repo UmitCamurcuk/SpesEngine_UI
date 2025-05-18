@@ -1,5 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import './App.css';
 
 // Layouts
@@ -23,7 +25,7 @@ import FamilyDetailsPage from './pages/families/details';
 // Relationships
 import RelationshipTypesListPage from './pages/relationships/types/list';
 import CreateRelationshipTypePage from './pages/relationships/types/create';
-import EditRelationshipTypePage from './pages/relationships/types/edit';
+import RelationshipTypeDetailsPage from './pages/relationships/types/details';
 
 // Localizations
 import LocalizationsListPage from './pages/localizations/list';
@@ -65,56 +67,70 @@ const HomePage = () => (
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        {/* Auth Routes */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/auth/login" element={<LoginPage />} />
-        <Route path="/auth/register" element={<RegisterPage />} />
-        
-        {/* AppLayout ile sarılmış sayfalar */}
-        <Route path="/" element={<AppLayout />}>
-          <Route index element={<HomePage />} />
-          <Route path="profile" element={<ProfilePage />} />
-        </Route>
-        
-        <Route path="/attributeGroups" element={<AppLayout />}>
-          <Route path="list" element={<AttributeGroupsListPage />} />
-          <Route path="create" element={<AttributeGroupCreatePage />} />
-          <Route path="details/:id" element={<AttributeGroupDetailsPage />} />
-        </Route>
-        
-        <Route path="/attributes" element={<AppLayout />}>
-          <Route path="list" element={<AttributesListPage />} />
-          <Route path="create" element={<AttributeCreatePage />} />
-          <Route path=":id" element={<AttributeDetailsPage />} />
-        </Route>
-        
-        <Route path="/families" element={<AppLayout />}>
-          <Route path="list" element={<FamiliesListPage />} />
-          <Route path="create" element={<FamilyCreatePage />} />
-          <Route path="details/:id" element={<FamilyDetailsPage />} />
-        </Route>
-        
-        <Route path="/relationships" element={<AppLayout />}>
-          <Route path="types">
-            <Route path="list" element={<RelationshipTypesListPage />} />
-            <Route path="create" element={<CreateRelationshipTypePage />} />
-            <Route path="edit/:id" element={<EditRelationshipTypePage />} />
+    <>
+      <Router>
+        <Routes>
+          {/* Auth Routes */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/auth/login" element={<LoginPage />} />
+          <Route path="/auth/register" element={<RegisterPage />} />
+          
+          {/* AppLayout ile sarılmış sayfalar */}
+          <Route path="/" element={<AppLayout />}>
+            <Route index element={<HomePage />} />
+            <Route path="profile" element={<ProfilePage />} />
           </Route>
-        </Route>
-        
-        <Route path="/localizations" element={<AppLayout />}>
-          <Route path="list" element={<LocalizationsListPage />} />
-          <Route path="create" element={<LocalizationCreatePage />} />
-          <Route path="details/:namespace/:key" element={<LocalizationDetailsPage />} />
-        </Route>
-        
-        {/* 404 Page */}
-        <Route path="*" element={<div className="p-8">Sayfa bulunamadı.</div>} />
-      </Routes>
-    </Router>
+          
+          <Route path="/attributeGroups" element={<AppLayout />}>
+            <Route path="list" element={<AttributeGroupsListPage />} />
+            <Route path="create" element={<AttributeGroupCreatePage />} />
+            <Route path="details/:id" element={<AttributeGroupDetailsPage />} />
+          </Route>
+          
+          <Route path="/attributes" element={<AppLayout />}>
+            <Route path="list" element={<AttributesListPage />} />
+            <Route path="create" element={<AttributeCreatePage />} />
+            <Route path=":id" element={<AttributeDetailsPage />} />
+          </Route>
+          
+          <Route path="/families" element={<AppLayout />}>
+            <Route path="list" element={<FamiliesListPage />} />
+            <Route path="create" element={<FamilyCreatePage />} />
+            <Route path="details/:id" element={<FamilyDetailsPage />} />
+          </Route>
+          
+          <Route path="/relationships" element={<AppLayout />}>
+            <Route path="types">
+              <Route path="list" element={<RelationshipTypesListPage />} />
+              <Route path="create" element={<CreateRelationshipTypePage />} />
+              <Route path="details/:id" element={<RelationshipTypeDetailsPage />} />
+            </Route>
+          </Route>
+          
+          <Route path="/localizations" element={<AppLayout />}>
+            <Route path="list" element={<LocalizationsListPage />} />
+            <Route path="create" element={<LocalizationCreatePage />} />
+            <Route path="details/:namespace/:key" element={<LocalizationDetailsPage />} />
+          </Route>
+          
+          {/* 404 Page */}
+          <Route path="*" element={<div className="p-8">Sayfa bulunamadı.</div>} />
+        </Routes>
+      </Router>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
+      />
+    </>
   );
 }
 

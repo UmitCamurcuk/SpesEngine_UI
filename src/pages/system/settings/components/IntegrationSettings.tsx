@@ -1,9 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from '../../../../context/i18nContext';
+import systemSettingsService, { ISystemSettings } from '../../../../services/api/systemSettingsService';
+import { toast } from 'react-toastify';
+
+interface IntegrationFormData {
+  // API Entegrasyonları
+  enablePublicAPI: boolean;
+  apiRateLimit: string;
+  
+  // ERP Entegrasyonu
+  erpIntegration: string;
+  erpHost: string;
+  erpUsername: string;
+  erpPassword: string;
+  
+  // Analytics Entegrasyonu
+  enableAnalytics: boolean;
+  analyticsProvider: string;
+  analyticsTrackingID: string;
+  
+  // Email Servisi
+  emailProvider: string;
+  smtpHost: string;
+  smtpPort: string;
+  smtpUsername: string;
+  smtpPassword: string;
+  senderEmail: string;
+  
+  // SSO Entegrasyonu
+  ssoProvider: string;
+}
 
 const IntegrationSettings: React.FC = () => {
   const { t } = useTranslation();
-  const [formData, setFormData] = useState({
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState<IntegrationFormData>({
     // API Entegrasyonları
     enablePublicAPI: true,
     apiRateLimit: '1000',
@@ -31,16 +62,85 @@ const IntegrationSettings: React.FC = () => {
     ssoProvider: 'none',
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  // Ayarları yükle
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        setLoading(true);
+        const settings = await systemSettingsService.getSettings();
+        
+        setFormData({
+          enablePublicAPI: settings.integrations.api.enabled,
+          apiRateLimit: settings.integrations.api.rateLimit.toString(),
+          erpIntegration: settings.integrations.erp?.integration ?? 'none',
+          erpHost: settings.integrations.erp?.host ?? '',
+          erpUsername: settings.integrations.erp?.username ?? '',
+          erpPassword: settings.integrations.erp?.password ?? '',
+          enableAnalytics: settings.integrations.analytics?.enabled ?? false,
+          analyticsProvider: settings.integrations.analytics?.provider ?? 'google',
+          analyticsTrackingID: settings.integrations.analytics?.trackingId ?? '',
+          emailProvider: settings.integrations.email.provider,
+          smtpHost: settings.integrations.email.smtpHost ?? '',
+          smtpPort: (settings.integrations.email.smtpPort ?? 587).toString(),
+          smtpUsername: settings.integrations.email.smtpUsername ?? '',
+          smtpPassword: settings.integrations.email.smtpPassword ?? '',
+          senderEmail: settings.integrations.email.senderEmail,
+          ssoProvider: settings.integrations.sso.provider
+        });
+      } catch (error) {
+        console.error('Entegrasyon ayarları yüklenirken hata:', error);
+        toast.error(t('integration_settings_load_error', 'system'));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, []);
+
+  const handleChange = async (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     
-    if (type === 'checkbox') {
-      const checked = (e.target as HTMLInputElement).checked;
-      setFormData(prev => ({ ...prev, [name]: checked }));
-      return;
+    const newValue = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
+    const updatedFormData = { ...formData, [name]: newValue };
+    setFormData(updatedFormData);
+
+    try {
+      const integrationUpdate: Partial<ISystemSettings['integrations']> = {
+        api: {
+          enabled: updatedFormData.enablePublicAPI,
+          rateLimit: parseInt(updatedFormData.apiRateLimit, 10)
+        },
+        erp: {
+          integration: updatedFormData.erpIntegration,
+          host: updatedFormData.erpHost,
+          username: updatedFormData.erpUsername,
+          password: updatedFormData.erpPassword
+        },
+        analytics: {
+          enabled: updatedFormData.enableAnalytics,
+          provider: updatedFormData.analyticsProvider,
+          trackingId: updatedFormData.analyticsTrackingID
+        },
+        email: {
+          provider: updatedFormData.emailProvider,
+          smtpHost: updatedFormData.smtpHost,
+          smtpPort: parseInt(updatedFormData.smtpPort, 10),
+          smtpUsername: updatedFormData.smtpUsername,
+          smtpPassword: updatedFormData.smtpPassword,
+          senderEmail: updatedFormData.senderEmail
+        },
+        sso: {
+          provider: updatedFormData.ssoProvider
+        }
+      };
+
+      await systemSettingsService.updateSection('integrations', integrationUpdate);
+      toast.success(t('integration_setting_updated', 'system'));
+    } catch (error) {
+      console.error('Entegrasyon ayarı güncellenirken hata:', error);
+      toast.error(t('integration_setting_update_error', 'system'));
     }
-    
-    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   return (

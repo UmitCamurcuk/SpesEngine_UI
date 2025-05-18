@@ -1,0 +1,46 @@
+:root {
+  /* Varsayılan ana renkler */
+  --primary-light: #1f6feb;
+  --primary-dark: #1a5dcc;
+  --primary-lighter: #2476ff;
+  --primary-hover: #1c63d4;
+  --primary-active: #174ea6;
+
+  /* Varsayılan aksan renkleri */
+  --accent-light: #f97316;
+  --accent-dark: #ea580c;
+  --accent-lighter: #fb923c;
+  --accent-hover: #f97316;
+  --accent-active: #c2410c;
+
+  /* Arka plan renkleri */
+  --background-light: #ffffff;
+  --background-dark: #f3f4f6;
+  
+  /* Metin renkleri */
+  --text-light: #111827;
+  --text-dark: #374151;
+}
+
+/* Karanlık mod için varsayılan renkler */
+.dark {
+  --primary-light: #60a5fa;
+  --primary-dark: #3b82f6;
+  --primary-lighter: #93c5fd;
+  --primary-hover: #2563eb;
+  --primary-active: #1d4ed8;
+
+  --accent-light: #fb923c;
+  --accent-dark: #f97316;
+  --accent-lighter: #fdba74;
+  --accent-hover: #ea580c;
+  --accent-active: #c2410c;
+
+  /* Karanlık mod arka plan renkleri */
+  --background-light: #1f2937;
+  --background-dark: #111827;
+  
+  /* Karanlık mod metin renkleri */
+  --text-light: #f9fafb;
+  --text-dark: #e5e7eb;
+} 

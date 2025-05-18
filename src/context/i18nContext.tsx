@@ -59,7 +59,6 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     // Sadece debug modunda ve dahili kullanım değilse logla
     if (!options?.use && (namespace === 'menu' || namespace === 'attribute_types')) {
-      console.log(`[i18n] Çeviri isteği: Key: "${key}", Namespace: "${namespace}", Dil: "${currentLanguage}", Sonuç: "${result}"`);
     }
     
     return result;
@@ -67,12 +66,9 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Dil değiştiğinde çevirileri yükle
   useEffect(() => {
-    console.log(`[i18n] useEffect: CurrentLang: ${currentLanguage}, LoadedLang: ${loadedLanguage}, isLoaded: ${isLoaded}`);
-    console.log(`[i18n] Mevcut çeviriler:`, translations);
     
     // Sadece dil değişmiş veya henüz yüklenmemişse API çağrısı yap
     if (currentLanguage !== loadedLanguage) {
-      console.log(`[i18n] Çeviriler yükleniyor: ${currentLanguage}`);
       // @ts-ignore
       dispatch(fetchTranslations(currentLanguage));
       setLoadedLanguage(currentLanguage);

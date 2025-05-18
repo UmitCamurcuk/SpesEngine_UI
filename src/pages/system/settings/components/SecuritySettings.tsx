@@ -1,35 +1,111 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from '../../../../context/i18nContext';
+import systemSettingsService, { ISystemSettings } from '../../../../services/api/systemSettingsService';
+import { toast } from 'react-toastify';
+
+type PasswordPolicy = 'basic' | 'medium' | 'strong' | 'very_strong';
+
+interface SecurityFormData {
+  passwordPolicy: PasswordPolicy;
+  passwordExpiryDays: number;
+  enableTwoFactor: boolean;
+  loginAttempts: number;
+  sessionTimeout: number;
+  allowedIPs: string[];
+  enforceSSL: boolean;
+}
 
 const SecuritySettings: React.FC = () => {
   const { t } = useTranslation();
-  const [formData, setFormData] = useState({
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState<SecurityFormData>({
     passwordPolicy: 'strong',
-    passwordExpiration: '90',
-    twoFactorAuth: true,
-    loginAttempts: '5',
-    sessionTimeout: '30',
-    allowedIPs: '',
-    sslCertificate: true
+    passwordExpiryDays: 90,
+    enableTwoFactor: false,
+    loginAttempts: 5,
+    sessionTimeout: 30,
+    allowedIPs: [],
+    enforceSSL: true
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  // Ayarları yükle
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        setLoading(true);
+        const settings = await systemSettingsService.getSettings();
+        setFormData({
+          passwordPolicy: settings.security.passwordPolicy,
+          passwordExpiryDays: settings.security.passwordExpiryDays,
+          enableTwoFactor: settings.security.enableTwoFactor,
+          loginAttempts: settings.security.loginAttempts,
+          sessionTimeout: settings.security.sessionTimeout,
+          allowedIPs: settings.security.allowedIPs,
+          enforceSSL: settings.security.enforceSSL || true
+        });
+      } catch (error) {
+        console.error('Güvenlik ayarları yüklenirken hata:', error);
+        toast.error(t('security_settings_load_error', 'system'));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, []);
+
+  const handleChange = async (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     
+    let newValue: any = value;
+    
     if (type === 'checkbox') {
-      const checked = (e.target as HTMLInputElement).checked;
-      setFormData(prev => ({ ...prev, [name]: checked }));
-      return;
+      newValue = (e.target as HTMLInputElement).checked;
+    } else if (type === 'number') {
+      newValue = parseInt(value, 10);
+    } else if (name === 'allowedIPs') {
+      newValue = value.split(',').map(ip => ip.trim()).filter(ip => ip);
+    } else if (name === 'passwordPolicy') {
+      newValue = value as PasswordPolicy;
     }
     
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const updatedFormData = { ...formData, [name]: newValue };
+    setFormData(updatedFormData);
+
+    try {
+      const securityUpdate: ISystemSettings['security'] = {
+        passwordPolicy: updatedFormData.passwordPolicy,
+        passwordExpiryDays: updatedFormData.passwordExpiryDays,
+        enableTwoFactor: updatedFormData.enableTwoFactor,
+        loginAttempts: updatedFormData.loginAttempts,
+        sessionTimeout: updatedFormData.sessionTimeout,
+        allowedIPs: updatedFormData.allowedIPs,
+        enforceSSL: updatedFormData.enforceSSL
+      };
+
+      await systemSettingsService.updateSection('security', securityUpdate);
+      toast.success(t('security_setting_updated', 'system'));
+    } catch (error) {
+      console.error('Güvenlik ayarı güncellenirken hata:', error);
+      toast.error(t('security_setting_update_error', 'system'));
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-light dark:border-primary-dark"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-medium text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">
-        {t('security_settings', 'system')}
-      </h2>
+      <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-2">
+        <h2 className="text-xl font-medium text-gray-900 dark:text-white">
+          {t('security_settings', 'system')}
+        </h2>
+      </div>
       
       <div className="space-y-8">
         {/* Şifre Politikası */}
@@ -61,14 +137,14 @@ const SecuritySettings: React.FC = () => {
             </div>
             
             <div>
-              <label htmlFor="passwordExpiration" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="passwordExpiryDays" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 {t('password_expiration', 'system')} ({t('days', 'common')})
               </label>
               <input
                 type="number"
-                id="passwordExpiration"
-                name="passwordExpiration"
-                value={formData.passwordExpiration}
+                id="passwordExpiryDays"
+                name="passwordExpiryDays"
+                value={formData.passwordExpiryDays}
                 onChange={handleChange}
                 min="0"
                 max="365"
@@ -92,13 +168,13 @@ const SecuritySettings: React.FC = () => {
               <div className="flex items-center">
                 <input
                   type="checkbox"
-                  id="twoFactorAuth"
-                  name="twoFactorAuth"
-                  checked={formData.twoFactorAuth}
+                  id="enableTwoFactor"
+                  name="enableTwoFactor"
+                  checked={formData.enableTwoFactor}
                   onChange={handleChange}
                   className="w-4 h-4 text-primary-light dark:text-primary-dark focus:ring-primary-light dark:focus:ring-primary-dark rounded"
                 />
-                <label htmlFor="twoFactorAuth" className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="enableTwoFactor" className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                   {t('enable_2fa', 'system')}
                 </label>
               </div>
@@ -170,7 +246,7 @@ const SecuritySettings: React.FC = () => {
               <textarea
                 id="allowedIPs"
                 name="allowedIPs"
-                value={formData.allowedIPs}
+                value={formData.allowedIPs.join(', ')}
                 onChange={handleChange}
                 rows={3}
                 placeholder="192.168.1.1, 10.0.0.0/24"
@@ -185,13 +261,13 @@ const SecuritySettings: React.FC = () => {
               <div className="flex items-center">
                 <input
                   type="checkbox"
-                  id="sslCertificate"
-                  name="sslCertificate"
-                  checked={formData.sslCertificate}
+                  id="enforceSSL"
+                  name="enforceSSL"
+                  checked={formData.enforceSSL}
                   onChange={handleChange}
                   className="w-4 h-4 text-primary-light dark:text-primary-dark focus:ring-primary-light dark:focus:ring-primary-dark rounded"
                 />
-                <label htmlFor="sslCertificate" className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="enforceSSL" className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                   {t('enforce_ssl', 'system')}
                 </label>
               </div>

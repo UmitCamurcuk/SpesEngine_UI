@@ -1,12 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from '../../../../context/i18nContext';
+import systemSettingsService, { ISystemSettings } from '../../../../services/api/systemSettingsService';
+import themeService from '../../../../services/themeService';
+import { useTheme } from '../../../../context/ThemeContext';
+import { toast } from 'react-toastify';
+
+type ThemeMode = 'light' | 'dark' | 'system';
+
+interface ThemeFormData {
+  mode: ThemeMode;
+  primaryColor: string;
+  accentColor: string;
+  enableDarkMode: boolean;
+  defaultDarkMode: boolean;
+  enableCustomFonts: boolean;
+  customFont: string;
+  customLogoUrl: string;
+  enableCustomStyles: boolean;
+  customCSS: string;
+  showLogo: boolean;
+  showUserAvatar: boolean;
+  menuStyle: 'side' | 'top';
+}
 
 const ThemeSettings: React.FC = () => {
   const { t } = useTranslation();
-  const [formData, setFormData] = useState({
-    theme: 'system',
-    primaryColor: '#1f6feb',
-    accentColor: '#f97316',
+  const { mode, setMode, colors, setColors } = useTheme();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [formData, setFormData] = useState<ThemeFormData>({
+    mode: mode,
+    primaryColor: colors.primaryColor,
+    accentColor: colors.accentColor,
     enableDarkMode: true,
     defaultDarkMode: false,
     enableCustomFonts: false,
@@ -21,16 +46,119 @@ const ThemeSettings: React.FC = () => {
 
   const [selectedTheme, setSelectedTheme] = useState('default');
 
+  // Ayarları yükle
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        setLoading(true);
+        const settings = await systemSettingsService.getSettings();
+        const themeSettings = settings.theme;
+        
+        const newFormData = {
+          mode: themeSettings.mode || mode,
+          primaryColor: themeSettings.primaryColor || colors.primaryColor,
+          accentColor: themeSettings.accentColor || colors.accentColor,
+          enableDarkMode: themeSettings.enableDarkMode,
+          defaultDarkMode: themeSettings.defaultDarkMode,
+          enableCustomFonts: themeSettings.enableCustomFonts || false,
+          customFont: themeSettings.customFont || 'Inter',
+          customLogoUrl: themeSettings.customLogoUrl || '',
+          enableCustomStyles: themeSettings.enableCustomStyles || false,
+          customCSS: themeSettings.customCSS || '',
+          showLogo: themeSettings.showLogo || true,
+          showUserAvatar: themeSettings.showUserAvatar || true,
+          menuStyle: themeSettings.menuStyle || 'side'
+        };
+
+        setFormData(newFormData);
+        setMode(themeSettings.mode || 'system');
+        setColors({
+          primaryColor: themeSettings.primaryColor || colors.primaryColor,
+          accentColor: themeSettings.accentColor || colors.accentColor
+        });
+
+        // Tema presetini bul
+        const preset = themePresets.find(p => 
+          p.primaryColor === themeSettings.primaryColor && 
+          p.accentColor === themeSettings.accentColor
+        );
+        if (preset) {
+          setSelectedTheme(preset.id);
+        }
+      } catch (error) {
+        console.error('Tema ayarları yüklenirken hata:', error);
+        toast.error(t('theme_settings_load_error', 'system'));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, []);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
+    const newValue = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
     
-    if (type === 'checkbox') {
-      const checked = (e.target as HTMLInputElement).checked;
-      setFormData(prev => ({ ...prev, [name]: checked }));
-      return;
+    const updatedFormData = { ...formData, [name]: newValue };
+    setFormData(updatedFormData);
+
+    // Renk veya mod değişikliklerini anında uygula
+    if (['primaryColor', 'accentColor', 'mode', 'enableDarkMode', 'defaultDarkMode'].includes(name)) {
+      if (name === 'mode') {
+        setMode(value as ThemeMode);
+      }
+      
+      if (name === 'primaryColor' || name === 'accentColor') {
+        setColors({
+          primaryColor: name === 'primaryColor' ? value : updatedFormData.primaryColor,
+          accentColor: name === 'accentColor' ? value : updatedFormData.accentColor
+        });
+      }
     }
-    
-    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      console.log('Kaydedilecek tema ayarları:', formData);
+
+      const themeUpdate: ISystemSettings['theme'] = {
+        mode: formData.mode,
+        primaryColor: formData.primaryColor,
+        accentColor: formData.accentColor,
+        enableDarkMode: formData.enableDarkMode,
+        defaultDarkMode: formData.defaultDarkMode,
+        enableCustomFonts: formData.enableCustomFonts,
+        customFont: formData.customFont,
+        customLogoUrl: formData.customLogoUrl,
+        enableCustomStyles: formData.enableCustomStyles,
+        customCSS: formData.customCSS,
+        showLogo: formData.showLogo,
+        showUserAvatar: formData.showUserAvatar,
+        menuStyle: formData.menuStyle
+      };
+
+      console.log('Backend\'e gönderilecek veriler:', themeUpdate);
+      
+      const response = await systemSettingsService.updateSection('theme', themeUpdate);
+      console.log('Backend\'den gelen yanıt:', response);
+
+      toast.success(t('settings_saved', 'system'));
+    } catch (error) {
+      console.error('Tema ayarları kaydedilirken hata:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Tema ayarları kaydedilirken bir hata oluştu';
+      setError(errorMessage);
+      toast.error(t('settings_save_error', 'system'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const themePresets = [
@@ -43,19 +171,47 @@ const ThemeSettings: React.FC = () => {
 
   const selectThemePreset = (preset: typeof themePresets[0]) => {
     setSelectedTheme(preset.id);
-    setFormData(prev => ({
-      ...prev,
+    const newFormData = {
+      ...formData,
       primaryColor: preset.primaryColor,
       accentColor: preset.accentColor
-    }));
+    };
+    setFormData(newFormData);
+    setColors({
+      primaryColor: preset.primaryColor,
+      accentColor: preset.accentColor
+    });
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-light dark:border-primary-dark"></div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-medium text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">
-        {t('appearance_themes', 'system')}
-      </h2>
-      
+    <form onSubmit={handleSave} className="space-y-6">
+      <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-2">
+        <h2 className="text-xl font-medium text-gray-900 dark:text-white">
+          {t('appearance_themes', 'system')}
+        </h2>
+        <button
+          type="submit"
+          disabled={loading}
+          className="px-4 py-2 bg-primary-light dark:bg-primary-dark text-white rounded-lg hover:bg-primary-light/90 dark:hover:bg-primary-dark/90 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loading ? t('saving', 'common') : t('save', 'common')}
+        </button>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/50 text-red-600 dark:text-red-400 p-4 rounded-lg">
+          {error}
+        </div>
+      )}
+
       <div className="space-y-8">
         {/* Tema Ayarları */}
         <div>
@@ -65,13 +221,13 @@ const ThemeSettings: React.FC = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label htmlFor="theme" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="mode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 {t('color_mode', 'system')}
               </label>
               <select
-                id="theme"
-                name="theme"
-                value={formData.theme}
+                id="mode"
+                name="mode"
+                value={formData.mode}
                 onChange={handleChange}
                 className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
               >
@@ -225,7 +381,6 @@ const ThemeSettings: React.FC = () => {
               >
                 <option value="side">{t('side_menu', 'system')}</option>
                 <option value="top">{t('top_menu', 'system')}</option>
-                <option value="collapsed">{t('collapsed_menu', 'system')}</option>
               </select>
             </div>
             
@@ -353,7 +508,7 @@ const ThemeSettings: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
+    </form>
   );
 };
 

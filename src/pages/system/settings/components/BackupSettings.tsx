@@ -1,12 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from '../../../../context/i18nContext';
+import systemSettingsService, { ISystemSettings } from '../../../../services/api/systemSettingsService';
+import { toast } from 'react-toastify';
+
+type BackupSchedule = 'hourly' | 'daily' | 'weekly' | 'monthly' | 'manual';
+type BackupLocation = 'local' | 's3';
+type CompressionLevel = 'none' | 'low' | 'medium' | 'high';
+
+interface BackupFormData {
+  backupSchedule: BackupSchedule;
+  backupTime: string;
+  retentionPeriod: number;
+  backupLocation: BackupLocation;
+  s3Bucket: string;
+  s3Region: string;
+  backupDatabase: boolean;
+  backupUploads: boolean;
+  backupLogs: boolean;
+  compressionLevel: CompressionLevel;
+}
 
 const BackupSettings: React.FC = () => {
   const { t } = useTranslation();
-  const [formData, setFormData] = useState({
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState<BackupFormData>({
     backupSchedule: 'daily',
     backupTime: '03:00',
-    retentionPeriod: '30',
+    retentionPeriod: 30,
     backupLocation: 'local',
     s3Bucket: '',
     s3Region: 'eu-central-1',
@@ -16,23 +36,103 @@ const BackupSettings: React.FC = () => {
     compressionLevel: 'medium'
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  // Ayarları yükle
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        setLoading(true);
+        const settings = await systemSettingsService.getSettings();
+        setFormData({
+          backupSchedule: settings.backup.backupSchedule,
+          backupTime: settings.backup.backupTime,
+          retentionPeriod: settings.backup.retentionPeriod,
+          backupLocation: settings.backup.backupLocation,
+          s3Bucket: settings.backup.s3Bucket,
+          s3Region: settings.backup.s3Region,
+          backupDatabase: settings.backup.backupDatabase,
+          backupUploads: settings.backup.backupUploads,
+          backupLogs: settings.backup.backupLogs,
+          compressionLevel: settings.backup.compressionLevel
+        });
+      } catch (error) {
+        console.error('Yedekleme ayarları yüklenirken hata:', error);
+        toast.error(t('backup_settings_load_error', 'system'));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, []);
+
+  const handleChange = async (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     
+    let newValue: any = value;
     if (type === 'checkbox') {
-      const checked = (e.target as HTMLInputElement).checked;
-      setFormData(prev => ({ ...prev, [name]: checked }));
-      return;
+      newValue = (e.target as HTMLInputElement).checked;
+    } else if (type === 'number') {
+      newValue = parseInt(value, 10);
     }
     
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const updatedFormData = { ...formData, [name]: newValue };
+    setFormData(updatedFormData);
+
+    try {
+      const backupUpdate: Partial<ISystemSettings['backup']> = {
+        ...updatedFormData,
+        lastBackupTime: undefined
+      };
+
+      await systemSettingsService.updateSection('backup', backupUpdate);
+      toast.success(t('backup_setting_updated', 'system'));
+    } catch (error) {
+      console.error('Yedekleme ayarı güncellenirken hata:', error);
+      toast.error(t('backup_setting_update_error', 'system'));
+    }
   };
+
+  const handleBackupNow = async () => {
+    try {
+      setLoading(true);
+      const backupUpdate: Partial<ISystemSettings['backup']> = {
+        ...formData,
+        lastBackupTime: new Date().toISOString()
+      };
+
+      await systemSettingsService.updateSection('backup', backupUpdate);
+      toast.success(t('backup_started', 'system'));
+    } catch (error) {
+      console.error('Manuel yedekleme başlatılırken hata:', error);
+      toast.error(t('backup_start_error', 'system'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-light dark:border-primary-dark"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-medium text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">
-        {t('backup_restore', 'system')}
-      </h2>
+      <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-2">
+        <h2 className="text-xl font-medium text-gray-900 dark:text-white">
+          {t('backup_restore', 'system')}
+        </h2>
+        <button
+          type="button"
+          onClick={handleBackupNow}
+          disabled={loading}
+          className="px-4 py-2 bg-primary-light dark:bg-primary-dark text-white rounded-lg hover:bg-primary-light/90 dark:hover:bg-primary-dark/90 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loading ? t('backup_in_progress', 'system') : t('backup_now', 'system')}
+        </button>
+      </div>
       
       <div className="space-y-8">
         {/* Zamanlanmış Yedeklemeler */}
@@ -228,44 +328,31 @@ const BackupSettings: React.FC = () => {
           </div>
         </div>
         
-        {/* Manuel Yedekleme ve Geri Yükleme */}
+        {/* Yedekleme Ayarları */}
         <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-            {t('manual_operations', 'system')}
+            {t('backup_settings', 'system')}
           </h3>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <button
-                type="button"
-                className="px-4 py-2 bg-primary-light dark:bg-primary-dark text-white rounded-lg hover:bg-primary-light/90 dark:hover:bg-primary-dark/90 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark focus:ring-offset-2 transition-colors"
-              >
-                {t('create_backup_now', 'system')}
-              </button>
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                {t('manual_backup_help', 'system')}
-              </p>
-            </div>
-            
-            <div>
-              <div className="flex items-center space-x-2">
-                <button
-                  type="button"
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark focus:ring-offset-2 transition-colors"
-                >
-                  {t('upload_backup_file', 'system')}
-                </button>
-                <button
-                  type="button"
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark focus:ring-offset-2 transition-colors"
-                >
-                  {t('restore_system', 'system')}
-                </button>
-              </div>
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                {t('restore_warning', 'system')}
-              </p>
-            </div>
+          <div>
+            <label htmlFor="compressionLevel" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              {t('compression_level', 'system')}
+            </label>
+            <select
+              id="compressionLevel"
+              name="compressionLevel"
+              value={formData.compressionLevel}
+              onChange={handleChange}
+              className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
+            >
+              <option value="none">{t('none', 'common')}</option>
+              <option value="low">{t('low', 'system')}</option>
+              <option value="medium">{t('medium', 'system')}</option>
+              <option value="high">{t('high', 'system')}</option>
+            </select>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {t('compression_level_help', 'system')}
+            </p>
           </div>
         </div>
       </div>

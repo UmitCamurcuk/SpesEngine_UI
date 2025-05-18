@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from '../../../../context/i18nContext';
+import systemSettingsService from '../../../../services/api/systemSettingsService';
+import { toast } from 'react-toastify';
 
 const NotificationSettings: React.FC = () => {
   const { t } = useTranslation();
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     enableSystemNotifications: true,
     enableEmailNotifications: true,
@@ -24,26 +27,66 @@ const NotificationSettings: React.FC = () => {
     notifyOnSystemErrors: true,
     
     // Bildirim alacak email adresleri
-    adminEmails: 'admin@example.com'
+    adminEmails: [] as string[]
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  // Ayarları yükle
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        setLoading(true);
+        const settings = await systemSettingsService.getSettings();
+        setFormData(settings.notifications);
+      } catch (error) {
+        console.error('Bildirim ayarları yüklenirken hata:', error);
+        toast.error(t('notification_settings_load_error', 'system'));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, []);
+
+  const handleChange = async (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     
+    let newValue: any = value;
     if (type === 'checkbox') {
-      const checked = (e.target as HTMLInputElement).checked;
-      setFormData(prev => ({ ...prev, [name]: checked }));
-      return;
+      newValue = (e.target as HTMLInputElement).checked;
+    } else if (name === 'adminEmails') {
+      newValue = value.split(',').map(email => email.trim()).filter(email => email);
     }
     
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => ({ ...prev, [name]: newValue }));
+
+    try {
+      await systemSettingsService.updateSection('notifications', {
+        ...formData,
+        [name]: newValue
+      });
+      toast.success(t('notification_setting_updated', 'system'));
+    } catch (error) {
+      console.error('Bildirim ayarı güncellenirken hata:', error);
+      toast.error(t('notification_setting_update_error', 'system'));
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-light dark:border-primary-dark"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-medium text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">
-        {t('notifications', 'system')}
-      </h2>
+      <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-2">
+        <h2 className="text-xl font-medium text-gray-900 dark:text-white">
+          {t('notifications', 'system')}
+        </h2>
+      </div>
       
       <div className="space-y-8">
         {/* Bildirim Kanalları */}
@@ -253,7 +296,7 @@ const NotificationSettings: React.FC = () => {
         {/* Bildirim Alacak Adminler */}
         <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-            {t('admin_notification_recipients', 'system')}
+            {t('notification_recipients', 'system')}
           </h3>
           
           <div>
@@ -263,7 +306,7 @@ const NotificationSettings: React.FC = () => {
             <textarea
               id="adminEmails"
               name="adminEmails"
-              value={formData.adminEmails}
+              value={formData.adminEmails.join(', ')}
               onChange={handleChange}
               rows={3}
               placeholder="admin@example.com, manager@example.com"

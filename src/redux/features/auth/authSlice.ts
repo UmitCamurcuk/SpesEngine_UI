@@ -33,6 +33,13 @@ interface RegisterCredentials {
   password: string;
 }
 
+interface LoginResponse {
+  success: boolean;
+  accessToken: string;
+  refreshToken: string;
+  user: any;
+}
+
 // Initial state
 const initialState: AuthState = {
   isAuthenticated: false,
@@ -44,19 +51,20 @@ const initialState: AuthState = {
 };
 
 // Async thunk actions
-export const login = createAsyncThunk(
+export const login = createAsyncThunk<LoginResponse, LoginCredentials>(
   'auth/login',
-  async (credentials: LoginCredentials, { rejectWithValue }) => {
+  async (credentials, { rejectWithValue }) => {
     try {
       const response = await authService.login(credentials);
-      
-      // Manuel olarak localStorage'a token'ları kaydedelim
-      localStorage.setItem('accessToken', response.accessToken);
-      localStorage.setItem('refreshToken', response.refreshToken);
-      
-      return response;
+      return {
+        success: true,
+        ...response
+      };
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Giriş başarısız');
+      return rejectWithValue({
+        success: false,
+        error: error.response?.data?.message || 'Giriş yapılırken bir hata oluştu'
+      });
     }
   }
 );
@@ -83,14 +91,9 @@ export const logout = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       await authService.logout();
-      
-      // Manuel olarak localStorage'dan token'ları silelim
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      
-      return null;
+      return true;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Çıkış başarısız');
+      return rejectWithValue(error.response?.data?.message || 'Çıkış yapılırken bir hata oluştu');
     }
   }
 );
@@ -137,6 +140,9 @@ const authSlice = createSlice({
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
     },
+    clearError: (state) => {
+      state.error = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -146,21 +152,20 @@ const authSlice = createSlice({
         state.error = null;
       })
       .addCase(login.fulfilled, (state, action) => {
-        state.loading = false;
         state.isAuthenticated = true;
-        state.user = action.payload.user;
+        state.loading = false;
+        state.error = null;
         state.accessToken = action.payload.accessToken;
         state.refreshToken = action.payload.refreshToken;
-        
-        // Token'ları localStorage'a manuel olarak kaydedelim
-        // Burada console ile kontrol edelim token'ları
-        console.log('Login fulfilled:', action.payload);
-        localStorage.setItem('accessToken', action.payload.accessToken);
-        localStorage.setItem('refreshToken', action.payload.refreshToken);
+        state.user = action.payload.user;
       })
       .addCase(login.rejected, (state, action) => {
+        state.isAuthenticated = false;
         state.loading = false;
-        state.error = action.payload as string;
+        state.error = action.payload as string || 'Giriş yapılırken bir hata oluştu';
+        state.accessToken = null;
+        state.refreshToken = null;
+        state.user = null;
       })
       
       // Register cases
@@ -182,10 +187,10 @@ const authSlice = createSlice({
       
       // Logout cases
       .addCase(logout.fulfilled, (state) => {
-        state.user = null;
+        state.isAuthenticated = false;
         state.accessToken = null;
         state.refreshToken = null;
-        state.isAuthenticated = false;
+        state.user = null;
         state.error = null;
       })
       
@@ -208,6 +213,6 @@ const authSlice = createSlice({
   },
 });
 
-export const { setUser, setTokens, clearAuth } = authSlice.actions;
+export const { setUser, setTokens, clearAuth, clearError } = authSlice.actions;
 
 export default authSlice.reducer; 

@@ -6,6 +6,7 @@ import { store, persistor } from './redux/store'
 import router from './routes'
 import { ThemeProvider } from './context/ThemeContext'
 import { I18nProvider } from './context/i18nContext'
+import './styles/theme.css'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

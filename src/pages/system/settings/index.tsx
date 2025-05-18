@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useTranslation } from '../../../context/i18nContext';
+import { toast } from 'react-toastify';
 import GeneralSettings from './components/GeneralSettings';
 import SecuritySettings from './components/SecuritySettings';
 import BackupSettings from './components/BackupSettings';
@@ -19,6 +20,7 @@ type SettingTab = {
 const SystemSettingsPage: React.FC = () => {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<string>('general');
+  const [loading, setLoading] = useState(false);
 
   // Tab tanımları
   const tabs: SettingTab[] = [
@@ -100,6 +102,22 @@ const SystemSettingsPage: React.FC = () => {
     setActiveTab(tabId);
   };
 
+  // Tüm ayarları kaydet
+  const handleSaveAll = async () => {
+    try {
+      setLoading(true);
+      // Her bir bileşenin kendi kaydetme fonksiyonunu çağır
+      //const settings = await systemSettingsService.getSettings();
+      // await systemSettingsService.updateSettings(settings);
+      toast.success(t('settings_saved', 'system'));
+    } catch (error) {
+      console.error('Ayarlar kaydedilirken hata:', error);
+      toast.error(t('settings_save_error', 'system'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-6">
       {/* Başlık */}
@@ -154,15 +172,7 @@ const SystemSettingsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Kaydet Düğmesi */}
-      <div className="mt-6 flex justify-end">
-        <button
-          type="button"
-          className="px-4 py-2 bg-primary-light dark:bg-primary-dark text-white rounded-lg hover:bg-primary-light/90 dark:hover:bg-primary-dark/90 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark focus:ring-offset-2 transition-colors"
-        >
-          {t('save_settings', 'system')}
-        </button>
-      </div>
+     
     </div>
   );
 };

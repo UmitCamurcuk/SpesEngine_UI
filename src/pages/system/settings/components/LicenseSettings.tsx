@@ -1,31 +1,85 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from '../../../../context/i18nContext';
+import systemSettingsService from '../../../../services/api/systemSettingsService';
+import { toast } from 'react-toastify';
 
 const LicenseSettings: React.FC = () => {
   const { t } = useTranslation();
+  const [loading, setLoading] = useState(false);
   const [licenseInfo, setLicenseInfo] = useState({
-    licenseKey: 'XXXX-XXXX-XXXX-XXXX-XXXX',
-    company: 'SpesEngine, Inc.',
-    email: 'license@example.com',
-    expiryDate: '2024-12-31',
-    maxUsers: 50,
-    edition: 'Enterprise',
-    features: ['Master Data Management', 'Relationship Management', 'Workflow Automation', 'API Access', 'Advanced Analytics'],
-    status: 'active'
+    key: '',
+    type: '',
+    expiryDate: '',
+    maxUsers: 0,
+    features: [] as string[]
   });
 
   const [newLicenseKey, setNewLicenseKey] = useState('');
 
-  const activateLicense = () => {
-    alert(t('license_activation_placeholder', 'system'));
-    setNewLicenseKey('');
+  // Lisans bilgilerini yükle
+  useEffect(() => {
+    const loadLicenseInfo = async () => {
+      try {
+        setLoading(true);
+        const settings = await systemSettingsService.getSettings();
+        setLicenseInfo({
+          key: settings.license.key,
+          type: settings.license.type,
+          expiryDate: settings.license.expiryDate,
+          maxUsers: settings.license.maxUsers,
+          features: settings.license.features
+        });
+      } catch (error) {
+        console.error('Lisans bilgileri yüklenirken hata:', error);
+        toast.error(t('license_info_load_error', 'system'));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadLicenseInfo();
+  }, []);
+
+  const activateLicense = async () => {
+    if (!newLicenseKey) {
+      toast.error(t('enter_license_key', 'system'));
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await systemSettingsService.updateSection('license', {
+        key: newLicenseKey,
+        type: licenseInfo.type,
+        expiryDate: licenseInfo.expiryDate,
+        maxUsers: licenseInfo.maxUsers,
+        features: licenseInfo.features
+      });
+      toast.success(t('license_activated', 'system'));
+      setNewLicenseKey('');
+    } catch (error) {
+      console.error('Lisans etkinleştirilirken hata:', error);
+      toast.error(t('license_activation_error', 'system'));
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-light dark:border-primary-dark"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-medium text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">
-        {t('license_info', 'system')}
-      </h2>
+      <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-2">
+        <h2 className="text-xl font-medium text-gray-900 dark:text-white">
+          {t('license_info', 'system')}
+        </h2>
+      </div>
       
       <div className="space-y-8">
         {/* Mevcut Lisans Bilgileri */}
@@ -37,15 +91,15 @@ const LicenseSettings: React.FC = () => {
           <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between mb-4">
               <div className="text-gray-900 dark:text-white font-semibold">
-                SpesEngine MDM - {licenseInfo.edition}
+                SpesEngine MDM - {licenseInfo.type}
               </div>
               <div>
                 <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                  licenseInfo.status === 'active'
+                  new Date(licenseInfo.expiryDate) > new Date()
                     ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500'
                     : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-500'
                 }`}>
-                  {licenseInfo.status === 'active' ? t('active', 'common') : t('inactive', 'common')}
+                  {new Date(licenseInfo.expiryDate) > new Date() ? t('active', 'common') : t('expired', 'common')}
                 </span>
               </div>
             </div>
@@ -56,25 +110,16 @@ const LicenseSettings: React.FC = () => {
                   {t('license_key', 'system')}
                 </dt>
                 <dd className="mt-1 text-sm text-gray-900 dark:text-white">
-                  {licenseInfo.licenseKey}
+                  {licenseInfo.key}
                 </dd>
               </div>
               
               <div>
                 <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                  {t('company', 'system')}
+                  {t('license_type', 'system')}
                 </dt>
                 <dd className="mt-1 text-sm text-gray-900 dark:text-white">
-                  {licenseInfo.company}
-                </dd>
-              </div>
-              
-              <div>
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                  {t('registered_email', 'system')}
-                </dt>
-                <dd className="mt-1 text-sm text-gray-900 dark:text-white">
-                  {licenseInfo.email}
+                  {licenseInfo.type}
                 </dd>
               </div>
               
@@ -140,9 +185,10 @@ const LicenseSettings: React.FC = () => {
                 <button
                   type="button"
                   onClick={activateLicense}
-                  className="px-4 py-2.5 bg-primary-light dark:bg-primary-dark text-white rounded-lg rounded-l-none hover:bg-primary-light/90 dark:hover:bg-primary-dark/90 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark focus:ring-offset-2 transition-colors"
+                  disabled={loading}
+                  className="px-4 py-2.5 bg-primary-light dark:bg-primary-dark text-white rounded-lg rounded-l-none hover:bg-primary-light/90 dark:hover:bg-primary-dark/90 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {t('activate', 'system')}
+                  {loading ? t('activating', 'system') : t('activate', 'system')}
                 </button>
               </div>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -154,6 +200,7 @@ const LicenseSettings: React.FC = () => {
               <button
                 type="button"
                 className="px-4 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark focus:ring-offset-2 transition-colors"
+                onClick={() => window.open('https://spesengine.com/upgrade', '_blank')}
               >
                 {t('upgrade_license', 'system')}
               </button>
@@ -161,6 +208,7 @@ const LicenseSettings: React.FC = () => {
               <button
                 type="button"
                 className="px-4 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark focus:ring-offset-2 transition-colors"
+                onClick={() => window.open('https://spesengine.com/support', '_blank')}
               >
                 {t('contact_support', 'system')}
               </button>
@@ -168,6 +216,7 @@ const LicenseSettings: React.FC = () => {
               <button
                 type="button"
                 className="px-4 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark focus:ring-offset-2 transition-colors"
+                onClick={() => window.open('https://spesengine.com/account/purchases', '_blank')}
               >
                 {t('view_purchase_history', 'system')}
               </button>
@@ -190,6 +239,7 @@ const LicenseSettings: React.FC = () => {
               <button
                 type="button"
                 className="px-3 py-1.5 text-xs bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark focus:ring-offset-2 transition-colors"
+                onClick={() => window.open('https://spesengine.com/privacy', '_blank')}
               >
                 {t('privacy_policy', 'system')}
               </button>
@@ -197,6 +247,7 @@ const LicenseSettings: React.FC = () => {
               <button
                 type="button"
                 className="px-3 py-1.5 text-xs bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark focus:ring-offset-2 transition-colors"
+                onClick={() => window.open('https://spesengine.com/terms', '_blank')}
               >
                 {t('terms_of_service', 'system')}
               </button>
@@ -204,8 +255,9 @@ const LicenseSettings: React.FC = () => {
               <button
                 type="button"
                 className="px-3 py-1.5 text-xs bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark focus:ring-offset-2 transition-colors"
+                onClick={() => window.open('https://spesengine.com/eula', '_blank')}
               >
-                {t('license_agreement', 'system')}
+                {t('eula', 'system')}
               </button>
             </div>
           </div>

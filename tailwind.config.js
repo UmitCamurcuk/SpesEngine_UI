@@ -9,12 +9,30 @@ export default {
     extend: {
       colors: {
         primary: {
-          light: '#3b82f6',
-          dark: '#60a5fa',
+          DEFAULT: 'var(--primary-light)',
+          light: 'var(--primary-light)',
+          dark: 'var(--primary-dark)',
+          lighter: 'var(--primary-lighter)',
+          hover: 'var(--primary-hover)',
+          active: 'var(--primary-active)'
         },
-        secondary: {
-          light: '#10b981',
-          dark: '#34d399',
+        accent: {
+          DEFAULT: 'var(--accent-light)',
+          light: 'var(--accent-light)',
+          dark: 'var(--accent-dark)',
+          lighter: 'var(--accent-lighter)',
+          hover: 'var(--accent-hover)',
+          active: 'var(--accent-active)'
+        },
+        // Arka plan renkleri
+        background: {
+          light: 'var(--background-light)',
+          dark: 'var(--background-dark)'
+        },
+        // Metin renkleri
+        text: {
+          light: 'var(--text-light)',
+          dark: 'var(--text-dark)'
         }
       }
     },

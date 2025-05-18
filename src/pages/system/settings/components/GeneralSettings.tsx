@@ -1,20 +1,99 @@
-import React, { useState, useRef, ChangeEvent } from 'react';
+import React, { useState, useRef, ChangeEvent, useEffect } from 'react';
 import { useTranslation } from '../../../../context/i18nContext';
+import systemSettingsService, { ISystemSettings } from '../../../../services/api/systemSettingsService';
+import { toast } from 'react-toastify';
+
+interface GeneralFormData {
+  companyName: string;
+  systemTitle: string;
+  language: string;
+  timezone: string;
+  dateFormat: string;
+  timeFormat: string;
+  logoUrl: string;
+  logoFile: File | null;
+}
+
+const defaultFormData: GeneralFormData = {
+  companyName: '',
+  systemTitle: '',
+  language: 'tr', // Varsayılan dil
+  timezone: 'Europe/Istanbul',
+  dateFormat: 'DD.MM.YYYY',
+  timeFormat: '24',
+  logoUrl: '',
+  logoFile: null
+};
 
 const GeneralSettings: React.FC = () => {
   const { t, changeLanguage, currentLanguage, supportedLanguages } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [formData, setFormData] = useState({
-    companyName: 'SpesEngine, Inc.',
-    systemTitle: 'SpesEngine MDM',
-    language: currentLanguage,
-    timezone: 'Europe/Istanbul',
-    dateFormat: 'DD.MM.YYYY',
-    timeFormat: '24',
-    logoUrl: '',
-    logoFile: null as File | null
-  });
-  const [logoPreview, setLogoPreview] = useState<string>('/logo.png'); // Varsayılan logo
+  const formRef = useRef<HTMLFormElement>(null);
+  const [formData, setFormData] = useState<GeneralFormData>(defaultFormData);
+  const [logoPreview, setLogoPreview] = useState<string>('/logo.png');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const currentFormData = useRef<GeneralFormData>(defaultFormData);
+
+  // Form verilerini güncelleme fonksiyonu
+  const updateFormData = (newData: Partial<GeneralFormData>) => {
+    setFormData(prev => {
+      const updated = {
+        ...prev,
+        ...newData
+      };
+      currentFormData.current = updated;
+      return updated;
+    });
+  };
+
+  // Ayarları yükle
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const settings = await systemSettingsService.getSettings();
+        
+        console.log('Backend\'den gelen ayarlar:', settings);
+
+        if (!settings) {
+          throw new Error('Ayarlar yüklenemedi');
+        }
+
+        // Yeni form verilerini hazırla
+        const newFormData = {
+          companyName: settings.companyName || '',
+          systemTitle: settings.systemTitle || '',
+          language: settings.defaultLanguage || currentLanguage,
+          timezone: settings.timezone || 'Europe/Istanbul',
+          dateFormat: settings.dateFormat || 'DD.MM.YYYY',
+          timeFormat: settings.timeFormat || '24',
+          logoUrl: settings.logoUrl || '',
+          logoFile: null
+        };
+
+        console.log('Form verileri yükleniyor:', newFormData);
+
+        // State ve ref'i güncelle
+        setFormData(newFormData);
+        currentFormData.current = newFormData;
+
+        if (settings.logoUrl) {
+          setLogoPreview(settings.logoUrl);
+        }
+      } catch (error) {
+        console.error('Ayarlar yüklenirken hata:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Ayarlar yüklenirken bir hata oluştu';
+        setError(errorMessage);
+        toast.error(t('settings_load_error', 'system'));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, [currentLanguage]);
 
   // Dil kodlarına göre bayrak ve isim eşleştirmesi
   const languageOptions = {
@@ -38,35 +117,160 @@ const GeneralSettings: React.FC = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    console.log('Input değişikliği:', { name, value });
+
+    // Form verilerini güncelle
+    const newFormData = {
+      ...currentFormData.current,
+      [name]: value
+    };
     
-    // Dil değiştiğinde context'i güncelle
+    console.log('Yeni form verileri:', newFormData);
+    
+    // State ve ref'i güncelle
+    setFormData(newFormData);
+    currentFormData.current = newFormData;
+
+    // Dil değişikliği için ayrı işlem
     if (name === 'language') {
+      handleLanguageChange(value);
+    }
+  };
+
+  const handleSave = async (e?: React.FormEvent) => {
+    console.log('handleSave fonksiyonu çağrıldı');
+    
+    try {
+      if (e) {
+        e.preventDefault();
+        console.log('Form submit engellendi');
+      }
+
+      console.log('Mevcut form verileri:', formData);
+      console.log('Ref\'teki veriler:', currentFormData.current);
+
+      setLoading(true);
+      setError(null);
+
+      const settingsUpdate = {
+        companyName: formData.companyName.trim(),
+        systemTitle: formData.systemTitle.trim(),
+        defaultLanguage: formData.language,
+        timezone: formData.timezone,
+        dateFormat: formData.dateFormat,
+        timeFormat: formData.timeFormat,
+        logoUrl: formData.logoUrl
+      };
+
+      console.log('Backend\'e gönderilecek veriler:', settingsUpdate);
+
+      try {
+        const response = await systemSettingsService.updateSection('general', settingsUpdate);
+        console.log('Backend\'den gelen yanıt:', response);
+
+        if (response) {
+          const updatedFormData = {
+            ...formData,
+            companyName: response.companyName || formData.companyName,
+            systemTitle: response.systemTitle || formData.systemTitle,
+            language: response.defaultLanguage || formData.language,
+            timezone: response.timezone || formData.timezone,
+            dateFormat: response.dateFormat || formData.dateFormat,
+            timeFormat: response.timeFormat || formData.timeFormat,
+            logoUrl: response.logoUrl || formData.logoUrl
+          };
+
+          setFormData(updatedFormData);
+          currentFormData.current = updatedFormData;
+          console.log('Form verileri güncellendi:', updatedFormData);
+        }
+
+        toast.success(t('settings_saved', 'system'));
+      } catch (error) {
+        console.error('API hatası:', error);
+        throw error;
+      }
+    } catch (error) {
+      console.error('Kayıt hatası:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Ayarlar kaydedilirken bir hata oluştu';
+      setError(errorMessage);
+      toast.error(t('settings_save_error', 'system'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Dil değişikliği için ayrı fonksiyon
+  const handleLanguageChange = async (value: string) => {
+    try {
+      setLoading(true);
+
+      // Önce form state'ini güncelle
+      setFormData(prev => ({
+        ...prev,
+        language: value
+      }));
+
+      // Dil değişikliğini uygula
       changeLanguage(value);
+
+      // Backend'e kaydet
+      const settingsUpdate: Partial<ISystemSettings> = {
+        defaultLanguage: value
+      };
+
+      const response = await systemSettingsService.updateSection('general', settingsUpdate);
+
+      toast.success(t('language_updated', 'system'));
+    } catch (error) {
+      console.error('Dil güncellenirken hata:', error);
+      toast.error(t('update_error', 'system'));
+    } finally {
+      setLoading(false);
     }
   };
 
   // Logo yükleme fonksiyonu
-  const handleLogoUpload = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLogoPreview(reader.result as string);
-        setFormData(prev => ({ ...prev, logoFile: file, logoUrl: '' }));
-      };
-      reader.readAsDataURL(file);
+      try {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setLogoPreview(reader.result as string);
+          setFormData(prev => ({ ...prev, logoFile: file, logoUrl: '' }));
+        };
+        reader.readAsDataURL(file);
+
+        // TODO: Logo dosyasını bir CDN'e yükle ve URL'i al
+        const logoUrl = '/uploaded-logo.png'; // Bu kısım CDN entegrasyonu ile değiştirilecek
+
+        // Logo URL'ini güncelle
+        await systemSettingsService.updateSection('theme', { customLogoUrl: logoUrl });
+        toast.success(t('logo_updated', 'system'));
+      } catch (error) {
+        console.error('Logo yüklenirken hata:', error);
+        toast.error(t('logo_upload_error', 'system'));
+      }
     }
   };
 
   // Logo URL değişikliği fonksiyonu
-  const handleLogoUrlChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUrlChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const url = e.target.value;
-    setFormData(prev => ({ ...prev, logoUrl: url, logoFile: null }));
-    if (url) {
-      setLogoPreview(url);
-    } else {
-      setLogoPreview('/logo.png'); // Varsayılan logo
+    try {
+      setFormData(prev => ({ ...prev, logoUrl: url, logoFile: null }));
+
+      if (url) {
+        setLogoPreview(url);
+        await systemSettingsService.updateSection('theme', { customLogoUrl: url });
+        toast.success(t('logo_updated', 'system'));
+      } else {
+        setLogoPreview('/logo.png');
+      }
+    } catch (error) {
+      console.error('Logo URL güncellenirken hata:', error);
+      toast.error(t('logo_update_error', 'system'));
     }
   };
 
@@ -75,12 +279,57 @@ const GeneralSettings: React.FC = () => {
     fileInputRef.current?.click();
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-light dark:border-primary-dark"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-4">
+        <div className="text-red-500 dark:text-red-400 mb-4">
+          <svg className="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <h3 className="text-lg font-medium">{t('error_occurred', 'system')}</h3>
+          <p className="text-sm">{error}</p>
+        </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-primary-light dark:bg-primary-dark text-white rounded-lg hover:bg-primary-light/90 dark:hover:bg-primary-dark/90"
+        >
+          {t('try_again', 'system')}
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-medium text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">
-        {t('general_settings', 'system')}
-      </h2>
-      
+    <form 
+      ref={formRef} 
+      onSubmit={(e) => {
+        console.log('Form submit edildi');
+        handleSave(e);
+      }} 
+      className="space-y-6"
+    >
+      <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-2">
+        <h2 className="text-xl font-medium text-gray-900 dark:text-white">
+          {t('general_settings', 'system')}
+        </h2>
+        <button
+          type="submit"
+          disabled={loading}
+          onClick={() => console.log('Kaydet butonuna tıklandı')}
+          className="px-4 py-2 bg-primary-light dark:bg-primary-dark text-white rounded-lg hover:bg-primary-light/90 dark:hover:bg-primary-dark/90 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loading ? t('saving', 'common') : t('save', 'common')}
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Logo Ayarları */}
         <div className="md:col-span-2 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
@@ -92,12 +341,12 @@ const GeneralSettings: React.FC = () => {
             {/* Logo Önizleme */}
             <div className="flex-shrink-0 flex flex-col items-center">
               <div className="w-40 h-40 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden flex items-center justify-center bg-white">
-                <img 
-                  src={logoPreview} 
-                  alt={t('company_logo', 'system')} 
+                <img
+                  src={logoPreview}
+                  alt={t('company_logo', 'system')}
                   className="max-w-full max-h-full object-contain"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/logo.png';  // Hata durumunda varsayılan logo
+                    (e.target as HTMLImageElement).src = '/logo.png';
                   }}
                 />
               </div>
@@ -158,7 +407,10 @@ const GeneralSettings: React.FC = () => {
             id="companyName"
             name="companyName"
             value={formData.companyName}
-            onChange={handleChange}
+            onChange={(e) => {
+              console.log('Şirket adı değişti:', e.target.value);
+              handleChange(e);
+            }}
             className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
           />
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -186,44 +438,24 @@ const GeneralSettings: React.FC = () => {
 
         {/* Mevcut Dil */}
         <div>
-          <label htmlFor="currentLanguage" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label htmlFor="language" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             {t('current_language', 'common')}
           </label>
           <select
             id="language"
             name="language"
-            value={currentLanguage}
+            value={formData.language}
             onChange={handleChange}
             className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
           >
             {supportedLanguages.map((lang) => (
               <option key={lang} value={lang}>
-                {languageOptions[lang as keyof typeof languageOptions]?.flag || ''} {languageOptions[lang as keyof typeof languageOptions]?.name || lang.toUpperCase()}
+                {languageOptions[lang as keyof typeof languageOptions]?.flag} {languageOptions[lang as keyof typeof languageOptions]?.name}
               </option>
             ))}
           </select>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             {t('language_selection_help', 'system')}
-          </p>
-        </div>
-
-        {/* Varsayılan Dil */}
-        <div>
-          <label htmlFor="defaultLanguage" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            {t('default_language', 'system')}
-          </label>
-          <select
-            id="defaultLanguage"
-            name="defaultLanguage"
-            value={formData.language}
-            onChange={handleChange}
-            className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-          >
-            <option value="tr">Türkçe</option>
-            <option value="en">English</option>
-          </select>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            {t('default_language_help', 'system')}
           </p>
         </div>
 
@@ -239,10 +471,10 @@ const GeneralSettings: React.FC = () => {
             onChange={handleChange}
             className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
           >
-            <option value="Europe/Istanbul">Europe/Istanbul (GMT+3)</option>
-            <option value="Europe/London">Europe/London (GMT+0)</option>
-            <option value="America/New_York">America/New_York (GMT-5)</option>
-            <option value="Asia/Tokyo">Asia/Tokyo (GMT+9)</option>
+            <option value="Europe/Istanbul">Europe/Istanbul (UTC+3)</option>
+            <option value="Europe/London">Europe/London (UTC+0/+1)</option>
+            <option value="America/New_York">America/New_York (UTC-5/-4)</option>
+            {/* Diğer zaman dilimleri eklenebilir */}
           </select>
         </div>
 
@@ -258,9 +490,9 @@ const GeneralSettings: React.FC = () => {
             onChange={handleChange}
             className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
           >
-            <option value="DD.MM.YYYY">DD.MM.YYYY (31.12.2023)</option>
-            <option value="MM/DD/YYYY">MM/DD/YYYY (12/31/2023)</option>
-            <option value="YYYY-MM-DD">YYYY-MM-DD (2023-12-31)</option>
+            <option value="DD.MM.YYYY">31.12.2023</option>
+            <option value="MM/DD/YYYY">12/31/2023</option>
+            <option value="YYYY-MM-DD">2023-12-31</option>
           </select>
         </div>
 
@@ -269,85 +501,19 @@ const GeneralSettings: React.FC = () => {
           <label htmlFor="timeFormat" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             {t('time_format', 'system')}
           </label>
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center">
-              <input
-                type="radio"
-                id="timeFormat24"
-                name="timeFormat"
-                value="24"
-                checked={formData.timeFormat === '24'}
-                onChange={handleChange}
-                className="w-4 h-4 text-primary-light dark:text-primary-dark focus:ring-primary-light dark:focus:ring-primary-dark"
-              />
-              <label htmlFor="timeFormat24" className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                24 {t('hour', 'common')} (14:30)
-              </label>
-            </div>
-            <div className="flex items-center">
-              <input
-                type="radio"
-                id="timeFormat12"
-                name="timeFormat"
-                value="12"
-                checked={formData.timeFormat === '12'}
-                onChange={handleChange}
-                className="w-4 h-4 text-primary-light dark:text-primary-dark focus:ring-primary-light dark:focus:ring-primary-dark"
-              />
-              <label htmlFor="timeFormat12" className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                12 {t('hour', 'common')} (2:30 PM)
-              </label>
-            </div>
-          </div>
+          <select
+            id="timeFormat"
+            name="timeFormat"
+            value={formData.timeFormat}
+            onChange={handleChange}
+            className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
+          >
+            <option value="24">24 {t('hour', 'common')} (14:30)</option>
+            <option value="12">12 {t('hour', 'common')} (2:30 PM)</option>
+          </select>
         </div>
       </div>
-
-      <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-          {t('system_information', 'system')}
-        </h3>
-        
-        <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-          <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
-            <div>
-              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                {t('version', 'system')}
-              </dt>
-              <dd className="mt-1 text-sm text-gray-900 dark:text-white">
-                SpesEngine MDM v1.2.5
-              </dd>
-            </div>
-            
-            <div>
-              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                {t('install_date', 'system')}
-              </dt>
-              <dd className="mt-1 text-sm text-gray-900 dark:text-white">
-                01.05.2023
-              </dd>
-            </div>
-            
-            <div>
-              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                {t('server_environment', 'system')}
-              </dt>
-              <dd className="mt-1 text-sm text-gray-900 dark:text-white">
-                Production
-              </dd>
-            </div>
-            
-            <div>
-              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                {t('last_update', 'system')}
-              </dt>
-              <dd className="mt-1 text-sm text-gray-900 dark:text-white">
-                15.10.2023
-              </dd>
-            </div>
-          </dl>
-        </div>
-      </div>
-    </div>
+    </form>
   );
 };
 

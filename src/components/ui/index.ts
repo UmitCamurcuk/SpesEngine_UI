@@ -4,3 +4,6 @@ export { default as Button } from './Button';
 export { default as SearchBar } from './SearchBar';
 export { default as Pagination } from './Pagination';
 export { default as Table } from './Table';
+export { default as Stepper } from './Stepper';
+export { default as TabView } from './TabView';
+export { default as TreeView } from './TreeView';

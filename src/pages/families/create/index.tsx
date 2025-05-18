@@ -145,18 +145,9 @@ const FamilyCreatePage: React.FC = () => {
   };
   
   // Öznitelik grubu seçimi değişiklik handler
-  const handleAttributeGroupChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const options = e.target.options;
-    const selectedValues: string[] = [];
-    
-    for (let i = 0; i < options.length; i++) {
-      if (options[i].selected) {
-        selectedValues.push(options[i].value);
-      }
-    }
-    
-    setSelectedAttributeGroups(selectedValues);
-    setFormData(prev => ({ ...prev, attributeGroups: selectedValues }));
+  const handleAttributeGroupChange = (attributeGroupIds: string[]) => {
+    setSelectedAttributeGroups(attributeGroupIds);
+    setFormData(prev => ({ ...prev, attributeGroups: attributeGroupIds }));
   };
   
   // Öznitelik seçimi değişiklik handler
@@ -165,9 +156,8 @@ const FamilyCreatePage: React.FC = () => {
     setFormData(prev => ({ ...prev, attributes: attributeIds }));
   };
   
-  // Form gönderme handler
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Form gönderme işlemi için yeni fonksiyon
+  const submitForm = async () => {
     setIsLoading(true);
     setError(null);
     setSuccess(false);
@@ -181,20 +171,31 @@ const FamilyCreatePage: React.FC = () => {
         attributes: selectedAttributes
       };
       
+      console.log('Form gönderiliyor:', payload);
+      
       // API'ye gönder
-      await familyService.createFamily(payload);
+      const response = await familyService.createFamily(payload);
+      console.log('API yanıtı:', response);
       
       setSuccess(true);
       
       // Başarılı olduğunda listeye yönlendir
       setTimeout(() => {
+        console.log('Yönlendirme yapılıyor...');
         navigate('/families/list');
       }, 1500);
     } catch (err: any) {
+      console.error('Form gönderme hatası:', err);
       setError(err.message || 'Aile oluşturulurken bir hata oluştu');
     } finally {
       setIsLoading(false);
     }
+  };
+  
+  // Form gönderme handler - event için
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitForm();
   };
   
   // Adımları doğrulama ve ilerleme
@@ -258,7 +259,8 @@ const FamilyCreatePage: React.FC = () => {
         setCurrentStep((prev) => prev + 1);
       } else {
         // Son adımda ise formu gönder
-        handleSubmit(new Event('submit') as any);
+        // FormEvent yerine doğrudan handleSubmit fonksiyonunu çağırıyoruz
+        submitForm();
       }
     }
   };
@@ -442,7 +444,7 @@ const FamilyCreatePage: React.FC = () => {
             {/* Öznitelik Grupları */}
             <AttributeGroupSelector
               selectedAttributeGroups={selectedAttributeGroups}
-              onChange={setSelectedAttributeGroups}
+              onChange={handleAttributeGroupChange}
             />
             
             <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
@@ -573,7 +575,7 @@ const FamilyCreatePage: React.FC = () => {
             
             <Button
               variant="primary"
-              onClick={handleNextStep}
+              onClick={currentStep === steps.length - 1 ? submitForm : handleNextStep}
               loading={isLoading}
               className="flex items-center"
             >

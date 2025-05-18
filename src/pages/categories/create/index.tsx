@@ -2,11 +2,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
 import Stepper from '../../../components/ui/Stepper';
+import { TreeView } from '../../../components/ui';
 import categoryService from '../../../services/api/categoryService';
 import attributeService from '../../../services/api/attributeService';
 import attributeGroupService from '../../../services/api/attributeGroupService';
 import familyService from '../../../services/api/familyService';
 import type { CreateCategoryDto } from '../../../types/category';
+import type { TreeNode } from '../../../components/ui/TreeView';
 import AttributeGroupSelector from '../../../components/attributes/AttributeGroupSelector';
 import PaginatedAttributeSelector from '../../../components/attributes/PaginatedAttributeSelector';
 
@@ -55,6 +57,9 @@ const CategoryCreatePage: React.FC = () => {
   const [attributeGroupOptions, setAttributeGroupOptions] = useState<AttributeGroupOption[]>([]);
   const [familyOptions, setFamilyOptions] = useState<FamilyOption[]>([]);
   
+  // Kategori ağacı
+  const [categoryTree, setCategoryTree] = useState<TreeNode[]>([]);
+  
   // Seçili öğeler
   const [selectedAttributes, setSelectedAttributes] = useState<string[]>([]);
   const [selectedAttributeGroups, setSelectedAttributeGroups] = useState<string[]>([]);
@@ -89,6 +94,9 @@ const CategoryCreatePage: React.FC = () => {
           code: category.code
         })));
         
+        // Kategori ağacını oluştur
+        await fetchCategoryTree();
+        
         // Aileleri getir
         const familiesResult = await familyService.getFamilies({ limit: 100 });
         setFamilyOptions(familiesResult.families.map(family => ({
@@ -119,6 +127,78 @@ const CategoryCreatePage: React.FC = () => {
     
     fetchOptions();
   }, []);
+  
+  // Kategori ağacını getir
+  const fetchCategoryTree = async () => {
+    try {
+      // Tüm kategorileri getir
+      const { categories } = await categoryService.getCategories({ limit: 500 });
+      
+      // Ağaç yapısını oluştur
+      const buildCategoryTree = (parentId: string | null = null): TreeNode[] => {
+        const nodes: TreeNode[] = categories
+          .filter(cat => {
+            // Kategorinin parent değeri (string veya obje olabilir)
+            let parentValue = null;
+            
+            if (cat.parent) {
+              // Eğer string ise direkt kullan
+              if (typeof cat.parent === 'string') {
+                parentValue = cat.parent;
+              } 
+              // Obje ise ve id özelliği varsa
+              else if (typeof cat.parent === 'object') {
+                // Typescript hata vermemesi için any kullan
+                const parentObj = cat.parent as any;
+                if (parentObj.id) {
+                  parentValue = parentObj.id;
+                } else if (parentObj._id) {
+                  parentValue = parentObj._id;
+                }
+              }
+            }
+            // Eski kodlar için geriye dönük uyumluluk sağlama
+            else if (cat.parentCategory) {
+              // Eğer string ise direkt kullan
+              if (typeof cat.parentCategory === 'string') {
+                parentValue = cat.parentCategory;
+              } 
+              // Obje ise ve id özelliği varsa
+              else if (typeof cat.parentCategory === 'object') {
+                // Typescript hata vermemesi için any kullan
+                const parentObj = cat.parentCategory as any;
+                if (parentObj.id) {
+                  parentValue = parentObj.id;
+                } else if (parentObj._id) {
+                  parentValue = parentObj._id;
+                }
+              }
+            }
+            
+            // Parent ID ile eşleştir
+            return (parentId === null && !parentValue) || (parentValue === parentId);
+          })
+          .map(cat => {
+            const catId = cat._id;
+            const children = buildCategoryTree(catId);
+            return {
+              id: catId,
+              name: cat.name,
+              data: cat,
+              children: children.length > 0 ? children : undefined
+            };
+          });
+        
+        return nodes;
+      };
+      
+      const tree = buildCategoryTree();
+      setCategoryTree(tree);
+      
+    } catch (err) {
+      console.error('Kategori ağacı oluşturulurken hata oluştu:', err);
+    }
+  };
   
   // Form input değişiklik handler
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -343,6 +423,44 @@ const CategoryCreatePage: React.FC = () => {
       case 1:
         return (
           <div className="space-y-4">
+            {/* Kategori Hiyerarşisi */}
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Kategori Hiyerarşisi
+              </h4>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                {categoryTree.length > 0 ? (
+                  <div className="mb-4">
+                    <TreeView 
+                      data={categoryTree} 
+                      activeNodeId={formData.parentCategory || undefined}
+                      expandAll={true}
+                      maxHeight="400px"
+                      showRelationLines={true}
+                      variant="spectrum"
+                      onNodeClick={(node) => {
+                        setFormData(prev => ({ ...prev, parentCategory: node.id }));
+                      }}
+                      className="shadow-sm"
+                    />
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <svg className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                    </svg>
+                    <p className="text-gray-500 dark:text-gray-400">Kategori hiyerarşisi yüklenemedi.</p>
+                    <button 
+                      onClick={() => fetchCategoryTree()} 
+                      className="mt-4 px-4 py-2 bg-primary-light text-white rounded-md hover:bg-primary-light/90 dark:bg-primary-dark dark:hover:bg-primary-dark/90 transition-colors"
+                    >
+                      Tekrar Dene
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Üst Kategori */}
             <div>
               <label htmlFor="parentCategory" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -367,6 +485,23 @@ const CategoryCreatePage: React.FC = () => {
                 Bu opsiyoneldir ve kategorinizi hiyerarşik olarak düzenlemenize olanak tanır.
               </p>
             </div>
+            
+            {/* Seçili Üst Kategori Bilgisi */}
+            {formData.parentCategory && (
+              <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-md border border-blue-200 dark:border-blue-800">
+                <div className="flex items-start">
+                  <svg className="w-5 h-5 mr-2 mt-0.5 text-blue-500 dark:text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div>
+                    <h4 className="text-sm font-medium text-blue-700 dark:text-blue-300">Seçili Üst Kategori</h4>
+                    <p className="mt-1 text-sm text-blue-600 dark:text-blue-400">
+                      {parentCategoryOptions.find(category => category._id === formData.parentCategory)?.name || 'Seçili kategori'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
             
             {/* Aile Seçimi */}
             <div>

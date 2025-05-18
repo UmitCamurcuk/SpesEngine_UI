@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
+import { TabView, TreeView } from '../../../components/ui';
 import categoryService from '../../../services/api/categoryService';
 import attributeService from '../../../services/api/attributeService';
-import type { Category } from '../../../services/api/categoryService';
+import attributeGroupService from '../../../services/api/attributeGroupService';
+import familyService from '../../../services/api/familyService';
+import type { Category } from '../../../types/category';
+import type { TreeNode } from '../../../components/ui/TreeView';
 
 const CategoryDetailsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -15,7 +19,10 @@ const CategoryDetailsPage: React.FC = () => {
   
   // İlişkili veriler
   const [parentCategoryName, setParentCategoryName] = useState<string>('');
-  const [attributes, setAttributes] = useState<{id: string, name: string}[]>([]);
+  const [categoryTree, setCategoryTree] = useState<TreeNode[]>([]);
+  const [familyName, setFamilyName] = useState<string>('');
+  const [attributes, setAttributes] = useState<{id: string, name: string, type: string}[]>([]);
+  const [attributeGroups, setAttributeGroups] = useState<{id: string, name: string, code: string}[]>([]);
   
   // Form state
   const [formData, setFormData] = useState<Partial<Category>>({
@@ -23,7 +30,9 @@ const CategoryDetailsPage: React.FC = () => {
     code: '',
     description: '',
     parentCategory: '',
+    family: '',
     attributes: [],
+    attributeGroups: [],
     isActive: true
   });
   
@@ -42,24 +51,43 @@ const CategoryDetailsPage: React.FC = () => {
       setError(null);
       
       try {
-        const categoryData = await categoryService.getCategoryById(id);
+        const categoryData = await categoryService.getCategoryById(id, {
+          includeAttributes: true,
+          includeAttributeGroups: true
+        });
+        
         setCategory(categoryData);
         setFormData({
           name: categoryData.name,
           code: categoryData.code,
           description: categoryData.description,
           parentCategory: categoryData.parentCategory,
+          family: categoryData.family,
           attributes: categoryData.attributes,
+          attributeGroups: categoryData.attributeGroups,
           isActive: categoryData.isActive
         });
         
         // Üst kategoriyi getir
         if (categoryData.parentCategory) {
           try {
-            const parentCategoryData = await categoryService.getCategoryById(categoryData.parentCategory);
+            const parentCategoryData = await categoryService.getCategoryById(categoryData.parentCategory._id);
             setParentCategoryName(parentCategoryData.name);
+            await fetchCategoryTree();
           } catch (err) {
             console.error('Üst kategori yüklenirken hata oluştu:', err);
+          }
+        } else {
+          await fetchCategoryTree();
+        }
+        
+        // Aile bilgisini getir
+        if (categoryData.family) {
+          try {
+            const familyData = await familyService.getFamilyById(categoryData.family._id);
+            setFamilyName(familyData.name);
+          } catch (err) {
+            console.error('Aile bilgisi yüklenirken hata oluştu:', err);
           }
         }
         
@@ -68,12 +96,34 @@ const CategoryDetailsPage: React.FC = () => {
           try {
             const fetchedAttributes = [];
             for (const attributeId of categoryData.attributes) {
-              const attributeData = await attributeService.getAttributeById(attributeId);
-              fetchedAttributes.push({ id: attributeId, name: attributeData.name });
+              const attributeData = await attributeService.getAttributeById(attributeId._id);
+              fetchedAttributes.push({ 
+                id: attributeId, 
+                name: attributeData.name,
+                type: attributeData.type
+              });
             }
             setAttributes(fetchedAttributes);
           } catch (err) {
             console.error('Öznitelikler yüklenirken hata oluştu:', err);
+          }
+        }
+        
+        // İlişkili öznitelik gruplarını getir
+        if (categoryData.attributeGroups && categoryData.attributeGroups.length > 0) {
+          try {
+            const fetchedGroups = [];
+            for (const groupId of categoryData.attributeGroups) {
+              const groupData = await attributeGroupService.getAttributeGroupById(groupId._id);
+              fetchedGroups.push({ 
+                id: groupId, 
+                name: groupData.name,
+                code: groupData.code 
+              });
+            }
+            setAttributeGroups(fetchedGroups);
+          } catch (err) {
+            console.error('Öznitelik grupları yüklenirken hata oluştu:', err);
           }
         }
         
@@ -86,6 +136,80 @@ const CategoryDetailsPage: React.FC = () => {
     
     fetchCategoryDetails();
   }, [id]);
+  
+  // Kategori ağacını getir
+  const fetchCategoryTree = async () => {
+    try {
+      // Tüm kategorileri getir
+      const { categories } = await categoryService.getCategories({ limit: 500 });
+      
+      // Ağaç yapısını oluştur
+      const buildCategoryTree = (parentId: string | null = null): TreeNode[] => {
+        const nodes: TreeNode[] = categories
+          .filter(cat => {
+            // Kategorinin parent değeri (string veya obje olabilir)
+            let parentValue = null;
+            
+            if (cat.parent) {
+              // Eğer string ise direkt kullan
+              if (typeof cat.parent === 'string') {
+                parentValue = cat.parent;
+              } 
+              // Obje ise ve id özelliği varsa
+              else if (typeof cat.parent === 'object') {
+                // Typescript hata vermemesi için any kullan
+                const parentObj = cat.parent as any;
+                if (parentObj.id) {
+                  parentValue = parentObj.id;
+                } else if (parentObj._id) {
+                  parentValue = parentObj._id;
+                }
+              }
+            } 
+            // Eski kodlar için geriye dönük uyumluluk sağlama
+            else if (cat.parentCategory) {
+              // Eğer string ise direkt kullan
+              if (typeof cat.parentCategory === 'string') {
+                parentValue = cat.parentCategory;
+              } 
+              // Obje ise ve id özelliği varsa
+              else if (typeof cat.parentCategory === 'object') {
+                // Typescript hata vermemesi için any kullan
+                const parentObj = cat.parentCategory as any;
+                if (parentObj.id) {
+                  parentValue = parentObj.id;
+                } else if (parentObj._id) {
+                  parentValue = parentObj._id;
+                }
+              }
+            }
+            
+            // Parent ID ile eşleştir
+            return (parentId === null && !parentValue) || (parentValue === parentId);
+          })
+          .map(cat => {
+            const catId = cat._id;
+            const children = buildCategoryTree(catId);
+            return {
+              id: catId,
+              name: cat.name,
+              data: cat,
+              children: children.length > 0 ? children : undefined
+            };
+          });
+        
+        return nodes;
+      };
+      
+      const tree = buildCategoryTree();
+      setCategoryTree(tree);
+      
+      console.log('Kategori ağacı oluşturuldu:', tree);
+      
+    } catch (err) {
+      console.error('Kategori ağacı oluşturulurken hata oluştu:', err);
+    }
+  };
   
   // Form input değişiklik handler
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -116,7 +240,10 @@ const CategoryDetailsPage: React.FC = () => {
       await categoryService.updateCategory(id, formData);
       
       // Güncel veriyi yeniden yükle
-      const updatedCategory = await categoryService.getCategoryById(id);
+      const updatedCategory = await categoryService.getCategoryById(id, {
+        includeAttributes: true,
+        includeAttributeGroups: true
+      });
       setCategory(updatedCategory);
       
       setSuccess(true);
@@ -152,6 +279,201 @@ const CategoryDetailsPage: React.FC = () => {
     }
   };
   
+  // Tab içerikleri
+  const renderGeneralInfo = () => (
+    <div className="space-y-6">
+      {/* Bilgi görüntüleme */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Temel Bilgiler Başlığı */}
+        <div className="col-span-1 md:col-span-2">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Temel Bilgiler</h3>
+        </div>
+        
+        {/* İsim */}
+        <div>
+          <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Kategori Adı</h4>
+          <p className="mt-1 text-gray-900 dark:text-white">{category?.name}</p>
+        </div>
+        
+        {/* Kod */}
+        <div>
+          <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Kod</h4>
+          <p className="mt-1 text-gray-900 dark:text-white">{category?.code}</p>
+        </div>
+        
+        {/* Üst Kategori */}
+        <div>
+          <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Üst Kategori</h4>
+          <p className="mt-1 text-gray-900 dark:text-white">
+            {parentCategoryName || <span className="text-gray-500 italic">Ana Kategori</span>}
+          </p>
+        </div>
+        
+        {/* Aile */}
+        <div>
+          <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Aile</h4>
+          <p className="mt-1 text-gray-900 dark:text-white">
+            {familyName || <span className="text-gray-500 italic">Atanmamış</span>}
+          </p>
+        </div>
+        
+        {/* Durum */}
+        <div>
+          <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Durum</h4>
+          <div className="mt-1">
+            {category?.isActive ? (
+              <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500">
+                Aktif
+              </span>
+            ) : (
+              <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-500">
+                Pasif
+              </span>
+            )}
+          </div>
+        </div>
+        
+        {/* Açıklama */}
+        <div className="col-span-1 md:col-span-2">
+          <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Açıklama</h4>
+          <p className="mt-1 text-gray-900 dark:text-white whitespace-pre-wrap">{category?.description || '-'}</p>
+        </div>
+        
+        {/* Oluşturulma Tarihi */}
+        <div>
+          <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Oluşturulma Tarihi</h4>
+          <p className="mt-1 text-gray-900 dark:text-white">
+            {new Date(category?.createdAt || '').toLocaleString('tr-TR')}
+          </p>
+        </div>
+        
+        {/* Son Güncelleme */}
+        <div>
+          <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Son Güncelleme</h4>
+          <p className="mt-1 text-gray-900 dark:text-white">
+            {new Date(category?.updatedAt || '').toLocaleString('tr-TR')}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+  
+  const renderHierarchy = () => (
+    <div className="space-y-4">
+      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Kategori Hiyerarşisi</h3>
+      
+      <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+        {categoryTree.length > 0 ? (
+          <TreeView 
+            data={categoryTree} 
+            activeNodeId={id}
+            expandAll={true}
+            maxHeight="400px"
+            showRelationLines={true}
+            variant="spectrum"
+            onNodeClick={(node) => {
+              if (node.id !== id) {
+                navigate(`/categories/details/${node.id}`);
+              }
+            }}
+            className="shadow-sm"
+          />
+        ) : (
+          <div className="text-center py-8">
+            <svg className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
+            <p className="text-gray-500 dark:text-gray-400">Kategori hiyerarşisi yüklenemedi.</p>
+            <button 
+              onClick={() => fetchCategoryTree()} 
+              className="mt-4 px-4 py-2 bg-primary-light text-white rounded-md hover:bg-primary-light/90 dark:bg-primary-dark dark:hover:bg-primary-dark/90 transition-colors"
+            >
+              Tekrar Dene
+            </button>
+          </div>
+        )}
+      </div>
+      
+      {category?.parentCategory && (
+        <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-md border border-blue-200 dark:border-blue-800">
+          <div className="flex items-start">
+            <svg className="w-5 h-5 mr-2 mt-0.5 text-blue-500 dark:text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <h4 className="text-sm font-medium text-blue-700 dark:text-blue-300">Üst Kategori Bilgisi</h4>
+              <p className="mt-1 text-sm text-blue-600 dark:text-blue-400">
+                Bu kategori, <strong>{parentCategoryName}</strong> kategorisinin alt kategorisidir. 
+                Üst kategoriye gitmek için ağaçtaki ilgili kategoriye tıklayabilirsiniz.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+  
+  const renderAttributeGroups = () => (
+    <div className="space-y-4">
+      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Öznitelik Grupları</h3>
+      
+      {attributeGroups.length > 0 ? (
+        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {attributeGroups.map(group => (
+              <div 
+                key={group.id} 
+                className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700"
+              >
+                <h4 className="font-medium text-gray-900 dark:text-white">{group.name}</h4>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{group.code}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <p className="text-gray-500 dark:text-gray-400">Bu kategoriye atanmış öznitelik grubu bulunmamaktadır.</p>
+      )}
+    </div>
+  );
+  
+  const renderAttributes = () => (
+    <div className="space-y-4">
+      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Öznitelikler</h3>
+      
+      {attributes.length > 0 ? (
+        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-800">
+              <tr>
+                <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
+                  Öznitelik Adı
+                </th>
+                <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
+                  Tip
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
+              {attributes.map(attr => (
+                <tr key={attr.id}>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    {attr.name}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    {attr.type}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="text-gray-500 dark:text-gray-400">Bu kategoriye atanmış öznitelik bulunmamaktadır.</p>
+      )}
+    </div>
+  );
+  
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-96">
@@ -181,6 +503,31 @@ const CategoryDetailsPage: React.FC = () => {
       </div>
     );
   }
+  
+  const tabs = [
+    {
+      id: 'general',
+      title: 'Genel Bilgiler',
+      content: renderGeneralInfo()
+    },
+    {
+      id: 'hierarchy',
+      title: 'Hiyerarşi',
+      content: renderHierarchy()
+    },
+    {
+      id: 'attributeGroups',
+      title: 'Öznitelik Grupları',
+      badge: attributeGroups.length || undefined,
+      content: renderAttributeGroups()
+    },
+    {
+      id: 'attributes',
+      title: 'Öznitelikler',
+      badge: attributes.length || undefined,
+      content: renderAttributes()
+    }
+  ];
   
   return (
     <div className="space-y-6">
@@ -374,89 +721,7 @@ const CategoryDetailsPage: React.FC = () => {
             </div>
           </form>
         ) : (
-          <div className="space-y-6">
-            {/* Bilgi görüntüleme */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Temel Bilgiler Başlığı */}
-              <div className="col-span-1 md:col-span-2">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Temel Bilgiler</h3>
-              </div>
-              
-              {/* İsim */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Kategori Adı</h4>
-                <p className="mt-1 text-gray-900 dark:text-white">{category?.name}</p>
-              </div>
-              
-              {/* Kod */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Kod</h4>
-                <p className="mt-1 text-gray-900 dark:text-white">{category?.code}</p>
-              </div>
-              
-              {/* Üst Kategori */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Üst Kategori</h4>
-                <p className="mt-1 text-gray-900 dark:text-white">
-                  {parentCategoryName || <span className="text-gray-500 italic">Ana Kategori</span>}
-                </p>
-              </div>
-              
-              {/* Durum */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Durum</h4>
-                <div className="mt-1">
-                  {category?.isActive ? (
-                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500">
-                      Aktif
-                    </span>
-                  ) : (
-                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-500">
-                      Pasif
-                    </span>
-                  )}
-                </div>
-              </div>
-              
-              {/* Açıklama */}
-              <div className="col-span-1 md:col-span-2">
-                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Açıklama</h4>
-                <p className="mt-1 text-gray-900 dark:text-white whitespace-pre-wrap">{category?.description || '-'}</p>
-              </div>
-              
-              {/* Oluşturulma Tarihi */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Oluşturulma Tarihi</h4>
-                <p className="mt-1 text-gray-900 dark:text-white">
-                  {new Date(category?.createdAt || '').toLocaleString('tr-TR')}
-                </p>
-              </div>
-              
-              {/* Son Güncelleme */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Son Güncelleme</h4>
-                <p className="mt-1 text-gray-900 dark:text-white">
-                  {new Date(category?.updatedAt || '').toLocaleString('tr-TR')}
-                </p>
-              </div>
-            </div>
-            
-            {/* Öznitelikler */}
-            {attributes.length > 0 && (
-              <div className="mt-8">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Öznitelikler</h3>
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                  <ul className="list-disc pl-5 space-y-1">
-                    {attributes.map((attr) => (
-                      <li key={attr.id} className="text-gray-700 dark:text-gray-300">
-                        {attr.name}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            )}
-          </div>
+          <TabView tabs={tabs} />
         )}
       </div>
     </div>

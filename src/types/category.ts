@@ -17,6 +17,7 @@ export interface Category {
   description: string;
   family?: string;
   parentCategory?: string;
+  parent?: any; // API'den gelen parent alanı
   attributes?: string[];
   attributeGroups?: string[];
   isActive: boolean;
@@ -42,6 +43,7 @@ export interface CreateCategoryDto {
   description: string;
   family?: string;
   parentCategory?: string;
+  parent?: any; // API için parent alanı
   attributes?: string[];
   attributeGroups?: string[];
   isActive?: boolean;

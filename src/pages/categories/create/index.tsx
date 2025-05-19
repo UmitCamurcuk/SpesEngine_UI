@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
 import Stepper from '../../../components/ui/Stepper';
-import { TreeView } from '../../../components/ui';
+import { TreeView, TreeViewWithCheckbox } from '../../../components/ui';
 import categoryService from '../../../services/api/categoryService';
 import attributeService from '../../../services/api/attributeService';
 import attributeGroupService from '../../../services/api/attributeGroupService';
@@ -57,8 +57,9 @@ const CategoryCreatePage: React.FC = () => {
   const [attributeGroupOptions, setAttributeGroupOptions] = useState<AttributeGroupOption[]>([]);
   const [familyOptions, setFamilyOptions] = useState<FamilyOption[]>([]);
   
-  // Kategori ağacı
+  // Kategori ve Family ağaçları
   const [categoryTree, setCategoryTree] = useState<TreeNode[]>([]);
+  const [familyTree, setFamilyTree] = useState<TreeNode[]>([]);
   
   // Seçili öğeler
   const [selectedAttributes, setSelectedAttributes] = useState<string[]>([]);
@@ -104,6 +105,9 @@ const CategoryCreatePage: React.FC = () => {
           name: family.name,
           code: family.code
         })));
+        
+        // Family ağacını oluştur
+        await fetchFamilyTree();
         
         // Öznitelikleri getir
         const attributesResult = await attributeService.getAttributes({ limit: 100 });
@@ -197,6 +201,61 @@ const CategoryCreatePage: React.FC = () => {
       
     } catch (err) {
       console.error('Kategori ağacı oluşturulurken hata oluştu:', err);
+    }
+  };
+  
+  // Family ağacını getir
+  const fetchFamilyTree = async () => {
+    try {
+      // Tüm aileleri getir
+      const { families } = await familyService.getFamilies({ limit: 500 });
+      
+      // Ağaç yapısını oluştur
+      const buildFamilyTree = (parentId: string | null = null): TreeNode[] => {
+        const nodes: TreeNode[] = families
+          .filter(family => {
+            // Ailenin parent değeri (string veya obje olabilir)
+            let parentValue = null;
+            
+            if (family.parent) {
+              // Eğer string ise direkt kullan
+              if (typeof family.parent === 'string') {
+                parentValue = family.parent;
+              } 
+              // Obje ise ve id özelliği varsa
+              else if (typeof family.parent === 'object') {
+                // Typescript hata vermemesi için any kullan
+                const parentObj = family.parent as any;
+                if (parentObj.id) {
+                  parentValue = parentObj.id;
+                } else if (parentObj._id) {
+                  parentValue = parentObj._id;
+                }
+              }
+            }
+            
+            // Parent ID ile eşleştir
+            return (parentId === null && !parentValue) || (parentValue === parentId);
+          })
+          .map(family => {
+            const familyId = family._id;
+            const children = buildFamilyTree(familyId);
+            return {
+              id: familyId,
+              name: family.name,
+              data: family,
+              children: children.length > 0 ? children : undefined
+            };
+          });
+        
+        return nodes;
+      };
+      
+      const tree = buildFamilyTree();
+      setFamilyTree(tree);
+      
+    } catch (err) {
+      console.error('Aile ağacı oluşturulurken hata oluştu:', err);
     }
   };
   
@@ -422,108 +481,174 @@ const CategoryCreatePage: React.FC = () => {
       
       case 1:
         return (
-          <div className="space-y-4">
-            {/* Kategori Hiyerarşisi */}
-            <div>
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Kategori Hiyerarşisi
-              </h4>
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                {categoryTree.length > 0 ? (
-                  <div className="mb-4">
-                    <TreeView 
-                      data={categoryTree} 
-                      activeNodeId={formData.parentCategory || undefined}
-                      expandAll={true}
-                      maxHeight="400px"
-                      showRelationLines={true}
-                      variant="spectrum"
-                      onNodeClick={(node) => {
-                        setFormData(prev => ({ ...prev, parentCategory: node.id }));
-                      }}
-                      className="shadow-sm"
-                    />
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">
+              Hiyerarşik İlişkiler
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Kategori Hiyerarşisi */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Kategori Hiyerarşisi
+                </h4>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                  {categoryTree.length > 0 ? (
+                    <div>
+                      <TreeViewWithCheckbox 
+                        data={categoryTree} 
+                        defaultSelectedIds={formData.parentCategory ? [formData.parentCategory] : []}
+                        expandAll={true}
+                        maxHeight="300px"
+                        showRelationLines={true}
+                        variant="spectrum"
+                        onSelectionChange={(selectedIds) => {
+                          // Sadece bir kategori seçilebilir, birden fazla seçilirse son seçileni al
+                          const selectedId = selectedIds.length > 0 ? selectedIds[selectedIds.length - 1] : '';
+                          setFormData(prev => ({ ...prev, parentCategory: selectedId }));
+                        }}
+                        className="shadow-sm"
+                      />
+                    </div>
+                  ) : (
+                    <div className="text-center py-6">
+                      <svg className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                      </svg>
+                      <p className="text-gray-500 dark:text-gray-400">Kategori hiyerarşisi yüklenemedi.</p>
+                      <button 
+                        onClick={() => fetchCategoryTree()} 
+                        className="mt-3 px-3 py-1.5 bg-primary-light text-white rounded-md hover:bg-primary-light/90 dark:bg-primary-dark dark:hover:bg-primary-dark/90 transition-colors text-sm"
+                      >
+                        Tekrar Dene
+                      </button>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Seçili Üst Kategori Bilgisi */}
+                {formData.parentCategory && (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md border border-blue-200 dark:border-blue-800">
+                    <div className="flex items-start">
+                      <svg className="w-5 h-5 mr-2 mt-0.5 text-blue-500 dark:text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div>
+                        <h4 className="text-sm font-medium text-blue-700 dark:text-blue-300">Seçili Üst Kategori</h4>
+                        <p className="mt-1 text-sm text-blue-600 dark:text-blue-400">
+                          {parentCategoryOptions.find(category => category._id === formData.parentCategory)?.name || 'Seçili kategori'}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <svg className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                    </svg>
-                    <p className="text-gray-500 dark:text-gray-400">Kategori hiyerarşisi yüklenemedi.</p>
-                    <button 
-                      onClick={() => fetchCategoryTree()} 
-                      className="mt-4 px-4 py-2 bg-primary-light text-white rounded-md hover:bg-primary-light/90 dark:bg-primary-dark dark:hover:bg-primary-dark/90 transition-colors"
-                    >
-                      Tekrar Dene
-                    </button>
+                )}
+              </div>
+              
+              {/* Aile Hiyerarşisi */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Aile Hiyerarşisi
+                </h4>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                  {familyTree.length > 0 ? (
+                    <div>
+                      <TreeViewWithCheckbox 
+                        data={familyTree} 
+                        defaultSelectedIds={formData.family ? [formData.family] : []}
+                        expandAll={true}
+                        maxHeight="300px"
+                        showRelationLines={true}
+                        variant="spectrum"
+                        onSelectionChange={(selectedIds) => {
+                          // Sadece bir aile seçilebilir, birden fazla seçilirse son seçileni al
+                          const selectedId = selectedIds.length > 0 ? selectedIds[selectedIds.length - 1] : '';
+                          setFormData(prev => ({ ...prev, family: selectedId }));
+                        }}
+                        className="shadow-sm"
+                      />
+                    </div>
+                  ) : (
+                    <div className="text-center py-6">
+                      <svg className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                      </svg>
+                      <p className="text-gray-500 dark:text-gray-400">Aile hiyerarşisi yüklenemedi.</p>
+                      <button 
+                        onClick={() => fetchFamilyTree()} 
+                        className="mt-3 px-3 py-1.5 bg-primary-light text-white rounded-md hover:bg-primary-light/90 dark:bg-primary-dark dark:hover:bg-primary-dark/90 transition-colors text-sm"
+                      >
+                        Tekrar Dene
+                      </button>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Seçili Aile Bilgisi */}
+                {formData.family && (
+                  <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-md border border-green-200 dark:border-green-800">
+                    <div className="flex items-start">
+                      <svg className="w-5 h-5 mr-2 mt-0.5 text-green-500 dark:text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div>
+                        <h4 className="text-sm font-medium text-green-700 dark:text-green-300">Seçili Aile</h4>
+                        <p className="mt-1 text-sm text-green-600 dark:text-green-400">
+                          {familyOptions.find(family => family._id === formData.family)?.name || 'Seçili aile'}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
-
-            {/* Üst Kategori */}
-            <div>
-              <label htmlFor="parentCategory" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Üst Kategori
-              </label>
-              <select
-                id="parentCategory"
-                name="parentCategory"
-                value={formData.parentCategory || ''}
-                onChange={handleChange}
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-              >
-                <option value="">Üst kategori seçin (opsiyonel)</option>
-                {parentCategoryOptions.map(category => (
-                  <option key={category._id} value={category._id}>
-                    {category.name} ({category.code})
-                  </option>
-                ))}
-              </select>
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                Eğer bu kategori başka bir kategorinin alt kategorisi ise, üst kategoriyi seçin.
-                Bu opsiyoneldir ve kategorinizi hiyerarşik olarak düzenlemenize olanak tanır.
-              </p>
-            </div>
             
-            {/* Seçili Üst Kategori Bilgisi */}
-            {formData.parentCategory && (
-              <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-md border border-blue-200 dark:border-blue-800">
-                <div className="flex items-start">
-                  <svg className="w-5 h-5 mr-2 mt-0.5 text-blue-500 dark:text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <div>
-                    <h4 className="text-sm font-medium text-blue-700 dark:text-blue-300">Seçili Üst Kategori</h4>
-                    <p className="mt-1 text-sm text-blue-600 dark:text-blue-400">
-                      {parentCategoryOptions.find(category => category._id === formData.parentCategory)?.name || 'Seçili kategori'}
-                    </p>
-                  </div>
+            <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Hiyerarşi Seçimlerini Güncelleme</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Üst Kategori Drop-down */}
+                <div>
+                  <label htmlFor="parentCategory" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Üst Kategori (Dropdown)
+                  </label>
+                  <select
+                    id="parentCategory"
+                    name="parentCategory"
+                    value={formData.parentCategory || ''}
+                    onChange={handleChange}
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
+                  >
+                    <option value="">Üst kategori seçin (opsiyonel)</option>
+                    {parentCategoryOptions.map(category => (
+                      <option key={category._id} value={category._id}>
+                        {category.name} ({category.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                {/* Aile Drop-down */}
+                <div>
+                  <label htmlFor="family" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Aile (Dropdown)
+                  </label>
+                  <select
+                    id="family"
+                    name="family"
+                    value={formData.family || ''}
+                    onChange={handleChange}
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
+                  >
+                    <option value="">Aile seçin (opsiyonel)</option>
+                    {familyOptions.map((family: FamilyOption) => (
+                      <option key={family._id} value={family._id}>
+                        {family.name} ({family.code})
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
-            )}
-            
-            {/* Aile Seçimi */}
-            <div>
-              <label htmlFor="family" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Aile
-              </label>
-              <select
-                id="family"
-                name="family"
-                value={formData.family || ''}
-                onChange={handleChange}
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-              >
-                <option value="">Aile seçin (opsiyonel)</option>
-                {familyOptions.map((family: FamilyOption) => (
-                  <option key={family._id} value={family._id}>
-                    {family.name} ({family.code})
-                  </option>
-                ))}
-              </select>
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                Bu kategoriyi bir aile ile ilişkilendirmek isterseniz, bir aile seçebilirsiniz. Bu adım opsiyoneldir.
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                Dilerseniz hiyerarşiyi görsel olarak TreeView üzerinden veya yukarıdaki açılır menülerden seçebilirsiniz. Her iki durumda da aynı sonucu elde edersiniz.
               </p>
             </div>
           </div>

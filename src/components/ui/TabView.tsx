@@ -66,7 +66,11 @@ const TabView: React.FC<TabViewProps> = ({
           ))}
         </ul>
       </div>
-      <div className="p-3">{activeTabContent}</div>
+      <div className="p-3">
+        <div key={`tab-content-${activeTab}`}>
+          {activeTabContent}
+        </div>
+      </div>
     </div>
   );
 };

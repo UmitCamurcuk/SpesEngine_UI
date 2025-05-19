@@ -6,6 +6,13 @@ import {
   CreateItemTypeDto
 } from '../../types/itemType';
 
+// ItemTypeOptions tipini tanımla
+export interface ItemTypeOptions {
+  includeAttributes?: boolean;
+  includeAttributeGroups?: boolean;
+  populateAttributeGroupsAttributes?: boolean;
+}
+
 // ItemType servisi
 const itemTypeService = {
   // Tüm öğe tiplerini getir (filtre, sayfalama ve sıralama desteği ile)
@@ -33,7 +40,7 @@ const itemTypeService = {
   },
   
   // Belirli bir öğe tipini ID'ye göre getir
-  getItemTypeById: async (id: string, options?: { includeAttributes?: boolean, includeAttributeGroups?: boolean }): Promise<any> => {
+  getItemTypeById: async (id: string, options?: ItemTypeOptions): Promise<any> => {
     try {
       let params = {};
       if (options) {
@@ -42,6 +49,9 @@ const itemTypeService = {
         }
         if (options.includeAttributeGroups) {
           params = { ...params, includeAttributeGroups: 'true' };
+        }
+        if (options.populateAttributeGroupsAttributes) {
+          params = { ...params, populateAttributeGroupsAttributes: 'true' };
         }
       }
       

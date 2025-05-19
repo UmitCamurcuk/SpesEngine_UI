@@ -6,6 +6,7 @@ import itemService from '../../../services/api/itemService';
 import itemTypeService from '../../../services/api/itemTypeService';
 import familyService from '../../../services/api/familyService';
 import categoryService from '../../../services/api/categoryService';
+import attributeGroupService from '../../../services/api/attributeGroupService';
 import type { CreateItemDto } from '../../../types/item';
 import type { Attribute } from '../../../types/attribute';
 
@@ -43,6 +44,73 @@ const AttributeField: React.FC<{
   value: any;
   onChange: (value: any) => void;
 }> = ({ attribute, value, onChange }) => {
+  const [error, setError] = useState<string | null>(null);
+  
+  // Validation kurallarını uygula
+  const validateField = (value: any): boolean => {
+    // Zorunlu alan kontrolü
+    if (attribute.isRequired && (value === undefined || value === null || value === '')) {
+      setError(`${attribute.name} alanı zorunludur`);
+      return false;
+    }
+    
+    // Tip bazlı validasyon
+    if (value !== undefined && value !== null && value !== '') {
+      switch (attribute.type) {
+        case 'number':
+          // Min/Max değer kontrolü
+          if (attribute.validations?.min !== undefined && Number(value) < attribute.validations.min) {
+            setError(`En az ${attribute.validations.min} olmalıdır`);
+            return false;
+          }
+          if (attribute.validations?.max !== undefined && Number(value) > attribute.validations.max) {
+            setError(`En fazla ${attribute.validations.max} olmalıdır`);
+            return false;
+          }
+          break;
+          
+        case 'text':
+          // Min/Max uzunluk kontrolü
+          if (attribute.validations?.minLength !== undefined && String(value).length < attribute.validations.minLength) {
+            setError(`En az ${attribute.validations.minLength} karakter olmalıdır`);
+            return false;
+          }
+          if (attribute.validations?.maxLength !== undefined && String(value).length > attribute.validations.maxLength) {
+            setError(`En fazla ${attribute.validations.maxLength} karakter olmalıdır`);
+            return false;
+          }
+          // Regex pattern kontrolü
+          if (attribute.validations?.pattern && !new RegExp(attribute.validations.pattern).test(String(value))) {
+            setError(`Geçerli bir format girmelisiniz`);
+            return false;
+          }
+          break;
+          
+        case 'date':
+          // Min/Max tarih kontrolü
+          if (attribute.validations?.minDate && new Date(value) < new Date(attribute.validations.minDate)) {
+            setError(`En erken ${new Date(attribute.validations.minDate).toLocaleDateString()} tarihini seçebilirsiniz`);
+            return false;
+          }
+          if (attribute.validations?.maxDate && new Date(value) > new Date(attribute.validations.maxDate)) {
+            setError(`En geç ${new Date(attribute.validations.maxDate).toLocaleDateString()} tarihini seçebilirsiniz`);
+            return false;
+          }
+          break;
+      }
+    }
+    
+    // Hata yoksa error state'i temizle
+    setError(null);
+    return true;
+  };
+  
+  // Değer değiştiğinde doğrulama yap
+  const handleChange = (newValue: any) => {
+    onChange(newValue);
+    validateField(newValue);
+  };
+  
   return (
     <div key={attribute._id} className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
       <label 
@@ -53,36 +121,52 @@ const AttributeField: React.FC<{
       </label>
       
       {attribute.type === 'text' && (
-        <input
-          type="text"
-          id={`attr-${attribute._id}`}
-          value={value || ''}
-          onChange={(e) => onChange(e.target.value)}
-          required={attribute.isRequired}
-          className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-        />
+        <div>
+          <input
+            type="text"
+            id={`attr-${attribute._id}`}
+            value={value || ''}
+            onChange={(e) => handleChange(e.target.value)}
+            required={attribute.isRequired}
+            minLength={attribute.validations?.minLength}
+            maxLength={attribute.validations?.maxLength}
+            pattern={attribute.validations?.pattern}
+            placeholder={attribute.validations?.placeholder || `${attribute.name} girin`}
+            className={`bg-gray-50 border ${error ? 'border-red-500' : 'border-gray-300'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
+          />
+        </div>
       )}
       
       {attribute.type === 'number' && (
-        <input
-          type="number"
-          id={`attr-${attribute._id}`}
-          value={value || ''}
-          onChange={(e) => onChange(e.target.value)}
-          required={attribute.isRequired}
-          className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-        />
+        <div>
+          <input
+            type="number"
+            id={`attr-${attribute._id}`}
+            value={value || ''}
+            onChange={(e) => handleChange(e.target.value)}
+            required={attribute.isRequired}
+            min={attribute.validations?.min}
+            max={attribute.validations?.max}
+            step={attribute.validations?.step || 1}
+            placeholder={attribute.validations?.placeholder || `${attribute.name} girin`}
+            className={`bg-gray-50 border ${error ? 'border-red-500' : 'border-gray-300'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
+          />
+        </div>
       )}
       
       {attribute.type === 'date' && (
-        <input
-          type="date"
-          id={`attr-${attribute._id}`}
-          value={value || ''}
-          onChange={(e) => onChange(e.target.value)}
-          required={attribute.isRequired}
-          className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-        />
+        <div>
+          <input
+            type="date"
+            id={`attr-${attribute._id}`}
+            value={value || ''}
+            onChange={(e) => handleChange(e.target.value)}
+            required={attribute.isRequired}
+            min={attribute.validations?.minDate}
+            max={attribute.validations?.maxDate}
+            className={`bg-gray-50 border ${error ? 'border-red-500' : 'border-gray-300'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
+          />
+        </div>
       )}
       
       {attribute.type === 'boolean' && (
@@ -91,7 +175,7 @@ const AttributeField: React.FC<{
             type="checkbox"
             id={`attr-${attribute._id}`}
             checked={value || false}
-            onChange={(e) => onChange(e.target.checked)}
+            onChange={(e) => handleChange(e.target.checked)}
             className="w-4 h-4 text-primary-light bg-gray-100 border-gray-300 rounded focus:ring-primary-light dark:focus:ring-primary-dark dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
           />
           <label htmlFor={`attr-${attribute._id}`} className="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300">
@@ -101,46 +185,61 @@ const AttributeField: React.FC<{
       )}
       
       {attribute.type === 'select' && (
-        <select
-          id={`attr-${attribute._id}`}
-          value={value || ''}
-          onChange={(e) => onChange(e.target.value)}
-          required={attribute.isRequired}
-          className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-        >
-          <option value="">Seçim yapın</option>
-          {attribute.options.map((option, index) => (
-            <option key={index} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
+        <div>
+          <select
+            id={`attr-${attribute._id}`}
+            value={value || ''}
+            onChange={(e) => handleChange(e.target.value)}
+            required={attribute.isRequired}
+            className={`bg-gray-50 border ${error ? 'border-red-500' : 'border-gray-300'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
+          >
+            <option value="">Seçim yapın</option>
+            {attribute.options && attribute.options.map((option, index) => (
+              <option key={index} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </div>
       )}
       
       {attribute.type === 'multiselect' && (
-        <select
-          id={`attr-${attribute._id}`}
-          value={value || []}
-          onChange={(e) => {
-            const options = Array.from(e.target.selectedOptions, option => option.value);
-            onChange(options);
-          }}
-          multiple
-          required={attribute.isRequired}
-          className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-          size={Math.min(attribute.options.length, 5)}
-        >
-          {attribute.options.map((option, index) => (
-            <option key={index} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
+        <div>
+          <select
+            id={`attr-${attribute._id}`}
+            value={value || []}
+            onChange={(e) => {
+              const options = Array.from(e.target.selectedOptions, option => option.value);
+              handleChange(options);
+            }}
+            multiple
+            required={attribute.isRequired}
+            className={`bg-gray-50 border ${error ? 'border-red-500' : 'border-gray-300'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
+            size={Math.min(attribute.options?.length || 3, 5)}
+          >
+            {attribute.options && attribute.options.map((option, index) => (
+              <option key={index} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Birden fazla seçim yapmak için Ctrl (veya Command) tuşuna basılı tutarak tıklayın
+          </div>
+        </div>
       )}
       
-      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-        {attribute.description}
-      </p>
+      {error && (
+        <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      )}
+      
+      {attribute.description && (
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          {attribute.description}
+        </p>
+      )}
     </div>
   );
 };
@@ -154,243 +253,110 @@ const AttributeForm: React.FC<AttributeFormProps> = ({
   category,
   attributeGroupNames
 }) => {
-  if (!attributes || attributes.length === 0) {
-    return <p className="text-gray-500 dark:text-gray-400 italic">Bu seçime ait öznitelik bulunmuyor.</p>;
-  }
-  
-  // Öznitelikleri kategorilere göre gruplandır
+  // Öznitelikleri gruplara ayır
   const groupedAttributes = useMemo(() => {
-    const grouped: {
-      itemType: {
-        direct: Attribute[];
-        groups: { [groupId: string]: Attribute[] };
-      };
-      family: {
-        direct: Attribute[];
-        groups: { [groupId: string]: Attribute[] };
-      };
-      category: {
-        direct: Attribute[];
-        groups: { [groupId: string]: Attribute[] };
-      };
-    } = {
-      itemType: { direct: [], groups: {} },
-      family: { direct: [], groups: {} },
-      category: { direct: [], groups: {} }
+    const grouped: Record<string, Attribute[]> = {
+      ungrouped: []
     };
     
-    // Hangi özniteliğin hangi seviyeye ait olduğunu izlemek için setler
-    const itemTypeAttributeIds = new Set<string>();
-    const familyAttributeIds = new Set<string>();
-    const categoryAttributeIds = new Set<string>();
-    
+    // Her özniteliği uygun gruba ekle
     attributes.forEach(attr => {
-      // Bu özniteliğin hangi gruba ait olduğunu belirleyelim
-      if (attr.attributeGroup) {
-        // Bu öznitelik bir attribute grubuna ait
-        if (category && category._id && attr.attributeGroup === category._id) {
-          categoryAttributeIds.add(attr._id);
-          
-          if (!grouped.category.groups[attr.attributeGroup]) {
-            grouped.category.groups[attr.attributeGroup] = [];
-          }
-          grouped.category.groups[attr.attributeGroup].push(attr);
-        } else if (family && family._id && attr.attributeGroup === family._id) {
-          familyAttributeIds.add(attr._id);
-          
-          if (!grouped.family.groups[attr.attributeGroup]) {
-            grouped.family.groups[attr.attributeGroup] = [];
-          }
-          grouped.family.groups[attr.attributeGroup].push(attr);
-        } else {
-          // Diğer grup ID'leri ItemType'a ait kabul ediyoruz
-          itemTypeAttributeIds.add(attr._id);
-          
-          if (!grouped.itemType.groups[attr.attributeGroup]) {
-            grouped.itemType.groups[attr.attributeGroup] = [];
-          }
-          grouped.itemType.groups[attr.attributeGroup].push(attr);
+      if (attr.attributeGroup && attributeGroupNames[attr.attributeGroup]) {
+        if (!grouped[attr.attributeGroup]) {
+          grouped[attr.attributeGroup] = [];
         }
+        grouped[attr.attributeGroup].push(attr);
       } else {
-        // Bu öznitelik direkt olarak bağlı (grup olmadan)
-        if (category && attr.attributeGroup === undefined) {
-          categoryAttributeIds.add(attr._id);
-          grouped.category.direct.push(attr);
-        } else if (family && attr.attributeGroup === undefined) {
-          familyAttributeIds.add(attr._id);
-          grouped.family.direct.push(attr);
-        } else {
-          // Varsayılan olarak ItemType'a ait kabul ediyoruz
-          itemTypeAttributeIds.add(attr._id);
-          grouped.itemType.direct.push(attr);
-        }
+        grouped.ungrouped.push(attr);
       }
     });
     
     return grouped;
-  }, [attributes, itemType, family, category]);
+  }, [attributes, attributeGroupNames]);
   
-  // Grup adını göstermek için yardımcı fonksiyon
+  // Grup adını döndür
   const getGroupName = (groupId: string): string => {
-    return attributeGroupNames[groupId] || `Grup ${groupId.substring(0, 8)}...`;
+    return attributeGroupNames[groupId] || 'Diğer Öznitelikler';
   };
   
+  // Öznitelik kaynağına göre başlık rengini belirle
+  const getSourceColor = (attributes: Attribute[]): string => {
+    if (attributes.length === 0) return '';
+    
+    const source = (attributes[0] as any).source;
+    if (source === 'family') return 'text-blue-600 dark:text-blue-400';
+    if (source === 'category') return 'text-green-600 dark:text-green-400';
+    return '';
+  };
+  
+  // Öznitelik kaynağına göre etiket getir
+  const getSourceLabel = (attributes: Attribute[]): string | null => {
+    if (attributes.length === 0) return null;
+    
+    const source = (attributes[0] as any).source;
+    if (source === 'family' && family) return `(${family.name})`;
+    if (source === 'category' && category) return `(${category.name})`;
+    return null;
+  };
+  
+  // Öznitelikler var mı kontrol et
+  if (attributes.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-500 dark:text-gray-400">Bu öğe için tanımlanmış öznitelik bulunamadı.</p>
+      </div>
+    );
+  }
+  
   return (
-    <div className="space-y-6">
-      {/* Öğe Tipine Ait Öznitelikler */}
-      {(groupedAttributes.itemType.direct.length > 0 || Object.keys(groupedAttributes.itemType.groups).length > 0) && (
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
-            <svg className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            Öğe Tipi Öznitelikleri
-            {itemType && <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">({itemType.name})</span>}
-          </h3>
-          
-          {/* Direkt Öznitelikler */}
-          {groupedAttributes.itemType.direct.length > 0 && (
-            <div className="mb-6">
-              <h4 className="text-md font-medium text-gray-800 dark:text-gray-200 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
-                Direkt Öznitelikler
-              </h4>
-              <div className="space-y-4">
-                {groupedAttributes.itemType.direct.map((attribute) => (
-                  <AttributeField
-                    key={attribute._id}
-                    attribute={attribute}
-                    value={values[attribute._id]}
-                    onChange={(value) => onChange(attribute._id, value)}
-                  />
-                ))}
-              </div>
+    <div>
+      {/* Gruplar ve içlerindeki attributeları görüntüle */}
+      {Object.keys(groupedAttributes).map(groupId => {
+        const groupAttributes = groupedAttributes[groupId];
+        
+        // Boş grupları gösterme
+        if (groupAttributes.length === 0) return null;
+        
+        const sourceColor = getSourceColor(groupAttributes);
+        const sourceLabel = getSourceLabel(groupAttributes);
+        
+        return (
+          <div key={groupId} className="mb-6">
+            {/* Grup Başlığı */}
+            <div className="flex items-center mb-3">
+              <h3 className={`text-lg font-medium ${sourceColor}`}>
+                {groupId === 'ungrouped' ? 'Genel Öznitelikler' : getGroupName(groupId)}
+              </h3>
+              {sourceLabel && (
+                <span className={`ml-2 text-sm ${sourceColor}`}>{sourceLabel}</span>
+              )}
             </div>
-          )}
-          
-          {/* Grup Öznitelikleri */}
-          {Object.entries(groupedAttributes.itemType.groups).map(([groupId, groupAttributes]) => (
-            <div key={groupId} className="mb-6 last:mb-0">
-              <h4 className="text-md font-medium text-gray-800 dark:text-gray-200 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
-                Grup: {getGroupName(groupId)}
-              </h4>
-              <div className="space-y-4">
-                {groupAttributes.map((attribute) => (
-                  <AttributeField
-                    key={attribute._id}
-                    attribute={attribute}
-                    value={values[attribute._id]}
-                    onChange={(value) => onChange(attribute._id, value)}
-                  />
-                ))}
-              </div>
+            
+            {/* Grup içindeki öznitelikler */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {groupAttributes.map(attribute => (
+                <AttributeField
+                  key={attribute._id}
+                  attribute={attribute}
+                  value={values[attribute._id]}
+                  onChange={(value) => onChange(attribute._id, value)}
+                />
+              ))}
             </div>
-          ))}
-        </div>
-      )}
-      
-      {/* Aile Öznitelikleri */}
-      {(groupedAttributes.family.direct.length > 0 || Object.keys(groupedAttributes.family.groups).length > 0) && (
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
-            <svg className="w-5 h-5 mr-2 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-            </svg>
-            Aile Öznitelikleri
-            {family && <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">({family.name})</span>}
-          </h3>
-          
-          {/* Direkt Öznitelikler */}
-          {groupedAttributes.family.direct.length > 0 && (
-            <div className="mb-6">
-              <h4 className="text-md font-medium text-gray-800 dark:text-gray-200 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
-                Direkt Öznitelikler
-              </h4>
-              <div className="space-y-4">
-                {groupedAttributes.family.direct.map((attribute) => (
-                  <AttributeField
-                    key={attribute._id}
-                    attribute={attribute}
-                    value={values[attribute._id]}
-                    onChange={(value) => onChange(attribute._id, value)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-          
-          {/* Grup Öznitelikleri */}
-          {Object.entries(groupedAttributes.family.groups).map(([groupId, groupAttributes]) => (
-            <div key={groupId} className="mb-6 last:mb-0">
-              <h4 className="text-md font-medium text-gray-800 dark:text-gray-200 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
-                Grup: {getGroupName(groupId)}
-              </h4>
-              <div className="space-y-4">
-                {groupAttributes.map((attribute) => (
-                  <AttributeField
-                    key={attribute._id}
-                    attribute={attribute}
-                    value={values[attribute._id]}
-                    onChange={(value) => onChange(attribute._id, value)}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      
-      {/* Kategori Öznitelikleri */}
-      {(groupedAttributes.category.direct.length > 0 || Object.keys(groupedAttributes.category.groups).length > 0) && (
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
-            <svg className="w-5 h-5 mr-2 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-            </svg>
-            Kategori Öznitelikleri
-            {category && <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">({category.name})</span>}
-          </h3>
-          
-          {/* Direkt Öznitelikler */}
-          {groupedAttributes.category.direct.length > 0 && (
-            <div className="mb-6">
-              <h4 className="text-md font-medium text-gray-800 dark:text-gray-200 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
-                Direkt Öznitelikler
-              </h4>
-              <div className="space-y-4">
-                {groupedAttributes.category.direct.map((attribute) => (
-                  <AttributeField
-                    key={attribute._id}
-                    attribute={attribute}
-                    value={values[attribute._id]}
-                    onChange={(value) => onChange(attribute._id, value)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-          
-          {/* Grup Öznitelikleri */}
-          {Object.entries(groupedAttributes.category.groups).map(([groupId, groupAttributes]) => (
-            <div key={groupId} className="mb-6 last:mb-0">
-              <h4 className="text-md font-medium text-gray-800 dark:text-gray-200 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
-                Grup: {getGroupName(groupId)}
-              </h4>
-              <div className="space-y-4">
-                {groupAttributes.map((attribute) => (
-                  <AttributeField
-                    key={attribute._id}
-                    attribute={attribute}
-                    value={values[attribute._id]}
-                    onChange={(value) => onChange(attribute._id, value)}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+          </div>
+        );
+      })}
     </div>
   );
+};
+
+// Debug fonksiyonu - geliştirme aşamasında sorunları tespit etmek için
+const DEBUG = true;
+
+const debug = (message: string, data?: any) => {
+  if (DEBUG) {
+    console.log(`🔍 [DEBUG] ${message}`, data || '');
+  }
 };
 
 const ItemCreatePage: React.FC = () => {
@@ -545,114 +511,219 @@ const ItemCreatePage: React.FC = () => {
       
       setLoading(true);
       try {
-        // ItemType attributeları ve gruplarını tek seferde getir
-        const itemTypeDetails = await itemTypeService.getItemTypeById(formData.itemType, { includeAttributes: true, includeAttributeGroups: true });
+        // Tüm öznitelikleri saklayacak dizi
         let allAttributes: Attribute[] = [];
+        let attributeGroupNamesMap: Record<string, string> = {};
         
-        // ItemType'a ait attributelar varsa ekle (direk olanlar)
+        // ADIM 1: ItemType attributeları ve gruplarını getir
+        const itemTypeDetails = await itemTypeService.getItemTypeById(formData.itemType, { 
+          includeAttributes: true, 
+          includeAttributeGroups: true,
+          populateAttributeGroupsAttributes: true
+        });
+        
+        console.log("İtem Tipi detayları:", itemTypeDetails);
+        
+        // ItemType API yanıtını kontrol et ve düzgün şekilde işle
         if (itemTypeDetails.attributes && itemTypeDetails.attributes.length > 0) {
-          // Direkt attributelar (grup olmayanlar)
-          const directAttributes = itemTypeDetails.attributes.filter((attr: any) => !attr.attributeGroup);
-          allAttributes = [...directAttributes];
+          console.log("ItemType doğrudan öznitelikler:", itemTypeDetails.attributes);
+          allAttributes = [...itemTypeDetails.attributes];
         }
         
-        // ItemType'a ait attribute grupları varsa ekle (itemTypeDetails.attributeGroups içinde gelir)
+        // ItemType'a ait attribute grupları ve içindeki attributeları doğru şekilde işle
         if (itemTypeDetails.attributeGroups && itemTypeDetails.attributeGroups.length > 0) {
+          console.log("ItemType öznitelik grupları:", itemTypeDetails.attributeGroups);
+          
           for (const group of itemTypeDetails.attributeGroups) {
+            // Grup adını kaydet
+            attributeGroupNamesMap[group._id] = group.name;
+            
+            // Eğer grup içinde attributes varsa (backend tarafında populate edilmişse)
             if (group.attributes && group.attributes.length > 0) {
-              // Grup adını kaydet
-              setAttributeGroupNames(prev => ({
-                ...prev,
-                [group._id]: group.name
+              console.log(`${group.name} grubunun içinde ${group.attributes.length} öznitelik var:`, group.attributes);
+              
+              // Her attribute için grup ilişkisini ayarla
+              const groupAttributes = group.attributes.map((attr: any) => ({
+                ...attr,
+                attributeGroup: group._id
               }));
               
-              // Grup attributelarını ekle
-              allAttributes = [...allAttributes, ...group.attributes];
+              allAttributes = [...allAttributes, ...groupAttributes];
             }
           }
         }
         
-        // Family seçiliyse, family attributelarını ve gruplarını tek seferde getir
+        // ADIM 2: Family attributelarını getir (varsa)
         if (formData.family) {
-          const familyDetails = await familyService.getFamilyById(formData.family, { includeAttributes: true, includeAttributeGroups: true });
-          
-          // Doğrudan family'e bağlı attributeları ekle
-          if (familyDetails.attributes && familyDetails.attributes.length > 0) {
-            // Aynı attributelar varsa, family olanlarını kullan (override)
-            const existingAttributeIds = new Set(allAttributes.map((attr: any) => attr._id));
-            const newDirectAttributes = familyDetails.attributes.filter((attr: any) => !existingAttributeIds.has(attr._id));
+          try {
+            console.log("Aile ID'si ile API çağrısı yapılıyor:", formData.family);
+            const familyDetails = await familyService.getFamilyById(formData.family, { 
+              includeAttributes: true, 
+              includeAttributeGroups: true,
+              populateAttributeGroupsAttributes: true 
+            });
             
-            allAttributes = [...allAttributes, ...newDirectAttributes];
-          }
-          
-          // Family'e ait attribute grupları varsa ekle
-          if (familyDetails.attributeGroups && familyDetails.attributeGroups.length > 0) {
-            for (const group of familyDetails.attributeGroups) {
-              if (group.attributes && group.attributes.length > 0) {
-                // Grup adını kaydet
-                setAttributeGroupNames(prev => ({
-                  ...prev,
-                  [group._id]: group.name
-                }));
-                
-                // Aynı attributelar varsa, family gruptan olanlarını kullan (override)
-                const existingAttributeIds = new Set(allAttributes.map((attr: any) => attr._id));
-                const newGroupAttributes = group.attributes.filter((attr: any) => !existingAttributeIds.has(attr._id));
-                
-                // Her attribute için grup ilişkisini ayarla
-                newGroupAttributes.forEach((attr: any) => {
-                  if (!attr.attributeGroup) {
-                    attr.attributeGroup = group._id;
+            console.log("Aile detayları (ham veri):", JSON.stringify(familyDetails));
+            
+            // Veri yapısını kontrol et
+            console.log("Aile veri yapısı kontrolü:");
+            console.log("- attributes mevcut mu:", Boolean(familyDetails.attributes));
+            console.log("- attributes bir dizi mi:", Array.isArray(familyDetails.attributes));
+            if (familyDetails.attributes) {
+              console.log("- attributes uzunluğu:", familyDetails.attributes.length);
+            }
+            
+            console.log("- attributeGroups mevcut mu:", Boolean(familyDetails.attributeGroups));
+            console.log("- attributeGroups bir dizi mi:", Array.isArray(familyDetails.attributeGroups));
+            if (familyDetails.attributeGroups) {
+              console.log("- attributeGroups uzunluğu:", familyDetails.attributeGroups.length);
+            }
+            
+            // Doğrudan family'e bağlı attributeları ekle
+            if (familyDetails.attributes && familyDetails.attributes.length > 0) {
+              console.log("Aile doğrudan öznitelikler (uzunluk):", familyDetails.attributes.length);
+              
+              // Aynı ID'ye sahip attributeları çıkarmak için ID listesi oluştur
+              const existingIds = new Set(allAttributes.map(attr => attr._id));
+              
+              // Yeni attributeları ekle
+              for (const attr of familyDetails.attributes) {
+                // Eğer attr bir obje ise ve _id özelliği varsa ekle
+                if (attr && typeof attr === 'object' && '_id' in attr) {
+                  if (!existingIds.has(attr._id)) {
+                    allAttributes.push({
+                      ...attr,
+                      source: 'family' // İsteğe bağlı: özniteliğin kaynağını işaretlemek için
+                    });
+                    existingIds.add(attr._id);
                   }
-                });
-                
-                allAttributes = [...allAttributes, ...newGroupAttributes];
+                } else {
+                  console.warn(`Aile - Geçersiz doğrudan öznitelik formatı:`, attr);
+                }
               }
             }
+            
+            // Family'e ait attribute grupları varsa ekle
+            if (familyDetails.attributeGroups && familyDetails.attributeGroups.length > 0) {
+              console.log("Aile öznitelik grupları:", familyDetails.attributeGroups);
+              
+              for (const group of familyDetails.attributeGroups) {
+                // Grup adını kaydet
+                attributeGroupNamesMap[group._id] = group.name;
+                
+                // Eğer grup içinde attributes varsa
+                if (group.attributes && group.attributes.length > 0) {
+                  console.log(`Aile - ${group.name} grubunun içinde ${group.attributes.length} öznitelik var:`, group.attributes);
+                  
+                  const existingIds = new Set(allAttributes.map(attr => attr._id));
+                  
+                  // Her attribute için grup ilişkisini ayarla ve ekle
+                  for (const attr of group.attributes) {
+                    if (!existingIds.has(attr._id)) {
+                      // Eğer attr bir obje ise ve _id özelliği varsa ekle
+                      if (attr && typeof attr === 'object' && '_id' in attr) {
+                        allAttributes.push({
+                          ...attr,
+                          attributeGroup: group._id,
+                          source: 'family'
+                        });
+                        existingIds.add(attr._id);
+                      } else {
+                        console.warn(`Aile grubu - Geçersiz öznitelik formatı:`, attr);
+                      }
+                    }
+                  }
+                } else {
+                  console.log(`Aile - ${group.name} grubunda öznitelik bulunamadı veya uygun formatta değil`);
+                }
+              }
+            }
+          } catch (err) {
+            console.error('Aile öznitelikleri yüklenirken hata:', err);
           }
         }
         
-        // Kategori seçiliyse, kategori attributelarını ve gruplarını tek seferde getir
+        // ADIM 3: Kategori attributelarını getir (varsa)
         if (formData.category) {
-          const categoryDetails = await categoryService.getCategoryById(formData.category, { includeAttributes: true, includeAttributeGroups: true });
-          
-          // Doğrudan kategoriye bağlı attributeları ekle
-          if (categoryDetails.attributes && categoryDetails.attributes.length > 0) {
-            // Aynı attributelar varsa, kategori olanlarını kullan (override)
-            const existingAttributeIds = new Set(allAttributes.map((attr: any) => attr._id));
-            const newDirectAttributes = categoryDetails.attributes.filter((attr: any) => !existingAttributeIds.has(attr._id));
+          try {
+            const categoryDetails = await categoryService.getCategoryById(formData.category, { 
+              includeAttributes: true, 
+              includeAttributeGroups: true,
+              populateAttributeGroupsAttributes: true
+            });
             
-            allAttributes = [...allAttributes, ...newDirectAttributes];
-          }
-          
-          // Kategori attribute grubunu ekle
-          if (categoryDetails.attributeGroups && categoryDetails.attributeGroups.length > 0) {
-            for (const group of categoryDetails.attributeGroups) {
-              if (group.attributes && group.attributes.length > 0) {
-                // Grup adını kaydet
-                setAttributeGroupNames(prev => ({
-                  ...prev,
-                  [group._id]: group.name
-                }));
-                
-                // Aynı attributelar varsa, kategori gruptan olanlarını kullan (override)
-                const existingAttributeIds = new Set(allAttributes.map((attr: any) => attr._id));
-                const newGroupAttributes = group.attributes.filter((attr: any) => !existingAttributeIds.has(attr._id));
-                
-                // Her attribute için grup ilişkisini ayarla
-                newGroupAttributes.forEach((attr: any) => {
-                  if (!attr.attributeGroup) {
-                    attr.attributeGroup = group._id;
+            console.log("Kategori detayları:", categoryDetails);
+            
+            // Doğrudan kategoriye bağlı attributeları ekle
+            if (categoryDetails.attributes && categoryDetails.attributes.length > 0) {
+              console.log("Kategori doğrudan öznitelikler:", categoryDetails.attributes);
+              
+              // Aynı ID'ye sahip attributeları çıkarmak için ID listesi oluştur
+              const existingIds = new Set(allAttributes.map(attr => attr._id));
+              
+              // Yeni attributeları ekle
+              for (const attr of categoryDetails.attributes) {
+                // Eğer attr bir obje ise ve _id özelliği varsa ekle
+                if (attr && typeof attr === 'object' && '_id' in attr) {
+                  if (!existingIds.has(attr._id)) {
+                    allAttributes.push({
+                      ...attr,
+                      source: 'category' // İsteğe bağlı: özniteliğin kaynağını işaretlemek için
+                    });
+                    existingIds.add(attr._id);
                   }
-                });
-                
-                allAttributes = [...allAttributes, ...newGroupAttributes];
+                } else {
+                  console.warn(`Kategori - Geçersiz doğrudan öznitelik formatı:`, attr);
+                }
               }
             }
+            
+            // Kategori attribute gruplarını ekle
+            if (categoryDetails.attributeGroups && categoryDetails.attributeGroups.length > 0) {
+              console.log("Kategori öznitelik grupları:", categoryDetails.attributeGroups);
+              
+              for (const group of categoryDetails.attributeGroups) {
+                // Grup adını kaydet
+                attributeGroupNamesMap[group._id] = group.name;
+                
+                // Eğer grup içinde attributes varsa
+                if (group.attributes && group.attributes.length > 0) {
+                  console.log(`Kategori - ${group.name} grubunun içinde ${group.attributes.length} öznitelik var:`, group.attributes);
+                  
+                  const existingIds = new Set(allAttributes.map(attr => attr._id));
+                  
+                  // Her attribute için grup ilişkisini ayarla ve ekle
+                  for (const attr of group.attributes) {
+                    // Eğer attr bir obje ise ve _id özelliği varsa ekle
+                    if (attr && typeof attr === 'object' && '_id' in attr) {
+                      if (!existingIds.has(attr._id)) {
+                        allAttributes.push({
+                          ...attr,
+                          attributeGroup: group._id,
+                          source: 'category' // İsteğe bağlı
+                        });
+                        existingIds.add(attr._id);
+                      }
+                    } else {
+                      console.warn(`Kategori grubu - Geçersiz öznitelik formatı:`, attr);
+                    }
+                  }
+                } else {
+                  console.log(`Kategori - ${group.name} grubunda öznitelik bulunamadı veya uygun formatta değil`);
+                }
+              }
+            }
+          } catch (err) {
+            console.error('Kategori öznitelikleri yüklenirken hata:', err);
           }
         }
+        
+        // Tüm öznitelikleri göster
+        console.log("Tüm öznitelikler:", allAttributes);
+        console.log("Öznitelik grupları:", attributeGroupNamesMap);
         
         setAttributes(allAttributes);
+        setAttributeGroupNames(attributeGroupNamesMap);
       } catch (err) {
         console.error('Öznitelikler yüklenirken hata oluştu:', err);
       } finally {
@@ -696,6 +767,13 @@ const ItemCreatePage: React.FC = () => {
   
   // Form gönderme handler
   const handleSubmit = async () => {
+    // Zorunlu attribute'ların kontrolü
+    const requiredAttributesCheck = validateRequiredAttributes();
+    if (!requiredAttributesCheck.isValid) {
+      setError(`Zorunlu alanları doldurun: ${requiredAttributesCheck.missingFields.join(', ')}`);
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
     setSuccess(false);
@@ -726,6 +804,26 @@ const ItemCreatePage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+  
+  // Zorunlu attribute'ların kontrol edilmesi
+  const validateRequiredAttributes = (): { isValid: boolean; missingFields: string[] } => {
+    // Zorunlu olan ama değeri girilmemiş attributelar
+    const missingRequiredAttributes = attributes
+      .filter(attr => attr.isRequired)
+      .filter(attr => {
+        const value = attributeValues[attr._id];
+        return value === undefined || value === null || value === '' || 
+               (Array.isArray(value) && value.length === 0);
+      });
+    
+    // Eksik olan attributeların isimleri
+    const missingFields = missingRequiredAttributes.map(attr => attr.name);
+    
+    return {
+      isValid: missingFields.length === 0,
+      missingFields
+    };
   };
   
   // Adım 1 validasyonu

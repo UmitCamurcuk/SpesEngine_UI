@@ -606,45 +606,45 @@ const CategoryCreatePage: React.FC = () => {
               <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Hiyerarşi Seçimlerini Güncelleme</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Üst Kategori Drop-down */}
-                <div>
-                  <label htmlFor="parentCategory" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <div>
+              <label htmlFor="parentCategory" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Üst Kategori (Dropdown)
-                  </label>
-                  <select
-                    id="parentCategory"
-                    name="parentCategory"
-                    value={formData.parentCategory || ''}
-                    onChange={handleChange}
-                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-                  >
-                    <option value="">Üst kategori seçin (opsiyonel)</option>
-                    {parentCategoryOptions.map(category => (
-                      <option key={category._id} value={category._id}>
-                        {category.name} ({category.code})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
+              </label>
+              <select
+                id="parentCategory"
+                name="parentCategory"
+                value={formData.parentCategory || ''}
+                onChange={handleChange}
+                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
+              >
+                <option value="">Üst kategori seçin (opsiyonel)</option>
+                {parentCategoryOptions.map(category => (
+                  <option key={category._id} value={category._id}>
+                    {category.name} ({category.code})
+                  </option>
+                ))}
+              </select>
+            </div>
+            
                 {/* Aile Drop-down */}
-                <div>
-                  <label htmlFor="family" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <div>
+              <label htmlFor="family" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Aile (Dropdown)
-                  </label>
-                  <select
-                    id="family"
-                    name="family"
-                    value={formData.family || ''}
-                    onChange={handleChange}
-                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-                  >
-                    <option value="">Aile seçin (opsiyonel)</option>
-                    {familyOptions.map((family: FamilyOption) => (
-                      <option key={family._id} value={family._id}>
-                        {family.name} ({family.code})
-                      </option>
-                    ))}
-                  </select>
+              </label>
+              <select
+                id="family"
+                name="family"
+                value={formData.family || ''}
+                onChange={handleChange}
+                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
+              >
+                <option value="">Aile seçin (opsiyonel)</option>
+                {familyOptions.map((family: FamilyOption) => (
+                  <option key={family._id} value={family._id}>
+                    {family.name} ({family.code})
+                  </option>
+                ))}
+              </select>
                 </div>
               </div>
               <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">

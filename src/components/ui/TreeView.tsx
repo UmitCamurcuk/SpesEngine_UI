@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 export interface TreeNode {
   id: string;
   name: string;
+  label?: string; // Görüntülenecek etiket
   children?: TreeNode[];
   data?: any;
 }

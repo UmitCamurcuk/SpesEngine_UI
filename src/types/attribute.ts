@@ -23,10 +23,12 @@ export interface AttributeValidation {
   minLength?: number;
   maxLength?: number;
   pattern?: string;
+  placeholder?: string;
   
   // Sayı tipi için
   min?: number;
   max?: number;
+  step?: number;
   isInteger?: boolean;
   isPositive?: boolean;
   isNegative?: boolean;

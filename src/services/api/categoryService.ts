@@ -5,6 +5,7 @@ import {
   ApiResponse,
   CreateCategoryDto
 } from '../../types/category';
+import { ItemTypeOptions } from './itemTypeService';
 
 // Category servisi
 const categoryService = {
@@ -33,7 +34,7 @@ const categoryService = {
   },
   
   // Belirli bir kategoriyi ID'ye göre getir
-  getCategoryById: async (id: string, options?: { includeAttributes?: boolean, includeAttributeGroups?: boolean }): Promise<any> => {
+  getCategoryById: async (id: string, options?: ItemTypeOptions): Promise<any> => {
     try {
       let params = {};
       if (options) {
@@ -42,6 +43,9 @@ const categoryService = {
         }
         if (options.includeAttributeGroups) {
           params = { ...params, includeAttributeGroups: 'true' };
+        }
+        if (options.populateAttributeGroupsAttributes) {
+          params = { ...params, populateAttributeGroupsAttributes: 'true' };
         }
       }
       

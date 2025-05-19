@@ -33,9 +33,9 @@ const attributeGroupService = {
   },
   
   // Belirli bir öznitelik grubunu ID'ye göre getir
-  getAttributeGroupById: async (id: string): Promise<AttributeGroup> => {
+  getAttributeGroupById: async (id: string, options?: { includeAttributes?: boolean }): Promise<AttributeGroup> => {
     try {
-      const response = await api.get<ApiResponse<AttributeGroup>>(`/attributeGroups/${id}`);
+      const response = await api.get<ApiResponse<AttributeGroup>>(`/attributeGroups/${id}`, { params: options });
       return response.data.data;
     } catch (error) {
       console.error(`${id} ID'li öznitelik grubu getirilirken hata oluştu:`, error);

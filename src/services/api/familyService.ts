@@ -5,6 +5,7 @@ import {
   ApiResponse,
   CreateFamilyDto
 } from '../../types/family';
+import { ItemTypeOptions } from './itemTypeService';
 
 // Family servisi
 const familyService = {
@@ -33,7 +34,7 @@ const familyService = {
   },
   
   // Belirli bir aileyi ID'ye göre getir
-  getFamilyById: async (id: string, options?: { includeAttributes?: boolean, includeAttributeGroups?: boolean }): Promise<any> => {
+  getFamilyById: async (id: string, options?: ItemTypeOptions): Promise<any> => {
     try {
       let params = {};
       if (options) {
@@ -43,12 +44,31 @@ const familyService = {
         if (options.includeAttributeGroups) {
           params = { ...params, includeAttributeGroups: 'true' };
         }
+        if (options.populateAttributeGroupsAttributes) {
+          params = { ...params, populateAttributeGroupsAttributes: 'true' };
+        }
       }
       
+      console.log(`[familyService] getFamilyById çağrısı - ID: ${id}, Parametreler:`, params);
+      
       const response = await api.get<ApiResponse<any>>(`/families/${id}`, { params });
+      
+      console.log(`[familyService] getFamilyById yanıtı:`, {
+        success: response.data.success,
+        hasData: Boolean(response.data.data),
+        dataType: response.data.data ? typeof response.data.data : null
+      });
+      
       return response.data.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error(`${id} ID'li aile getirilirken hata oluştu:`, error);
+      console.error('Hata detayları:', {
+        message: error.message,
+        response: error.response ? {
+          status: error.response.status,
+          data: error.response.data
+        } : 'Yanıt bilgisi yok'
+      });
       throw error;
     }
   },

@@ -18,6 +18,7 @@ export interface Category {
   family?: string;
   parentCategory?: string;
   parent?: any; // API'den gelen parent alanı
+  parentId?: string | null; // Üst kategori ID'si
   attributes?: string[];
   attributeGroups?: string[];
   isActive: boolean;

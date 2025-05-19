@@ -8,6 +8,7 @@ import attributeGroupService from '../../../services/api/attributeGroupService';
 import familyService from '../../../services/api/familyService';
 import type { Category } from '../../../types/category';
 import type { TreeNode } from '../../../components/ui/TreeView';
+import { toast } from 'react-hot-toast';
 
 // Yardımcı fonksiyon: Category veya Family objelerinden ID'yi almak için
 const getEntityId = (entity: any): string | undefined => {
@@ -42,18 +43,21 @@ const CategoryDetailsPage: React.FC = () => {
   const [familyTree, setFamilyTree] = useState<TreeNode[]>([]);
   const [familyName, setFamilyName] = useState<string>('');
   const [attributes, setAttributes] = useState<{id: string, name: string, type: string}[]>([]);
-  const [attributeGroups, setAttributeGroups] = useState<{id: string, name: string, code: string}[]>([]);
+  const [attributeGroups, setAttributeGroups] = useState<{
+    id: string, 
+    name: string, 
+    code: string, 
+    description?: string, 
+    attributes?: any[]
+  }[]>([]);
   
   // Form state
   const [formData, setFormData] = useState<Partial<Category>>({
     name: '',
     code: '',
     description: '',
-    parentCategory: '',
-    family: '',
-    attributes: [],
-    attributeGroups: [],
-    isActive: true
+    isActive: true,
+    parentId: undefined
   });
   
   // Loading ve error state
@@ -84,6 +88,35 @@ const CategoryDetailsPage: React.FC = () => {
           includeAttributeGroups: true
         });
         
+        // Öznitelikleri kendi gruplarına eşleştir
+        // API'den attributes ve attributeGroups farklı dizilerde geliyor
+        if (categoryData.attributes && categoryData.attributes.length > 0 && 
+            categoryData.attributeGroups && categoryData.attributeGroups.length > 0) {
+          
+          console.log("Orijinal attributeGroups:", JSON.parse(JSON.stringify(categoryData.attributeGroups)));
+          console.log("Orijinal attributes:", JSON.parse(JSON.stringify(categoryData.attributes)));
+          
+          // Her grup için eşleşen nitelikleri bul
+          const groupsWithAttributes = categoryData.attributeGroups.map((group: any) => {
+            // Bu gruba ait nitelikleri bul
+            const groupAttributes = categoryData.attributes.filter((attr: any) => 
+              getEntityId(attr.attributeGroup) === getEntityId(group._id) ||
+              getEntityId(attr.attributeGroup) === getEntityId(group)
+            );
+            
+            // Grubu klonla ve nitelikleri ekle
+            return {
+              ...group,
+              attributes: groupAttributes
+            };
+          });
+          
+          console.log("İşlenmiş attributeGroups:", groupsWithAttributes);
+          
+          // İşlenmiş grupları kategoriye ekle
+          categoryData.attributeGroups = groupsWithAttributes;
+        }
+        
         // State'i güncelle
         setCategory(categoryData);
         
@@ -94,11 +127,8 @@ const CategoryDetailsPage: React.FC = () => {
           name: categoryData.name,
           code: categoryData.code,
           description: categoryData.description,
-          parentCategory: parentValue,
-          family: categoryData.family,
-          attributes: categoryData.attributes,
-          attributeGroups: categoryData.attributeGroups,
-          isActive: categoryData.isActive
+          isActive: categoryData.isActive,
+          parentId: getEntityId(categoryData.parentCategory) || getEntityId(categoryData.parent) || null
         });
         
         // Üst kategoriyi getir
@@ -175,12 +205,14 @@ const CategoryDetailsPage: React.FC = () => {
         if (categoryData.attributeGroups && categoryData.attributeGroups.length > 0) {
           try {
             const fetchedGroups = [];
-            for (const groupId of categoryData.attributeGroups) {
-              const groupData = await attributeGroupService.getAttributeGroupById(groupId._id);
+            for (const groupData of categoryData.attributeGroups) {
+              // API'den gelen grup verisi direkt olarak kullanılıyor
               fetchedGroups.push({ 
-                id: groupId, 
+                id: groupData._id, 
                 name: groupData.name,
-                code: groupData.code 
+                code: groupData.code,
+                description: groupData.description,
+                attributes: groupData.attributes || []
               });
             }
             setAttributeGroups(fetchedGroups);
@@ -453,9 +485,27 @@ const CategoryDetailsPage: React.FC = () => {
         {/* Üst Kategori */}
         <div>
           <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Üst Kategori</h4>
-          <p className="mt-1 text-gray-900 dark:text-white">
-            {parentCategoryName || <span className="text-gray-500 italic">Ana Kategori</span>}
-          </p>
+          {isEditing ? (
+            <TreeViewWithCheckbox
+              data={categoryTree.map(cat => ({
+                id: cat.id,
+                name: cat.name,
+                label: cat.name,
+                children: cat.children
+              }))}
+              onSelectionChange={(selectedIds) => {
+                console.log("Seçilen üst kategori ID:", selectedIds[0] || undefined);
+                setFormData(prev => ({ ...prev, parentId: selectedIds[0] || undefined }));
+              }}
+              defaultSelectedIds={formData.parentId ? [formData.parentId] : []}
+              variant="spectrum"
+              maxHeight="200px"
+            />
+          ) : (
+            <p className="text-gray-900 dark:text-white">
+              {category?.parentId ? categoryTree.find(c => c.id === category.parentId)?.name : 'Ana Kategori'}
+            </p>
+          )}
         </div>
         
         {/* Aile */}
@@ -533,7 +583,7 @@ const CategoryDetailsPage: React.FC = () => {
                     onSelectionChange={(selectedIds) => {
                       if (selectedIds.length > 0 && selectedIds[0] !== id) {
                         // Düzenleme modunda seçilen kategoriyi üst kategori olarak ayarla
-                        setFormData(prev => ({ ...prev, parentCategory: selectedIds[0] }));
+                        setFormData(prev => ({ ...prev, parentId: selectedIds[0] || undefined }));
                       }
                     }}
                     className="shadow-sm"
@@ -600,21 +650,19 @@ const CategoryDetailsPage: React.FC = () => {
             {familyTree.length > 0 ? (
               <div>
                 {isEditing ? (
-                  <TreeViewWithCheckbox 
-                    data={familyTree} 
-                    defaultSelectedIds={getEntityId(category?.family) ? [getEntityId(category?.family)!] : []}
-                    expandAll={true}
-                    maxHeight="300px"
-                    showRelationLines={true}
-                    variant="spectrum"
+                  <TreeViewWithCheckbox
+                    data={familyTree.map(fam => ({
+                      id: fam.id,
+                      name: fam.name,
+                      label: fam.name,
+                      children: fam.children
+                    }))}
                     onSelectionChange={(selectedIds) => {
-                      if (selectedIds.length > 0) {
-                        // Düzenleme formu güncellenecek, family ID ile
-                        setFormData(prev => ({ ...prev, family: selectedIds[0] }));
-                      }
+                      setFormData({ ...formData, family: selectedIds[0] || undefined });
                     }}
-                    className="shadow-sm"
-                    key={`family-tree-edit-${getEntityId(category?.family) || 'none'}`}
+                    defaultSelectedIds={getEntityId(category?.family) ? [getEntityId(category?.family)!] : []}
+                    variant="spectrum"
+                    maxHeight="200px"
                   />
                 ) : (
                   <TreeView 
@@ -673,20 +721,92 @@ const CategoryDetailsPage: React.FC = () => {
       
       {attributeGroups.length > 0 ? (
         <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 overflow-hidden">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             {attributeGroups.map(group => (
               <div 
                 key={group.id} 
                 className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700"
               >
-                <h4 className="font-medium text-gray-900 dark:text-white">{group.name}</h4>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{group.code}</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-gray-900 dark:text-white">{group.name}</h4>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{group.code}</p>
+                  </div>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => {/* Öznitelik grubunu kaldır */}}
+                    className="flex items-center"
+                  >
+                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Kaldır
+                  </Button>
+                </div>
+                
+                {/* Grup açıklaması */}
+                {group.description && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-3 border-t border-gray-100 dark:border-gray-700 pt-3">
+                    {group.description}
+                  </p>
+                )}
+                
+                {/* Gruba ait öznitelikler */}
+                {group.attributes && group.attributes.length > 0 ? (
+                  <div className="mt-4 border-t border-gray-100 dark:border-gray-700 pt-3">
+                    <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Grup Öznitelikleri ({group.attributes.length})
+                    </h5>
+                    <ul className="ml-2 space-y-1">
+                      {group.attributes.map((attr: any) => (
+                        <li key={attr._id} className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <span className="h-1.5 w-1.5 rounded-full bg-primary-light dark:bg-primary-dark mr-2"></span>
+                            <span className="text-sm text-gray-700 dark:text-gray-300">{attr.name}</span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">({attr.type})</span>
+                          </div>
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={() => {/* Özniteliği gruptan kaldır */}}
+                            className="flex items-center"
+                          >
+                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            Kaldır
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 text-sm text-gray-500 dark:text-gray-400">
+                    Bu gruba atanmış öznitelik bulunmamaktadır.
+                  </div>
+                )}
               </div>
             ))}
           </div>
         </div>
       ) : (
-        <p className="text-gray-500 dark:text-gray-400">Bu kategoriye atanmış öznitelik grubu bulunmamaktadır.</p>
+        <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg">
+          <svg className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+          </svg>
+          <p className="text-gray-500 dark:text-gray-400">Bu kategoriye atanmış öznitelik grubu bulunmamaktadır.</p>
+          <Button
+            variant="outline"
+            onClick={() => {/* Öznitelik grubu ekleme modalını aç */}}
+            className="mt-4 flex items-center"
+          >
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Grup Ekle
+          </Button>
+        </div>
       )}
     </div>
   );
@@ -706,6 +826,9 @@ const CategoryDetailsPage: React.FC = () => {
                 <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
                   Tip
                 </th>
+                <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
+                  İşlemler
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
@@ -717,16 +840,73 @@ const CategoryDetailsPage: React.FC = () => {
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     {attr.type}
                   </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => {/* Özniteliği kaldır */}}
+                      className="flex items-center"
+                    >
+                      <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Kaldır
+                    </Button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       ) : (
-        <p className="text-gray-500 dark:text-gray-400">Bu kategoriye atanmış öznitelik bulunmamaktadır.</p>
+        <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg">
+          <svg className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <p className="text-gray-500 dark:text-gray-400">Bu kategoriye atanmış öznitelik bulunmamaktadır.</p>
+          <Button
+            variant="outline"
+            onClick={() => {/* Öznitelik ekleme modalını aç */}}
+            className="mt-4 flex items-center"
+          >
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Öznitelik Ekle
+          </Button>
+        </div>
       )}
     </div>
   );
+  
+  const handleEdit = () => {
+    setIsEditing(true);
+    
+    // parentId'yi doğru şekilde ayarla
+    const parentId = getEntityId(category?.parentCategory) || getEntityId(category?.parent);
+    
+    setFormData({
+      name: category?.name || '',
+      code: category?.code || '',
+      description: category?.description || '',
+      isActive: category?.isActive || true,
+      parentId: parentId || undefined,
+      family: getEntityId(category?.family) || undefined
+    });
+    
+    console.log("Edit modu başlatıldı. Parent ID:", parentId);
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setFormData({
+      name: category?.name || '',
+      code: category?.code || '',
+      description: category?.description || '',
+      isActive: category?.isActive || true,
+      parentId: category?.parentId || undefined
+    });
+  };
   
   if (isLoading) {
     return (
@@ -762,14 +942,14 @@ const CategoryDetailsPage: React.FC = () => {
     <div className="space-y-6">
       {/* Başlık */}
       <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center mb-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
               <svg className="w-7 h-7 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
               </svg>
-              Kategori Detayları
+              {isEditing ? 'Kategori Düzenle' : 'Kategori Detayları'}
             </h1>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
               {category?.name} kategorisinin detaylı bilgileri
@@ -789,20 +969,46 @@ const CategoryDetailsPage: React.FC = () => {
             </Button>
             
             {isEditing ? (
-              <Button
-                variant="outline"
-                onClick={() => setIsEditing(false)}
-                className="flex items-center"
-              >
-                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Düzenlemeyi İptal Et
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  onClick={handleCancel}
+                  className="flex items-center"
+                  disabled={isSaving}
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  İptal
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  variant="primary"
+                  className="flex items-center"
+                  disabled={isSaving}
+                >
+                  {isSaving ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Kaydediliyor...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Kaydet
+                    </>
+                  )}
+                </Button>
+              </>
             ) : (
               <Button
                 variant="primary"
-                onClick={() => setIsEditing(true)}
+                onClick={handleEdit}
                 className="flex items-center"
               >
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -836,119 +1042,346 @@ const CategoryDetailsPage: React.FC = () => {
         )}
         
         {isEditing ? (
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Temel Bilgiler Başlığı */}
-              <div className="col-span-1 md:col-span-2">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Temel Bilgiler</h3>
-              </div>
-              
-              {/* İsim */}
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Kategori Adı <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name || ''}
-                  onChange={handleChange}
-                  required
-                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-                />
-              </div>
-              
-              {/* Kod */}
-              <div>
-                <label htmlFor="code" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Kod <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="code"
-                  name="code"
-                  value={formData.code || ''}
-                  onChange={handleChange}
-                  required
-                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-                />
-              </div>
-              
-              {/* Açıklama */}
-              <div className="col-span-1 md:col-span-2">
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Açıklama
-                </label>
-                <textarea
-                  id="description"
-                  name="description"
-                  value={formData.description || ''}
-                  onChange={handleChange}
-                  rows={3}
-                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-                />
-              </div>
-              
-              {/* Aktif/Pasif durumu */}
-              <div className="col-span-1 md:col-span-2">
-                <div className="flex items-start">
-                  <div className="flex items-center h-5">
-                    <input
-                      id="isActive"
-                      name="isActive"
-                      type="checkbox"
-                      checked={formData.isActive}
-                      onChange={e => setFormData({ ...formData, isActive: e.target.checked })}
-                      className="w-4 h-4 text-primary-light bg-gray-100 border-gray-300 rounded focus:ring-primary-light dark:focus:ring-primary-dark dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                    />
-                  </div>
-                  <label htmlFor="isActive" className="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300">
-                    Aktif
-                  </label>
-                </div>
-              </div>
-              
-              <div className="col-span-1 md:col-span-2 flex justify-end space-x-3">
-                <Button
-                  type="button"
-                  variant="danger"
-                  onClick={handleDelete}
-                  className="flex items-center"
-                  disabled={isSaving}
-                >
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                  Sil
-                </Button>
-                
-                <Button
-                  type="submit"
-                  variant="primary"
-                  className="flex items-center"
-                  disabled={isSaving}
-                >
-                  {isSaving ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Kaydediliyor...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Kaydet
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </form>
+          <div className="space-y-6">
+            <TabView 
+              tabs={[
+                {
+                  id: 'general',
+                  title: 'Genel Bilgiler',
+                  content: (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* İsim */}
+                        <div>
+                          <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Kategori Adı <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            id="name"
+                            name="name"
+                            value={formData.name || ''}
+                            onChange={handleChange}
+                            required
+                            className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
+                          />
+                        </div>
+                        
+                        {/* Kod */}
+                        <div>
+                          <label htmlFor="code" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Kod <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            id="code"
+                            name="code"
+                            value={formData.code || ''}
+                            onChange={handleChange}
+                            required
+                            className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
+                          />
+                        </div>
+                        
+                        {/* Açıklama */}
+                        <div className="col-span-1 md:col-span-2">
+                          <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Açıklama
+                          </label>
+                          <textarea
+                            id="description"
+                            name="description"
+                            value={formData.description || ''}
+                            onChange={handleChange}
+                            rows={3}
+                            className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
+                          />
+                        </div>
+                        
+                        {/* Aktif/Pasif durumu */}
+                        <div className="col-span-1 md:col-span-2">
+                          <div className="flex items-start">
+                            <div className="flex items-center h-5">
+                              <input
+                                id="isActive"
+                                name="isActive"
+                                type="checkbox"
+                                checked={formData.isActive === undefined ? true : formData.isActive}
+                                onChange={e => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                                className="w-4 h-4 text-primary-light bg-gray-100 border-gray-300 rounded focus:ring-primary-light dark:focus:ring-primary-dark dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                              />
+                            </div>
+                            <label htmlFor="isActive" className="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300">
+                              Aktif
+                            </label>
+                          </div>
+                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Kategorinin aktif olup olmadığını belirler. Pasif kategoriler kullanıcı arayüzünde gösterilmez.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                },
+                {
+                  id: 'hierarchy',
+                  title: 'Hiyerarşi',
+                  content: (
+                    <div className="space-y-6">
+                      {/* Üst Kategori Seçimi */}
+                      <div>
+                        <label htmlFor="parentId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Üst Kategori
+                        </label>
+                        <TreeViewWithCheckbox
+                          data={categoryTree.map(cat => ({
+                            id: cat.id,
+                            name: cat.name,
+                            label: cat.name,
+                            children: cat.children
+                          }))}
+                          onSelectionChange={(selectedIds) => {
+                            console.log("Seçilen üst kategori ID:", selectedIds[0] || undefined);
+                            setFormData(prev => ({ ...prev, parentId: selectedIds[0] || undefined }));
+                          }}
+                          defaultSelectedIds={formData.parentId ? [formData.parentId] : []}
+                          variant="spectrum"
+                          maxHeight="200px"
+                        />
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          Bu kategorinin üst kategorisini seçin. Boş bırakırsanız ana kategori olarak ayarlanır.
+                        </p>
+                      </div>
+                      
+                      {/* Aile Seçimi */}
+                      <div>
+                        <label htmlFor="family" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Aile
+                        </label>
+                        <TreeViewWithCheckbox
+                          data={familyTree.map(fam => ({
+                            id: fam.id,
+                            name: fam.name,
+                            label: fam.name,
+                            children: fam.children
+                          }))}
+                          onSelectionChange={(selectedIds) => {
+                            setFormData({ ...formData, family: selectedIds[0] || undefined });
+                          }}
+                          defaultSelectedIds={getEntityId(category?.family) ? [getEntityId(category?.family)!] : []}
+                          variant="spectrum"
+                          maxHeight="200px"
+                        />
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          Bu kategorinin bağlı olduğu aileyi seçin.
+                        </p>
+                      </div>
+                    </div>
+                  )
+                },
+                {
+                  id: 'attributeGroups',
+                  title: 'Öznitelik Grupları',
+                  badge: attributeGroups.length || undefined,
+                  content: (
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">Öznitelik Grupları</h3>
+                        <Button
+                          variant="outline"
+                          onClick={() => {/* Öznitelik grubu ekleme modalını aç */}}
+                          className="flex items-center"
+                        >
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                          Grup Ekle
+                        </Button>
+                      </div>
+                      
+                      {attributeGroups.length > 0 ? (
+                        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 overflow-hidden">
+                          <div className="grid grid-cols-1 gap-4">
+                            {attributeGroups.map(group => (
+                              <div 
+                                key={group.id} 
+                                className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <h4 className="font-medium text-gray-900 dark:text-white">{group.name}</h4>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{group.code}</p>
+                                  </div>
+                                  <Button
+                                    variant="danger"
+                                    size="sm"
+                                    onClick={() => {/* Öznitelik grubunu kaldır */}}
+                                    className="flex items-center"
+                                  >
+                                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                    Kaldır
+                                  </Button>
+                                </div>
+                                
+                                {/* Grup açıklaması */}
+                                {group.description && (
+                                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-3 border-t border-gray-100 dark:border-gray-700 pt-3">
+                                    {group.description}
+                                  </p>
+                                )}
+                                
+                                {/* Gruba ait öznitelikler */}
+                                {group.attributes && group.attributes.length > 0 ? (
+                                  <div className="mt-4 border-t border-gray-100 dark:border-gray-700 pt-3">
+                                    <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                      Grup Öznitelikleri ({group.attributes.length})
+                                    </h5>
+                                    <ul className="ml-2 space-y-1">
+                                      {group.attributes.map((attr: any) => (
+                                        <li key={attr._id} className="flex items-center justify-between">
+                                          <div className="flex items-center">
+                                            <span className="h-1.5 w-1.5 rounded-full bg-primary-light dark:bg-primary-dark mr-2"></span>
+                                            <span className="text-sm text-gray-700 dark:text-gray-300">{attr.name}</span>
+                                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">({attr.type})</span>
+                                          </div>
+                                          <Button
+                                            variant="danger"
+                                            size="sm"
+                                            onClick={() => {/* Özniteliği gruptan kaldır */}}
+                                            className="flex items-center"
+                                          >
+                                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                            Kaldır
+                                          </Button>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                ) : (
+                                  <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 text-sm text-gray-500 dark:text-gray-400">
+                                    Bu gruba atanmış öznitelik bulunmamaktadır.
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                          <svg className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                          </svg>
+                          <p className="text-gray-500 dark:text-gray-400">Bu kategoriye atanmış öznitelik grubu bulunmamaktadır.</p>
+                          <Button
+                            variant="outline"
+                            onClick={() => {/* Öznitelik grubu ekleme modalını aç */}}
+                            className="mt-4 flex items-center"
+                          >
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                            Grup Ekle
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                },
+                {
+                  id: 'attributes',
+                  title: 'Öznitelikler',
+                  badge: attributes.length || undefined,
+                  content: (
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">Öznitelikler</h3>
+                        <Button
+                          variant="outline"
+                          onClick={() => {/* Öznitelik ekleme modalını aç */}}
+                          className="flex items-center"
+                        >
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                          Öznitelik Ekle
+                        </Button>
+                      </div>
+                      
+                      {attributes.length > 0 ? (
+                        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 overflow-x-auto">
+                          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-800">
+                              <tr>
+                                <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
+                                  Öznitelik Adı
+                                </th>
+                                <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
+                                  Tip
+                                </th>
+                                <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
+                                  İşlemler
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
+                              {attributes.map(attr => (
+                                <tr key={attr.id}>
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                    {attr.name}
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                    {attr.type}
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
+                                    <Button
+                                      variant="danger"
+                                      size="sm"
+                                      onClick={() => {/* Özniteliği kaldır */}}
+                                      className="flex items-center"
+                                    >
+                                      <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                      </svg>
+                                      Kaldır
+                                    </Button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                          <svg className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <p className="text-gray-500 dark:text-gray-400">Bu kategoriye atanmış öznitelik bulunmamaktadır.</p>
+                          <Button
+                            variant="outline"
+                            onClick={() => {/* Öznitelik ekleme modalını aç */}}
+                            className="mt-4 flex items-center"
+                          >
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                            Öznitelik Ekle
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                }
+              ]}
+              defaultActiveTab="general"
+              onTabChange={(tabId) => {
+                setActiveTab(tabId);
+              }}
+            />
+          </div>
         ) : (
           <TabView 
             tabs={tabContents} 
@@ -956,9 +1389,7 @@ const CategoryDetailsPage: React.FC = () => {
             defaultActiveTab={activeTab}
             onTabChange={(tabId) => {
               setActiveTab(tabId);
-              // Tab değişiminde sayacı artırarak yeni bir render tetikliyoruz
               setTabRefreshCounter(prev => prev + 1);
-              console.log(`Tab değiştirildi: ${tabId}`);
             }}
           />
         )}

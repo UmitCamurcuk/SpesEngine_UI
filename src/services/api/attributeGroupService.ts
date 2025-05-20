@@ -73,6 +73,22 @@ const attributeGroupService = {
       console.error(`${id} ID'li öznitelik grubu silinirken hata oluştu:`, error);
       throw error;
     }
+  },
+  
+  // AttributeGroup içindeki öznitelikleri kontrol et
+  testAttributeGroupAttributes: async (id: string): Promise<{
+    _id: string;
+    name: string;
+    attributesLength: number;
+    attributes: any[];
+  }> => {
+    try {
+      const response = await api.get<ApiResponse<any>>(`/attributeGroups/test/${id}`);
+      return response.data.data;
+    } catch (error) {
+      console.error(`${id} ID'li öznitelik grubu test edilirken hata oluştu:`, error);
+      throw error;
+    }
   }
 };
 

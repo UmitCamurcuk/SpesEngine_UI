@@ -2,17 +2,17 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Home from './pages/Home';
-import DashboardOverview from './pages/dashboard/overview';
-import DataQualityDashboard from './pages/dashboard/quality';
-import DashboardGovernance from './pages/dashboard/governance';
+import DashboardOverview from './pages/dashboard/Dashboard1/components/overview';
+import DataQualityDashboard from './pages/dashboard/Dashboard1/components/quality';
+import DashboardGovernance from './pages/dashboard/Dashboard1/components/governance';
 
 const App: React.FC = () => {
   return (
     <Router>
       <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
         <Sidebar />
-        <div className="flex-1 ml-0 lg:ml-64 transition-all duration-300 pt-16 lg:pt-0">
-          <main className="h-full overflow-y-auto">
+        <div className="flex-1 ml-0 lg:ml-64 transition-all duration-300 pt-16 lg:pt-0 overflow-auto">
+          <main className="h-full overflow-y-auto pb-16">
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/dashboard/overview" element={<DashboardOverview />} />

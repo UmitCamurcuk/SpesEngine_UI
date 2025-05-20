@@ -50,7 +50,7 @@ const DashboardOverview: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="w-full">
       <div className="flex flex-col md:flex-row justify-between mb-6 items-center">
         <h1 className="text-2xl font-bold text-gray-800 dark:text-white">MDM Dashboard</h1>
         <div className="mt-4 md:mt-0">

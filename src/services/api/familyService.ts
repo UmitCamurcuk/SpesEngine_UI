@@ -49,26 +49,10 @@ const familyService = {
         }
       }
       
-      console.log(`[familyService] getFamilyById çağrısı - ID: ${id}, Parametreler:`, params);
-      
       const response = await api.get<ApiResponse<any>>(`/families/${id}`, { params });
-      
-      console.log(`[familyService] getFamilyById yanıtı:`, {
-        success: response.data.success,
-        hasData: Boolean(response.data.data),
-        dataType: response.data.data ? typeof response.data.data : null
-      });
-      
       return response.data.data;
     } catch (error: any) {
       console.error(`${id} ID'li aile getirilirken hata oluştu:`, error);
-      console.error('Hata detayları:', {
-        message: error.message,
-        response: error.response ? {
-          status: error.response.status,
-          data: error.response.data
-        } : 'Yanıt bilgisi yok'
-      });
       throw error;
     }
   },

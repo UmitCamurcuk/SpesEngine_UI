@@ -25,16 +25,16 @@ const Sidebar = ({ isOpen, closeSidebar }: SidebarProps) => {
   // Başlangıçta şu anki rota ile eşleşen menüyü aç
   useEffect(() => {
     const currentPath = location.pathname;
-    
+
     // Şu anki rota ile eşleşen üst menüyü bul
     navItems.forEach((item) => {
       if (item.children) {
-        const isChildActive = item.children.some(child => 
+        const isChildActive = item.children.some(child =>
           currentPath === child.path || currentPath.startsWith(child.path + '/')
         );
-        
+
         if (isChildActive) {
-          setOpenDropdowns(prev => ({...prev, [item.path]: true}));
+          setOpenDropdowns(prev => ({ ...prev, [item.path]: true }));
         }
       }
     });
@@ -76,7 +76,7 @@ const Sidebar = ({ isOpen, closeSidebar }: SidebarProps) => {
   // Alt menü aktif mi kontrol et
   const isChildActive = (item: NavItem) => {
     if (!item.children) return false;
-    return item.children.some(child => 
+    return item.children.some(child =>
       location.pathname === child.path || location.pathname.startsWith(child.path + '/')
     );
   };
@@ -92,7 +92,12 @@ const Sidebar = ({ isOpen, closeSidebar }: SidebarProps) => {
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
             <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path>
           </svg>
-        )
+        ),
+        children: [
+          { name: t('Dash1', 'menu'), path: '/' },
+          { name: t('Dash2', 'menu'), path: '/Dashboard2' },
+          { name: t('Dash3', 'menu'), path: '/Dashboard3' }
+        ]
       },
       {
         name: t('attributes', 'menu'),
@@ -263,18 +268,17 @@ const Sidebar = ({ isOpen, closeSidebar }: SidebarProps) => {
     <>
       {/* Sidebar arkaplan overlay (sadece mobil) */}
       {isOpen && (
-        <div 
-          className="fixed inset-0 bg-gray-900 bg-opacity-50 z-20 md:hidden" 
+        <div
+          className="fixed inset-0 bg-gray-900 bg-opacity-50 z-20 md:hidden"
           onClick={closeSidebar}
         />
       )}
-      
+
       {/* Sidebar */}
       <aside
         ref={sidebarRef}
-        className={`fixed top-14 left-0 z-20 w-64 h-[calc(100vh-3.5rem)] transition-transform border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 md:translate-x-0 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`fixed top-14 left-0 z-20 w-64 h-[calc(100vh-3.5rem)] transition-transform border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
       >
         <div className="h-full px-3 py-4 overflow-y-auto">
           <div className="space-y-1">
@@ -285,9 +289,8 @@ const Sidebar = ({ isOpen, closeSidebar }: SidebarProps) => {
                   <div>
                     <button
                       type="button"
-                      className={`flex items-center justify-between w-full p-2 text-sm font-medium rounded-lg ${
-                        isChildActive(item) ? activeClass : inactiveClass
-                      }`}
+                      className={`flex items-center justify-between w-full p-2 text-sm font-medium rounded-lg ${isChildActive(item) ? activeClass : inactiveClass
+                        }`}
                       onClick={() => toggleDropdown(item.path)}
                       aria-expanded={openDropdowns[item.path]}
                     >
@@ -295,28 +298,26 @@ const Sidebar = ({ isOpen, closeSidebar }: SidebarProps) => {
                         <div className="mr-2 text-gray-500 dark:text-gray-400">{item.icon}</div>
                         <span>{item.name}</span>
                       </div>
-                      <svg 
-                        className={`w-4 h-4 transition-transform ${openDropdowns[item.path] ? 'transform rotate-180' : ''}`} 
-                        fill="none" 
-                        stroke="currentColor" 
-                        viewBox="0 0 24 24" 
+                      <svg
+                        className={`w-4 h-4 transition-transform ${openDropdowns[item.path] ? 'transform rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
                         xmlns="http://www.w3.org/2000/svg"
                       >
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
                       </svg>
                     </button>
-                    
+
                     {/* Alt menü öğeleri - dropdown içeriği */}
-                    <div className={`pl-6 mt-1 space-y-1 overflow-hidden transition-all duration-200 ${
-                      openDropdowns[item.path] ? 'max-h-40' : 'max-h-0'
-                    }`}>
+                    <div className={`pl-6 mt-1 space-y-1 overflow-hidden transition-all duration-200 ${openDropdowns[item.path] ? 'max-h-40' : 'max-h-0'
+                      }`}>
                       {item.children.map((child) => (
                         <NavLink
                           key={child.path}
                           to={child.path}
                           className={({ isActive }) =>
-                            `flex items-center p-2 text-xs font-medium rounded-lg ${
-                              isActive ? activeClass : inactiveClass
+                            `flex items-center p-2 text-xs font-medium rounded-lg ${isActive ? activeClass : inactiveClass
                             }`
                           }
                         >
@@ -330,9 +331,8 @@ const Sidebar = ({ isOpen, closeSidebar }: SidebarProps) => {
                   <NavLink
                     to={item.path}
                     end={item.path === '/'} // Sadece ana sayfa için end kullan
-                    className={({ isActive }) => 
-                      `flex items-center p-2 text-sm font-medium rounded-lg ${
-                        isActive ? activeClass : inactiveClass
+                    className={({ isActive }) =>
+                      `flex items-center p-2 text-sm font-medium rounded-lg ${isActive ? activeClass : inactiveClass
                       }`
                     }
                   >

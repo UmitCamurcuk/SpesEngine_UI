@@ -17,7 +17,7 @@ const AppLayout: React.FC = () => {
       <div className="flex flex-col flex-1 overflow-hidden">
         <Navbar toggleSidebar={toggleSidebar} />
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-gray-900">
-          <div className="container mx-auto px-6 py-8">
+          <div className="container mx-auto px-6 py-20">
             <Outlet />
           </div>
         </main>

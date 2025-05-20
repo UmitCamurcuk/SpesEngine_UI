@@ -42,7 +42,9 @@ import RelationshipTypeDetailsPage from '../pages/relationships/types/details';
 import SystemSettingsPage from '../pages/system/settings';
 import LoadingPage from '../pages/auth/loading';
 import LogoutPage from '../pages/auth/logout';
-
+import DashboardOverview from '../pages/dashboard/Dashboard1/components/overview';
+import Dashboard2 from '../pages/dashboard/Dashboard2/index';
+import Dashboard3 from '../pages/dashboard/Dashboard3/index';
 // Ana sayfa için basit bir test component'i
 const HomePage = () => (
   <div>
@@ -82,7 +84,18 @@ const routes: RouteObject[] = [
           // Ana Sayfa
           {
             index: true,
-            element: <HomePage />
+            element: <DashboardOverview />
+          },
+          {
+            path: 'Dashboard2',
+            index: true,
+            element: <Dashboard2 />
+          },
+
+          {
+            path: 'Dashboard3',
+            index: true,
+            element: <Dashboard3 />
           },
           
           // Profil Sayfası

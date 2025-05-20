@@ -422,91 +422,9 @@ const ItemCreatePage: React.FC = () => {
     fetchItemTypes();
   }, []);
 
-  // ItemType değiştiğinde ilgili Family'leri getir
-  useEffect(() => {
-    const fetchFamilies = async () => {
-      if (!formData.itemType) {
-        setFamilyOptions([]);
-        setFormData(prev => ({ ...prev, family: '', category: '' }));
-        setSelectedItemType(null);
-        return;
-      }
-      
-      try {
-        // Seçilen itemType'ı ayarla
-        const selectedType = itemTypeOptions.find(item => item._id === formData.itemType) || null;
-        setSelectedItemType(selectedType);
-        
-        // ItemType ID'sine göre Family'leri getir
-        const familiesResult = await familyService.getFamilies({ itemType: formData.itemType, limit: 100 });
-        setFamilyOptions(familiesResult.families.map(family => ({
-          _id: family._id,
-          name: family.name,
-          code: family.code
-        })));
-        
-        // ItemType değiştiğinde Family ve Category'yi sıfırla
-        setFormData(prev => ({ ...prev, family: '', category: '' }));
-        setCategoryOptions([]);
-        setSelectedFamily(null);
-        setSelectedCategory(null);
-      } catch (err) {
-        console.error('Aileler yüklenirken hata oluştu:', err);
-      }
-    };
-    
-    fetchFamilies();
-  }, [formData.itemType, itemTypeOptions]);
-
-  // Family değiştiğinde ilgili Category'leri getir
-  useEffect(() => {
-    const fetchCategories = async () => {
-      if (!formData.family) {
-        setCategoryOptions([]);
-        setFormData(prev => ({ ...prev, category: '' }));
-        setSelectedFamily(null);
-        return;
-      }
-      
-      try {
-        // Seçilen family'i ayarla
-        const selectedFam = familyOptions.find(item => item._id === formData.family) || null;
-        setSelectedFamily(selectedFam);
-        
-        // Family ID'sine göre Category'leri getir
-        const categoriesResult = await categoryService.getCategories({ family: formData.family, limit: 100 });
-        setCategoryOptions(categoriesResult.categories.map(category => ({
-          _id: category._id,
-          name: category.name,
-          code: category.code
-        })));
-        
-        // Family değiştiğinde Category'yi sıfırla
-        setFormData(prev => ({ ...prev, category: '' }));
-        setSelectedCategory(null);
-      } catch (err) {
-        console.error('Kategoriler yüklenirken hata oluştu:', err);
-      }
-    };
-    
-    fetchCategories();
-  }, [formData.family, familyOptions]);
-  
-  // Category değiştiğinde
-  useEffect(() => {
-    if (!formData.category) {
-      setSelectedCategory(null);
-      return;
-    }
-    
-    // Seçilen kategoriyi ayarla
-    const selectedCat = categoryOptions.find(item => item._id === formData.category) || null;
-    setSelectedCategory(selectedCat);
-  }, [formData.category, categoryOptions]);
-
   // ItemType, Family ve Category seçildikçe attributeleri yükle
   useEffect(() => {
-    const fetchAttributes = async () => {
+    const fetchAllAttributes = async () => {
       if (!formData.itemType) return;
       
       setLoading(true);
@@ -515,7 +433,63 @@ const ItemCreatePage: React.FC = () => {
         let allAttributes: Attribute[] = [];
         let attributeGroupNamesMap: Record<string, string> = {};
         
-        // ADIM 1: ItemType attributeları ve gruplarını getir
+        // Tüm öznitelik ID'lerini saklayacak Set
+        const existingIds = new Set<string>();
+        
+        // Yardımcı fonksiyon: Öznitelikleri ekleme
+        const addAttributesToCollection = (attributes: any[], source: string, groupId?: string) => {
+          if (!attributes || !Array.isArray(attributes) || attributes.length === 0) return;
+          
+          for (const attr of attributes) {
+            if (attr && typeof attr === 'object' && '_id' in attr) {
+              if (!existingIds.has(attr._id)) {
+                const newAttr = {
+                  ...attr,
+                  source,
+                  ...(groupId ? { attributeGroup: groupId } : {})
+                };
+                allAttributes.push(newAttr);
+                existingIds.add(attr._id);
+              }
+            }
+          }
+        };
+        
+        // Yardımcı fonksiyon: Öznitelik gruplarını işleme
+        const processAttributeGroups = async (groups: any[], source: string) => {
+          if (!groups || !Array.isArray(groups) || groups.length === 0) return;
+          
+          for (const group of groups) {
+            if (group && typeof group === 'object' && '_id' in group) {
+              // Grup adını kaydet
+              attributeGroupNamesMap[group._id] = group.name;
+              
+              // Grup içindeki attributeları ekle
+              if (group.attributes && Array.isArray(group.attributes) && group.attributes.length > 0) {
+                console.log(`${source} - ${group.name} grubunda ${group.attributes.length} öznitelik var`);
+                addAttributesToCollection(group.attributes, source, group._id);
+              } else {
+                console.log(`${source} - ${group.name} grubunda öznitelik yok veya geçersiz format`);
+                
+                // Grup içinde attributes yoksa veya boşsa, API'den doğrudan kontrol et
+                try {
+                  const groupData = await attributeGroupService.testAttributeGroupAttributes(group._id);
+                  
+                  if (groupData.attributes && groupData.attributes.length > 0) {
+                    console.log(`${source} - ${group.name} grubu API testi: ${groupData.attributesLength} öznitelik bulundu`);
+                    addAttributesToCollection(groupData.attributes, source, group._id);
+                  }
+                } catch (err) {
+                  console.error(`${source} AttributeGroup test API hatası:`, err);
+                }
+              }
+            }
+          }
+        };
+        
+        // -----------------------------------------------
+        // ADIM 1: ItemType attributelerini ve gruplarını getir
+        // -----------------------------------------------
         const itemTypeDetails = await itemTypeService.getItemTypeById(formData.itemType, { 
           includeAttributes: true, 
           includeAttributeGroups: true,
@@ -524,126 +498,49 @@ const ItemCreatePage: React.FC = () => {
         
         console.log("İtem Tipi detayları:", itemTypeDetails);
         
-        // ItemType API yanıtını kontrol et ve düzgün şekilde işle
-        if (itemTypeDetails.attributes && itemTypeDetails.attributes.length > 0) {
-          console.log("ItemType doğrudan öznitelikler:", itemTypeDetails.attributes);
-          allAttributes = [...itemTypeDetails.attributes];
-        }
+        // ItemType'ın doğrudan bağlı öznitelikleri
+        addAttributesToCollection(itemTypeDetails.attributes, 'itemType');
         
-        // ItemType'a ait attribute grupları ve içindeki attributeları doğru şekilde işle
-        if (itemTypeDetails.attributeGroups && itemTypeDetails.attributeGroups.length > 0) {
-          console.log("ItemType öznitelik grupları:", itemTypeDetails.attributeGroups);
-          
-          for (const group of itemTypeDetails.attributeGroups) {
-            // Grup adını kaydet
-            attributeGroupNamesMap[group._id] = group.name;
-            
-            // Eğer grup içinde attributes varsa (backend tarafında populate edilmişse)
-            if (group.attributes && group.attributes.length > 0) {
-              console.log(`${group.name} grubunun içinde ${group.attributes.length} öznitelik var:`, group.attributes);
-              
-              // Her attribute için grup ilişkisini ayarla
-              const groupAttributes = group.attributes.map((attr: any) => ({
-                ...attr,
-                attributeGroup: group._id
-              }));
-              
-              allAttributes = [...allAttributes, ...groupAttributes];
-            }
-          }
-        }
+        // ItemType'ın öznitelik grupları
+        await processAttributeGroups(itemTypeDetails.attributeGroups, 'itemType');
         
-        // ADIM 2: Family attributelarını getir (varsa)
+        // -----------------------------------------------
+        // ADIM 2: Family attributelerini ve gruplarını getir
+        // -----------------------------------------------
         if (formData.family) {
           try {
-            console.log("Aile ID'si ile API çağrısı yapılıyor:", formData.family);
             const familyDetails = await familyService.getFamilyById(formData.family, { 
               includeAttributes: true, 
               includeAttributeGroups: true,
               populateAttributeGroupsAttributes: true 
             });
             
-            console.log("Aile detayları (ham veri):", JSON.stringify(familyDetails));
+            console.log("Aile detayları:", familyDetails);
             
-            // Veri yapısını kontrol et
-            console.log("Aile veri yapısı kontrolü:");
-            console.log("- attributes mevcut mu:", Boolean(familyDetails.attributes));
-            console.log("- attributes bir dizi mi:", Array.isArray(familyDetails.attributes));
-            if (familyDetails.attributes) {
-              console.log("- attributes uzunluğu:", familyDetails.attributes.length);
-            }
+            // Family'nin doğrudan bağlı öznitelikleri
+            addAttributesToCollection(familyDetails.attributes, 'family');
             
-            console.log("- attributeGroups mevcut mu:", Boolean(familyDetails.attributeGroups));
-            console.log("- attributeGroups bir dizi mi:", Array.isArray(familyDetails.attributeGroups));
-            if (familyDetails.attributeGroups) {
-              console.log("- attributeGroups uzunluğu:", familyDetails.attributeGroups.length);
-            }
+            // Family'nin öznitelik grupları
+            await processAttributeGroups(familyDetails.attributeGroups, 'family');
             
-            // Doğrudan family'e bağlı attributeları ekle
-            if (familyDetails.attributes && familyDetails.attributes.length > 0) {
-              console.log("Aile doğrudan öznitelikler (uzunluk):", familyDetails.attributes.length);
+            // ÖNEMLİ: Family'nin category bilgisini işle
+            if (familyDetails.category) {
+              console.log("Family içinde category bulundu: ", familyDetails.category.name);
               
-              // Aynı ID'ye sahip attributeları çıkarmak için ID listesi oluştur
-              const existingIds = new Set(allAttributes.map(attr => attr._id));
+              // Category'nin doğrudan bağlı öznitelikleri
+              addAttributesToCollection(familyDetails.category.attributes, 'category');
               
-              // Yeni attributeları ekle
-              for (const attr of familyDetails.attributes) {
-                // Eğer attr bir obje ise ve _id özelliği varsa ekle
-                if (attr && typeof attr === 'object' && '_id' in attr) {
-                  if (!existingIds.has(attr._id)) {
-                    allAttributes.push({
-                      ...attr,
-                      source: 'family' // İsteğe bağlı: özniteliğin kaynağını işaretlemek için
-                    });
-                    existingIds.add(attr._id);
-                  }
-                } else {
-                  console.warn(`Aile - Geçersiz doğrudan öznitelik formatı:`, attr);
-                }
-              }
-            }
-            
-            // Family'e ait attribute grupları varsa ekle
-            if (familyDetails.attributeGroups && familyDetails.attributeGroups.length > 0) {
-              console.log("Aile öznitelik grupları:", familyDetails.attributeGroups);
-              
-              for (const group of familyDetails.attributeGroups) {
-                // Grup adını kaydet
-                attributeGroupNamesMap[group._id] = group.name;
-                
-                // Eğer grup içinde attributes varsa
-                if (group.attributes && group.attributes.length > 0) {
-                  console.log(`Aile - ${group.name} grubunun içinde ${group.attributes.length} öznitelik var:`, group.attributes);
-                  
-                  const existingIds = new Set(allAttributes.map(attr => attr._id));
-                  
-                  // Her attribute için grup ilişkisini ayarla ve ekle
-                  for (const attr of group.attributes) {
-                    if (!existingIds.has(attr._id)) {
-                      // Eğer attr bir obje ise ve _id özelliği varsa ekle
-                      if (attr && typeof attr === 'object' && '_id' in attr) {
-                        allAttributes.push({
-                          ...attr,
-                          attributeGroup: group._id,
-                          source: 'family'
-                        });
-                        existingIds.add(attr._id);
-                      } else {
-                        console.warn(`Aile grubu - Geçersiz öznitelik formatı:`, attr);
-                      }
-                    }
-                  }
-                } else {
-                  console.log(`Aile - ${group.name} grubunda öznitelik bulunamadı veya uygun formatta değil`);
-                }
-              }
+              // Category'nin öznitelik grupları
+              await processAttributeGroups(familyDetails.category.attributeGroups, 'category');
             }
           } catch (err) {
             console.error('Aile öznitelikleri yüklenirken hata:', err);
           }
         }
         
-        // ADIM 3: Kategori attributelarını getir (varsa)
+        // -----------------------------------------------
+        // ADIM 3: Category attributelerini ve gruplarını getir
+        // -----------------------------------------------
         if (formData.category) {
           try {
             const categoryDetails = await categoryService.getCategoryById(formData.category, { 
@@ -654,74 +551,20 @@ const ItemCreatePage: React.FC = () => {
             
             console.log("Kategori detayları:", categoryDetails);
             
-            // Doğrudan kategoriye bağlı attributeları ekle
-            if (categoryDetails.attributes && categoryDetails.attributes.length > 0) {
-              console.log("Kategori doğrudan öznitelikler:", categoryDetails.attributes);
-              
-              // Aynı ID'ye sahip attributeları çıkarmak için ID listesi oluştur
-              const existingIds = new Set(allAttributes.map(attr => attr._id));
-              
-              // Yeni attributeları ekle
-              for (const attr of categoryDetails.attributes) {
-                // Eğer attr bir obje ise ve _id özelliği varsa ekle
-                if (attr && typeof attr === 'object' && '_id' in attr) {
-                  if (!existingIds.has(attr._id)) {
-                    allAttributes.push({
-                      ...attr,
-                      source: 'category' // İsteğe bağlı: özniteliğin kaynağını işaretlemek için
-                    });
-                    existingIds.add(attr._id);
-                  }
-                } else {
-                  console.warn(`Kategori - Geçersiz doğrudan öznitelik formatı:`, attr);
-                }
-              }
-            }
+            // Category'nin doğrudan bağlı öznitelikleri
+            addAttributesToCollection(categoryDetails.attributes, 'category');
             
-            // Kategori attribute gruplarını ekle
-            if (categoryDetails.attributeGroups && categoryDetails.attributeGroups.length > 0) {
-              console.log("Kategori öznitelik grupları:", categoryDetails.attributeGroups);
-              
-              for (const group of categoryDetails.attributeGroups) {
-                // Grup adını kaydet
-                attributeGroupNamesMap[group._id] = group.name;
-                
-                // Eğer grup içinde attributes varsa
-                if (group.attributes && group.attributes.length > 0) {
-                  console.log(`Kategori - ${group.name} grubunun içinde ${group.attributes.length} öznitelik var:`, group.attributes);
-                  
-                  const existingIds = new Set(allAttributes.map(attr => attr._id));
-                  
-                  // Her attribute için grup ilişkisini ayarla ve ekle
-                  for (const attr of group.attributes) {
-                    // Eğer attr bir obje ise ve _id özelliği varsa ekle
-                    if (attr && typeof attr === 'object' && '_id' in attr) {
-                      if (!existingIds.has(attr._id)) {
-                        allAttributes.push({
-                          ...attr,
-                          attributeGroup: group._id,
-                          source: 'category' // İsteğe bağlı
-                        });
-                        existingIds.add(attr._id);
-                      }
-                    } else {
-                      console.warn(`Kategori grubu - Geçersiz öznitelik formatı:`, attr);
-                    }
-                  }
-                } else {
-                  console.log(`Kategori - ${group.name} grubunda öznitelik bulunamadı veya uygun formatta değil`);
-                }
-              }
-            }
+            // Category'nin öznitelik grupları
+            await processAttributeGroups(categoryDetails.attributeGroups, 'category');
           } catch (err) {
             console.error('Kategori öznitelikleri yüklenirken hata:', err);
           }
         }
         
-        // Tüm öznitelikleri göster
-        console.log("Tüm öznitelikler:", allAttributes);
+        console.log("Yüklenen toplam öznitelik sayısı:", allAttributes.length);
         console.log("Öznitelik grupları:", attributeGroupNamesMap);
         
+        // State'leri güncelle
         setAttributes(allAttributes);
         setAttributeGroupNames(attributeGroupNamesMap);
       } catch (err) {
@@ -731,8 +574,78 @@ const ItemCreatePage: React.FC = () => {
       }
     };
     
-    fetchAttributes();
+    fetchAllAttributes();
   }, [formData.itemType, formData.family, formData.category]);
+  
+  // ItemType değiştiğinde families listesini güncelle
+  useEffect(() => {
+    const fetchFamilies = async () => {
+      if (!formData.itemType) {
+        setFamilyOptions([]);
+        setFormData(prev => ({ ...prev, family: '', category: '' }));
+        return;
+      }
+      
+      try {
+        const familiesResult = await familyService.getFamilies({ 
+          itemType: formData.itemType,
+          limit: 100
+        });
+        
+        setFamilyOptions(familiesResult.families.map(family => ({
+          _id: family._id,
+          name: family.name,
+          code: family.code
+        })));
+        
+        // Aile değiştiğinde kategori seçimini temizle
+        setFormData(prev => ({ ...prev, family: '', category: '' }));
+        
+        // Seçilen ItemType'ın bilgilerini kaydet
+        const selectedType = itemTypeOptions.find(type => type._id === formData.itemType);
+        setSelectedItemType(selectedType || null);
+      } catch (err) {
+        console.error('Aileler yüklenirken hata oluştu:', err);
+      }
+    };
+    
+    fetchFamilies();
+  }, [formData.itemType, itemTypeOptions]);
+  
+  // Family değiştiğinde categories listesini güncelle
+  useEffect(() => {
+    const fetchCategories = async () => {
+      if (!formData.family) {
+        setCategoryOptions([]);
+        setFormData(prev => ({ ...prev, category: '' }));
+        return;
+      }
+      
+      try {
+        const categoriesResult = await categoryService.getCategories({ 
+          family: formData.family,
+          limit: 100
+        });
+        
+        setCategoryOptions(categoriesResult.categories.map(category => ({
+          _id: category._id,
+          name: category.name,
+          code: category.code
+        })));
+        
+        // Kategori seçimini temizle
+        setFormData(prev => ({ ...prev, category: '' }));
+        
+        // Seçilen Family'nin bilgilerini kaydet
+        const selectedFam = familyOptions.find(family => family._id === formData.family);
+        setSelectedFamily(selectedFam || null);
+      } catch (err) {
+        console.error('Kategoriler yüklenirken hata oluştu:', err);
+      }
+    };
+    
+    fetchCategories();
+  }, [formData.family, familyOptions]);
   
   // Form input değişiklik handler
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {

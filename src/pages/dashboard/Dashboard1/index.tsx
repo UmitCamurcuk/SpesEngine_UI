@@ -1,9 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 // Overview, Quality ve Governance dashboardlarının gerekli bileşenlerini içe aktaralım
-import DashboardOverview from './dashboard/Dashboard1/components/overview';
-import DataQualityDashboard from './dashboard/Dashboard1/components/quality';
-import DashboardGovernance from './dashboard/Dashboard1/components/governance';
+import DashboardOverview from './components/overview';
+import DataQualityDashboard from './components/quality';
+import DashboardGovernance from './components/governance';
 
 const Home: React.FC = () => {
   return (

@@ -3,7 +3,7 @@ import React from 'react';
 const DashboardOverview: React.FC = () => {
   // Örnek veriler
   const stats = [
-    { label: 'Toplam Öğe', value: '1,428', change: '+12%', color: 'blue' },
+    { label: 'Toplam Ürün', value: '1,428', change: '+12%', color: 'blue' },
     { label: 'Aktif Kategori', value: '64', change: '+4%', color: 'green' },
     { label: 'Ürün Ailesi', value: '42', change: '+6%', color: 'indigo' },
     { label: 'Öznitelik', value: '128', change: '+9%', color: 'purple' },
@@ -14,7 +14,15 @@ const DashboardOverview: React.FC = () => {
     { id: 2, type: 'update', entity: 'Öznitelik', name: 'Ağırlık', user: 'Fatma Demir', time: '3 saat önce' },
     { id: 3, type: 'delete', entity: 'İlişki Tipi', name: 'İçerir', user: 'Mehmet Kaya', time: '5 saat önce' },
     { id: 4, type: 'update', entity: 'Aile', name: 'Mutfak Gereçleri', user: 'Ayşe Şahin', time: '6 saat önce' },
-    { id: 5, type: 'create', entity: 'Öğe', name: 'Bulaşık Makinesi X500', user: 'Ali Yıldız', time: '1 gün önce' },
+    { id: 5, type: 'create', entity: 'Ürün', name: 'Bulaşık Makinesi X500', user: 'Ali Yıldız', time: '1 gün önce' },
+  ];
+
+  // Örnek popüler ürünler
+  const popularProducts = [
+    { id: 1, name: 'Akıllı Telefon Pro X', category: 'Elektronik', views: 1245, conversion: 4.8 },
+    { id: 2, name: 'Kahve Makinesi M200', category: 'Ev Aletleri', views: 980, conversion: 3.6 },
+    { id: 3, name: 'Spor Ayakkabı Air', category: 'Giyim', views: 876, conversion: 5.2 },
+    { id: 4, name: 'Kablosuz Kulaklık', category: 'Aksesuarlar', views: 765, conversion: 4.1 },
   ];
 
   // Aktivite tipi ikonları
@@ -52,7 +60,7 @@ const DashboardOverview: React.FC = () => {
   return (
     <div className="w-full">
       <div className="flex flex-col md:flex-row justify-between mb-6 items-center">
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">MDM Dashboard</h1>
+        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Ürün Yönetimi Dashboard</h1>
         <div className="mt-4 md:mt-0">
           <div className="inline-flex items-center rounded-lg bg-white dark:bg-gray-800 p-2 shadow">
             <button
@@ -113,11 +121,11 @@ const DashboardOverview: React.FC = () => {
         {/* Grafik */}
         <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-medium text-gray-800 dark:text-white">Veri Büyümesi</h2>
+            <h2 className="text-lg font-medium text-gray-800 dark:text-white">Ürün Veri Büyümesi</h2>
             <div className="flex space-x-2">
               <div className="flex items-center">
                 <span className="w-3 h-3 rounded-full bg-blue-500 mr-1"></span>
-                <span className="text-xs text-gray-500 dark:text-gray-400">Öğeler</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">Ürünler</span>
               </div>
               <div className="flex items-center">
                 <span className="w-3 h-3 rounded-full bg-green-500 mr-1"></span>
@@ -130,7 +138,7 @@ const DashboardOverview: React.FC = () => {
             </div>
           </div>
           <div className="h-64 flex items-center justify-center bg-gray-50 dark:bg-gray-700 rounded">
-            <p className="text-gray-500 dark:text-gray-400">Burada veri büyüme grafiği gösterilecek</p>
+            <p className="text-gray-500 dark:text-gray-400">Burada ürün veri büyüme grafiği gösterilecek</p>
           </div>
         </div>
 
@@ -160,11 +168,48 @@ const DashboardOverview: React.FC = () => {
         </div>
       </div>
 
+      {/* Popüler Ürünler */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8">
+        <h2 className="text-lg font-medium text-gray-800 dark:text-white mb-4">En Popüler Ürünler</h2>
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm text-left text-gray-500 dark:text-gray-400">
+            <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-300">
+              <tr>
+                <th scope="col" className="px-6 py-3">Ürün Adı</th>
+                <th scope="col" className="px-6 py-3">Kategori</th>
+                <th scope="col" className="px-6 py-3">Görüntülenme</th>
+                <th scope="col" className="px-6 py-3">Dönüşüm Oranı</th>
+                <th scope="col" className="px-6 py-3">Durum</th>
+              </tr>
+            </thead>
+            <tbody>
+              {popularProducts.map(product => (
+                <tr key={product.id} className="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
+                  <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{product.name}</td>
+                  <td className="px-6 py-4">{product.category}</td>
+                  <td className="px-6 py-4">{product.views.toLocaleString()}</td>
+                  <td className="px-6 py-4">{product.conversion}%</td>
+                  <td className="px-6 py-4">
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      product.conversion > 5 ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' :
+                      product.conversion > 4 ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400' :
+                      'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                    }`}>
+                      {product.conversion > 5 ? 'Mükemmel' : product.conversion > 4 ? 'İyi' : 'Ortalama'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* Alt Bölüm */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Kalite Skoru */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-          <h2 className="text-lg font-medium text-gray-800 dark:text-white mb-4">Veri Kalite Skorları</h2>
+          <h2 className="text-lg font-medium text-gray-800 dark:text-white mb-4">Ürün Veri Kalite Skorları</h2>
           <div className="space-y-4">
             <div>
               <div className="flex justify-between mb-1">
@@ -216,8 +261,8 @@ const DashboardOverview: React.FC = () => {
                 </svg>
               </div>
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">Eksik öznitelikleri tamamla</h3>
-                <div className="mt-1 text-xs text-yellow-700 dark:text-yellow-300">14 öznitelik eksik bilgiye sahip</div>
+                <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">Eksik ürün özniteliklerini tamamla</h3>
+                <div className="mt-1 text-xs text-yellow-700 dark:text-yellow-300">14 ürün özniteliği eksik bilgiye sahip</div>
               </div>
             </div>
             <div className="flex items-center p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-100 dark:border-red-800">
@@ -227,8 +272,8 @@ const DashboardOverview: React.FC = () => {
                 </svg>
               </div>
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800 dark:text-red-200">Kopuk ilişkileri düzelt</h3>
-                <div className="mt-1 text-xs text-red-700 dark:text-red-300">8 ilişki tutarsızlığı mevcut</div>
+                <h3 className="text-sm font-medium text-red-800 dark:text-red-200">Kopuk ürün ilişkilerini düzelt</h3>
+                <div className="mt-1 text-xs text-red-700 dark:text-red-300">8 ürün ilişkisi tutarsızlığı mevcut</div>
               </div>
             </div>
             <div className="flex items-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
@@ -239,8 +284,8 @@ const DashboardOverview: React.FC = () => {
                 </svg>
               </div>
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">Kategori incelemesi yapılmalı</h3>
-                <div className="mt-1 text-xs text-blue-700 dark:text-blue-300">5 kategori 30 günden uzun süredir güncellenmedi</div>
+                <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">Ürün kategorisi incelemesi yapılmalı</h3>
+                <div className="mt-1 text-xs text-blue-700 dark:text-blue-300">5 ürün kategorisi 30 günden uzun süredir güncellenmedi</div>
               </div>
             </div>
           </div>

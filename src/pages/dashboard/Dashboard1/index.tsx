@@ -5,17 +5,17 @@ import DashboardOverview from './components/overview';
 import DataQualityDashboard from './components/quality';
 import DashboardGovernance from './components/governance';
 
-const Home: React.FC = () => {
+const Dashboard1: React.FC = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-4">SpesEngine Dashboard</h1>
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-4">Ürün ve Katalog Yönetimi</h1>
         <p className="text-gray-600 dark:text-gray-400">Ürün, kategori ve öznitelik verilerinizi tek bir yerden yönetin.</p>
       </div>
 
       {/* Hızlı Erişim Kartları */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Link to="/items/create" className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg p-4 hover:shadow-md transition-shadow">
+        <Link to="/products/create" className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg p-4 hover:shadow-md transition-shadow">
           <div className="flex items-center">
             <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-600 dark:text-blue-300">
               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
@@ -23,13 +23,13 @@ const Home: React.FC = () => {
               </svg>
             </div>
             <div className="ml-4">
-              <h2 className="text-lg font-medium text-gray-800 dark:text-white">Yeni Öğe</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Öğeleri oluştur</p>
+              <h2 className="text-lg font-medium text-gray-800 dark:text-white">Yeni Ürün</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Ürün oluştur</p>
             </div>
           </div>
         </Link>
         
-        <Link to="/items" className="bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800 rounded-lg p-4 hover:shadow-md transition-shadow">
+        <Link to="/catalog" className="bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800 rounded-lg p-4 hover:shadow-md transition-shadow">
           <div className="flex items-center">
             <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-full text-green-600 dark:text-green-300">
               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
@@ -37,8 +37,8 @@ const Home: React.FC = () => {
               </svg>
             </div>
             <div className="ml-4">
-              <h2 className="text-lg font-medium text-gray-800 dark:text-white">Öğeler</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Öğeleri yönet</p>
+              <h2 className="text-lg font-medium text-gray-800 dark:text-white">Katalog</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Ürün kataloğunu yönet</p>
             </div>
           </div>
         </Link>
@@ -52,7 +52,7 @@ const Home: React.FC = () => {
             </div>
             <div className="ml-4">
               <h2 className="text-lg font-medium text-gray-800 dark:text-white">Öznitelikler</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Öznitelikleri yönet</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Ürün özniteliklerini yönet</p>
             </div>
           </div>
         </Link>
@@ -66,7 +66,7 @@ const Home: React.FC = () => {
             </div>
             <div className="ml-4">
               <h2 className="text-lg font-medium text-gray-800 dark:text-white">Kategoriler</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Kategorileri yönet</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Ürün kategorilerini yönet</p>
             </div>
           </div>
         </Link>
@@ -75,9 +75,9 @@ const Home: React.FC = () => {
       {/* Dashboard Overview */}
       <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-6 mb-6">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-gray-800 dark:text-white">Genel Bakış</h2>
+          <h2 className="text-xl font-bold text-gray-800 dark:text-white">Ürün Performansı</h2>
           <Link 
-            to="/dashboard/overview" 
+            to="/dashboard/Dashboard1/overview" 
             className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
           >
             Tüm detayları görüntüle
@@ -89,9 +89,9 @@ const Home: React.FC = () => {
       {/* Data Quality Dashboard */}
       <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-6 mb-6">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-gray-800 dark:text-white">Veri Kalitesi</h2>
+          <h2 className="text-xl font-bold text-gray-800 dark:text-white">Ürün Veri Kalitesi</h2>
           <Link 
-            to="/dashboard/quality" 
+            to="/dashboard/Dashboard1/quality" 
             className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
           >
             Tüm detayları görüntüle
@@ -103,9 +103,9 @@ const Home: React.FC = () => {
       {/* Governance Dashboard */}
       <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-6">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-gray-800 dark:text-white">Veri Yönetişimi</h2>
+          <h2 className="text-xl font-bold text-gray-800 dark:text-white">Ürün Yönetişimi</h2>
           <Link 
-            to="/dashboard/governance" 
+            to="/dashboard/Dashboard1/governance" 
             className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
           >
             Tüm detayları görüntüle
@@ -117,4 +117,4 @@ const Home: React.FC = () => {
   );
 };
 
-export default Home; 
+export default Dashboard1; 

@@ -1,5 +1,14 @@
+/* ============================================
+ * TEMA CSS YÖNETİMİ
+ * ============================================
+ * Bu dosya, SpesEngine'in tema sistemi için CSS değişkenlerini tanımlar.
+ * Her tema, kendi renk şeması ve değişkenleriyle tanımlanmıştır.
+ * Her tema ayrıca kendi karanlık mod varyasyonlarına sahiptir.
+ */
+
+/* Temel değişkenler - tüm temalarda kullanılacak ortak yapı */
 :root {
-  /* Varsayılan ana renkler */
+  /* Varsayılan ana renkler - Default tema */
   --primary-light: #1f6feb;
   --primary-dark: #1a5dcc;
   --primary-lighter: #2476ff;
@@ -13,6 +22,32 @@
   --accent-hover: #f97316;
   --accent-active: #c2410c;
 
+  /* Ana renk varyasyonları 50-950 (Tailwind benzeri skala) */
+  --primary-50: #eff6ff;
+  --primary-100: #dbeafe;
+  --primary-200: #bfdbfe;
+  --primary-300: #93c5fd;
+  --primary-400: #60a5fa;
+  --primary-500: #1f6feb;
+  --primary-600: #1a5dcc;
+  --primary-700: #1d4ed8;
+  --primary-800: #1e40af;
+  --primary-900: #1e3a8a;
+  --primary-950: #172554;
+  
+  /* Aksan renk varyasyonları 50-950 (Tailwind benzeri skala) */
+  --accent-50: #fff7ed;
+  --accent-100: #ffedd5;
+  --accent-200: #fed7aa;
+  --accent-300: #fdba74;
+  --accent-400: #fb923c;
+  --accent-500: #f97316;
+  --accent-600: #ea580c;
+  --accent-700: #c2410c;
+  --accent-800: #9a3412;
+  --accent-900: #7c2d12;
+  --accent-950: #431407;
+
   /* Arka plan renkleri */
   --background-light: #ffffff;
   --background-dark: #f3f4f6;
@@ -20,9 +55,509 @@
   /* Metin renkleri */
   --text-light: #111827;
   --text-dark: #374151;
+  
+  /* Navigasyon ve Kenar Çubuğu */
+  --nav-bg: var(--primary-900);
+  --nav-text: var(--primary-100);
+  --nav-active: var(--accent-500);
+  --nav-hover: var(--accent-700);
+  
+  /* Kartlar ve Paneller */
+  --card-border: var(--primary-200);
+  --card-header: var(--primary-50);
+  
+  /* Tablolar */
+  --table-header-bg: var(--primary-50);
+  --table-header-text: var(--primary-900);
+  --table-row-hover: var(--accent-50);
+  --table-border: var(--primary-200);
+  
+  /* İlerleme Çubukları ve Grafikler */
+  --progress-bg: var(--primary-100);
+  --progress-fill: var(--accent-500);
+  --chart-primary: var(--primary-500);
+  --chart-secondary: var(--accent-500);
+  
+  /* Rozetler ve İkonlar */
+  --badge-bg: var(--accent-100);
+  --badge-text: var(--accent-800);
+  --icon-primary: var(--primary-500);
+  --icon-secondary: var(--accent-500);
+  
+  /* Bildirimler */
+  --notification-info-bg: var(--primary-50);
+  --notification-info-border: var(--primary-300);
+  --notification-success-bg: #ecfdf5;
+  --notification-success-border: #6ee7b7;
+  --notification-warning-bg: #fffbeb;
+  --notification-warning-border: #fcd34d;
+  --notification-error-bg: #fef2f2;
+  --notification-error-border: #fca5a5;
+  
+  /* Form Elemanları */
+  --input-border: var(--primary-300);
+  --input-focus: var(--primary-500);
+  --input-bg: var(--primary-50);
+  
+  /* Genel Yardımcı Renkler */
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --info: #3b82f6;
+  
+  /* Yazı tipleri */
+  --font-family: 'Inter', sans-serif;
 }
 
-/* Karanlık mod için varsayılan renkler */
+/* ============================================
+ * TEMA RENK ŞEMALARı 
+ * ============================================ */
+
+/* 1. Default (SpesEngine Default) Tema */
+.theme-default {
+  --primary-light: #1f6feb;
+  --primary-dark: #1a5dcc;
+  --primary-lighter: #2476ff;
+  --primary-hover: #1c63d4;
+  --primary-active: #174ea6;
+
+  --accent-light: #f97316;
+  --accent-dark: #ea580c;
+  --accent-lighter: #fb923c;
+  --accent-hover: #f97316;
+  --accent-active: #c2410c;
+  
+  --background-light: #ffffff;
+  --background-dark: #f3f4f6;
+
+  /* Ana renk varyasyonları */
+  --primary-50: #eff6ff;
+  --primary-100: #dbeafe;
+  --primary-200: #bfdbfe;
+  --primary-300: #93c5fd;
+  --primary-400: #60a5fa;
+  --primary-500: #1f6feb;
+  --primary-600: #1a5dcc;
+  --primary-700: #1d4ed8;
+  --primary-800: #1e40af;
+  --primary-900: #1e3a8a;
+  --primary-950: #172554;
+  
+  /* Aksan renk varyasyonları */
+  --accent-50: #fff7ed;
+  --accent-100: #ffedd5;
+  --accent-200: #fed7aa;
+  --accent-300: #fdba74;
+  --accent-400: #fb923c;
+  --accent-500: #f97316;
+  --accent-600: #ea580c;
+  --accent-700: #c2410c;
+  --accent-800: #9a3412;
+  --accent-900: #7c2d12;
+  --accent-950: #431407;
+}
+
+/* 2. Greenish (Nature Green) Tema */
+.theme-greenish {
+  --primary-light: #10b981;
+  --primary-dark: #059669;
+  --primary-lighter: #34d399;
+  --primary-hover: #0d9488;
+  --primary-active: #047857;
+
+  --accent-light: #6366f1;
+  --accent-dark: #4f46e5;
+  --accent-lighter: #818cf8;
+  --accent-hover: #5a5fcf;
+  --accent-active: #4338ca;
+  
+  --background-light: #f0fdf4;
+  --background-dark: #dcfce7;
+
+  /* Ana renk varyasyonları */
+  --primary-50: #ecfdf5;
+  --primary-100: #d1fae5;
+  --primary-200: #a7f3d0;
+  --primary-300: #6ee7b7;
+  --primary-400: #34d399;
+  --primary-500: #10b981;
+  --primary-600: #059669;
+  --primary-700: #047857;
+  --primary-800: #065f46;
+  --primary-900: #064e3b;
+  --primary-950: #022c22;
+  
+  /* Aksan renk varyasyonları */
+  --accent-50: #eef2ff;
+  --accent-100: #e0e7ff;
+  --accent-200: #c7d2fe;
+  --accent-300: #a5b4fc;
+  --accent-400: #818cf8;
+  --accent-500: #6366f1;
+  --accent-600: #4f46e5;
+  --accent-700: #4338ca;
+  --accent-800: #3730a3;
+  --accent-900: #312e81;
+  --accent-950: #1e1b4b;
+}
+
+/* 3. Blueish (Ocean Blue) Tema */
+.theme-blueish {
+  --primary-light: #3b82f6;
+  --primary-dark: #2563eb;
+  --primary-lighter: #60a5fa;
+  --primary-hover: #3070d5;
+  --primary-active: #1d4ed8;
+  
+  --accent-light: #ec4899;
+  --accent-dark: #db2777;
+  --accent-lighter: #f472b6;
+  --accent-hover: #d34080;
+  --accent-active: #be185d;
+  
+  --background-light: #eff6ff;
+  --background-dark: #dbeafe;
+
+  /* Ana renk varyasyonları */
+  --primary-50: #eff6ff;
+  --primary-100: #dbeafe;
+  --primary-200: #bfdbfe;
+  --primary-300: #93c5fd;
+  --primary-400: #60a5fa;
+  --primary-500: #3b82f6;
+  --primary-600: #2563eb;
+  --primary-700: #1d4ed8;
+  --primary-800: #1e40af;
+  --primary-900: #1e3a8a;
+  --primary-950: #172554;
+  
+  /* Aksan renk varyasyonları */
+  --accent-50: #fdf2f8;
+  --accent-100: #fce7f3;
+  --accent-200: #fbcfe8;
+  --accent-300: #f9a8d4;
+  --accent-400: #f472b6;
+  --accent-500: #ec4899;
+  --accent-600: #db2777;
+  --accent-700: #be185d;
+  --accent-800: #9d174d;
+  --accent-900: #831843;
+  --accent-950: #500724;
+}
+
+/* 4. Redish (Passionate Red) Tema */
+.theme-redish {
+  --primary-light: #ef4444;
+  --primary-dark: #dc2626;
+  --primary-lighter: #f87171;
+  --primary-hover: #dc3535;
+  --primary-active: #b91c1c;
+  
+  --accent-light: #8b5cf6;
+  --accent-dark: #7c3aed;
+  --accent-lighter: #a78bfa;
+  --accent-hover: #7d4ed4;
+  --accent-active: #6d28d9;
+  
+  --background-light: #fef2f2;
+  --background-dark: #fee2e2;
+
+  /* Ana renk varyasyonları */
+  --primary-50: #fef2f2;
+  --primary-100: #fee2e2;
+  --primary-200: #fecaca;
+  --primary-300: #fca5a5;
+  --primary-400: #f87171;
+  --primary-500: #ef4444;
+  --primary-600: #dc2626;
+  --primary-700: #b91c1c;
+  --primary-800: #991b1b;
+  --primary-900: #7f1d1d;
+  --primary-950: #450a0a;
+  
+  /* Aksan renk varyasyonları */
+  --accent-50: #f5f3ff;
+  --accent-100: #ede9fe;
+  --accent-200: #ddd6fe;
+  --accent-300: #c4b5fd;
+  --accent-400: #a78bfa;
+  --accent-500: #8b5cf6;
+  --accent-600: #7c3aed;
+  --accent-700: #6d28d9;
+  --accent-800: #5b21b6;
+  --accent-900: #4c1d95;
+  --accent-950: #2e1065;
+}
+
+/* 5. High Contrast Dark Tema */
+.theme-dark {
+  --primary-light: #6366f1;
+  --primary-dark: #4f46e5;
+  --primary-lighter: #818cf8;
+  --primary-hover: #5a5fcf;
+  --primary-active: #4338ca;
+  
+  --accent-light: #ec4899;
+  --accent-dark: #db2777;
+  --accent-lighter: #f472b6;
+  --accent-hover: #d34080;
+  --accent-active: #be185d;
+  
+  --background-light: #f5f3ff;
+  --background-dark: #ede9fe;
+
+  /* Ana renk varyasyonları */
+  --primary-50: #eef2ff;
+  --primary-100: #e0e7ff;
+  --primary-200: #c7d2fe;
+  --primary-300: #a5b4fc;
+  --primary-400: #818cf8;
+  --primary-500: #6366f1;
+  --primary-600: #4f46e5;
+  --primary-700: #4338ca;
+  --primary-800: #3730a3;
+  --primary-900: #312e81;
+  --primary-950: #1e1b4b;
+  
+  /* Aksan renk varyasyonları */
+  --accent-50: #fdf2f8;
+  --accent-100: #fce7f3;
+  --accent-200: #fbcfe8;
+  --accent-300: #f9a8d4;
+  --accent-400: #f472b6;
+  --accent-500: #ec4899;
+  --accent-600: #db2777;
+  --accent-700: #be185d;
+  --accent-800: #9d174d;
+  --accent-900: #831843;
+  --accent-950: #500724;
+}
+
+/* 6. Emerald (Emerald Gold) Tema */
+.theme-emerald {
+  --primary-light: #059669;
+  --primary-dark: #047857;
+  --primary-lighter: #10b981;
+  --primary-hover: #048463;
+  --primary-active: #036745;
+  
+  --accent-light: #fbbf24;
+  --accent-dark: #f59e0b;
+  --accent-lighter: #fcd34d;
+  --accent-hover: #dea913;
+  --accent-active: #d97706;
+  
+  --background-light: #ecfdf5;
+  --background-dark: #d1fae5;
+
+  /* Ana renk varyasyonları */
+  --primary-50: #ecfdf5;
+  --primary-100: #d1fae5;
+  --primary-200: #a7f3d0;
+  --primary-300: #6ee7b7;
+  --primary-400: #34d399;
+  --primary-500: #10b981;
+  --primary-600: #059669;
+  --primary-700: #047857;
+  --primary-800: #065f46;
+  --primary-900: #064e3b;
+  --primary-950: #022c22;
+  
+  /* Aksan renk varyasyonları */
+  --accent-50: #fffbeb;
+  --accent-100: #fef3c7;
+  --accent-200: #fde68a;
+  --accent-300: #fcd34d;
+  --accent-400: #fbbf24;
+  --accent-500: #f59e0b;
+  --accent-600: #d97706;
+  --accent-700: #b45309;
+  --accent-800: #92400e;
+  --accent-900: #78350f;
+  --accent-950: #451a03;
+}
+
+/* 7. Purple (Royal Purple) Tema */
+.theme-purple {
+  --primary-light: #7c3aed;
+  --primary-dark: #6d28d9;
+  --primary-lighter: #8b5cf6;
+  --primary-hover: #6935ce;
+  --primary-active: #5b21b6;
+  
+  --accent-light: #fb923c;
+  --accent-dark: #f97316;
+  --accent-lighter: #fdba74;
+  --accent-hover: #ea8a32;
+  --accent-active: #ea580c;
+  
+  --background-light: #f5f3ff;
+  --background-dark: #ede9fe;
+
+  /* Ana renk varyasyonları */
+  --primary-50: #f5f3ff;
+  --primary-100: #ede9fe;
+  --primary-200: #ddd6fe;
+  --primary-300: #c4b5fd;
+  --primary-400: #a78bfa;
+  --primary-500: #8b5cf6;
+  --primary-600: #7c3aed;
+  --primary-700: #6d28d9;
+  --primary-800: #5b21b6;
+  --primary-900: #4c1d95;
+  --primary-950: #2e1065;
+  
+  /* Aksan renk varyasyonları */
+  --accent-50: #fff7ed;
+  --accent-100: #ffedd5;
+  --accent-200: #fed7aa;
+  --accent-300: #fdba74;
+  --accent-400: #fb923c;
+  --accent-500: #f97316;
+  --accent-600: #ea580c;
+  --accent-700: #c2410c;
+  --accent-800: #9a3412;
+  --accent-900: #7c2d12;
+  --accent-950: #431407;
+}
+
+/* 8. Navy (Navy Coral) Tema */
+.theme-navy {
+  --primary-light: #1e3a8a;
+  --primary-dark: #1e40af;
+  --primary-lighter: #2563eb;
+  --primary-hover: #1a3478;
+  --primary-active: #172554;
+  
+  --accent-light: #f43f5e;
+  --accent-dark: #e11d48;
+  --accent-lighter: #fb7185;
+  --accent-hover: #d4364f;
+  --accent-active: #be123c;
+  
+  --background-light: #eef2ff;
+  --background-dark: #e0e7ff;
+
+  /* Ana renk varyasyonları */
+  --primary-50: #eff6ff;
+  --primary-100: #dbeafe;
+  --primary-200: #bfdbfe;
+  --primary-300: #93c5fd;
+  --primary-400: #60a5fa;
+  --primary-500: #3b82f6;
+  --primary-600: #2563eb;
+  --primary-700: #1d4ed8;
+  --primary-800: #1e40af;
+  --primary-900: #1e3a8a;
+  --primary-950: #172554;
+  
+  /* Aksan renk varyasyonları */
+  --accent-50: #fff1f2;
+  --accent-100: #ffe4e6;
+  --accent-200: #fecdd3;
+  --accent-300: #fda4af;
+  --accent-400: #fb7185;
+  --accent-500: #f43f5e;
+  --accent-600: #e11d48;
+  --accent-700: #be123c;
+  --accent-800: #9f1239;
+  --accent-900: #881337;
+  --accent-950: #4c0519;
+}
+
+/* 9. Teal (Teal Rose) Tema */
+.theme-teal {
+  --primary-light: #0d9488;
+  --primary-dark: #0f766e;
+  --primary-lighter: #14b8a6;
+  --primary-hover: #0b8276;
+  --primary-active: #0d6b64;
+  
+  --accent-light: #e11d48;
+  --accent-dark: #be123c;
+  --accent-lighter: #f43f5e;
+  --accent-hover: #c11a40;
+  --accent-active: #9f1239;
+  
+  --background-light: #f0fdfa;
+  --background-dark: #ccfbf1;
+
+  /* Ana renk varyasyonları */
+  --primary-50: #f0fdfa;
+  --primary-100: #ccfbf1;
+  --primary-200: #99f6e4;
+  --primary-300: #5eead4;
+  --primary-400: #2dd4bf;
+  --primary-500: #14b8a6;
+  --primary-600: #0d9488;
+  --primary-700: #0f766e;
+  --primary-800: #115e59;
+  --primary-900: #134e4a;
+  --primary-950: #042f2e;
+  
+  /* Aksan renk varyasyonları */
+  --accent-50: #fff1f2;
+  --accent-100: #ffe4e6;
+  --accent-200: #fecdd3;
+  --accent-300: #fda4af;
+  --accent-400: #fb7185;
+  --accent-500: #f43f5e;
+  --accent-600: #e11d48;
+  --accent-700: #be123c;
+  --accent-800: #9f1239;
+  --accent-900: #881337;
+  --accent-950: #4c0519;
+}
+
+/* 10. Slate (Slate Orange) Tema */
+.theme-slate {
+  --primary-light: #475569;
+  --primary-dark: #334155;
+  --primary-lighter: #64748b;
+  --primary-hover: #3f4d5e;
+  --primary-active: #27303f;
+  
+  --accent-light: #f97316;
+  --accent-dark: #ea580c;
+  --accent-lighter: #fb923c;
+  --accent-hover: #df6512;
+  --accent-active: #c2410c;
+  
+  --background-light: #f8fafc;
+  --background-dark: #f1f5f9;
+
+  /* Ana renk varyasyonları */
+  --primary-50: #f8fafc;
+  --primary-100: #f1f5f9;
+  --primary-200: #e2e8f0;
+  --primary-300: #cbd5e1;
+  --primary-400: #94a3b8;
+  --primary-500: #64748b;
+  --primary-600: #475569;
+  --primary-700: #334155;
+  --primary-800: #1e293b;
+  --primary-900: #0f172a;
+  --primary-950: #020617;
+  
+  /* Aksan renk varyasyonları */
+  --accent-50: #fff7ed;
+  --accent-100: #ffedd5;
+  --accent-200: #fed7aa;
+  --accent-300: #fdba74;
+  --accent-400: #fb923c;
+  --accent-500: #f97316;
+  --accent-600: #ea580c;
+  --accent-700: #c2410c;
+  --accent-800: #9a3412;
+  --accent-900: #7c2d12;
+  --accent-950: #431407;
+}
+
+/* ============================================
+ * KARANLIK MOD TEMA VARYASYONLARI
+ * ============================================ */
+
+/* Karanlık mod için varsayılan renkler (genel) */
 .dark {
   --primary-light: #60a5fa;
   --primary-dark: #3b82f6;
@@ -35,6 +570,32 @@
   --accent-lighter: #fdba74;
   --accent-hover: #ea580c;
   --accent-active: #c2410c;
+  
+  /* Karanlık mod ana renk varyasyonları */
+  --primary-50: #172554;
+  --primary-100: #1e3a8a;
+  --primary-200: #1e40af;
+  --primary-300: #1d4ed8;
+  --primary-400: #2563eb;
+  --primary-500: #3b82f6;
+  --primary-600: #60a5fa;
+  --primary-700: #93c5fd;
+  --primary-800: #bfdbfe;
+  --primary-900: #dbeafe;
+  --primary-950: #eff6ff;
+  
+  /* Karanlık mod aksan renk varyasyonları */
+  --accent-50: #431407;
+  --accent-100: #7c2d12;
+  --accent-200: #9a3412;
+  --accent-300: #c2410c;
+  --accent-400: #ea580c;
+  --accent-500: #f97316;
+  --accent-600: #fb923c;
+  --accent-700: #fdba74;
+  --accent-800: #fed7aa;
+  --accent-900: #ffedd5;
+  --accent-950: #fff7ed;
 
   /* Karanlık mod arka plan renkleri */
   --background-light: #1f2937;
@@ -43,4 +604,336 @@
   /* Karanlık mod metin renkleri */
   --text-light: #f9fafb;
   --text-dark: #e5e7eb;
+  
+  /* Navigasyon ve Kenar Çubuğu - Karanlık Mod */
+  --nav-bg: #111827;
+  --nav-text: #f3f4f6;
+  --nav-active: var(--accent-500);
+  --nav-hover: var(--accent-700);
+  
+  /* Kartlar ve Paneller - Karanlık Mod */
+  --card-border: #374151;
+  --card-header: #1f2937;
+  
+  /* Tablolar - Karanlık Mod */
+  --table-header-bg: #1f2937;
+  --table-header-text: #f3f4f6;
+  --table-row-hover: #374151;
+  --table-border: #4b5563;
+  
+  /* Bildirimler - Karanlık Mod */
+  --notification-info-bg: rgba(59, 130, 246, 0.1);
+  --notification-info-border: rgba(59, 130, 246, 0.5);
+  --notification-success-bg: rgba(16, 185, 129, 0.1);
+  --notification-success-border: rgba(16, 185, 129, 0.5);
+  --notification-warning-bg: rgba(245, 158, 11, 0.1);
+  --notification-warning-border: rgba(245, 158, 11, 0.5);
+  --notification-error-bg: rgba(239, 68, 68, 0.1);
+  --notification-error-border: rgba(239, 68, 68, 0.5);
+  
+  /* Form Elemanları - Karanlık Mod */
+  --input-border: #4b5563;
+  --input-focus: #3b82f6;
+  --input-bg: #1f2937;
+}
+
+/* ============================================
+ * TEMA ÖZEL KARANLIK MOD VARYASYONLARI
+ * ============================================ */
+
+/* 1. Default Theme - Karanlık Mod */
+.theme-default.dark {
+  /* Varsayılan koyu mod renkleri */
+  --background-light: #1f2937;
+  --background-dark: #111827;
+}
+
+/* 2. Greenish Theme - Karanlık Mod */
+.theme-greenish.dark {
+  --primary-light: #34d399;
+  --primary-dark: #10b981;
+  --primary-lighter: #6ee7b7;
+  --primary-hover: #059669;
+  --primary-active: #047857;
+
+  --accent-light: #818cf8;
+  --accent-dark: #6366f1;
+  --accent-lighter: #a5b4fc;
+  --accent-hover: #4f46e5;
+  --accent-active: #4338ca;
+  
+  /* Karanlık mod arka plan renkleri - daha yeşilimsi */
+  --background-light: #064e3b;
+  --background-dark: #022c22;
+  
+  /* Karanlık mod metin renkleri */
+  --text-light: #ecfdf5;
+  --text-dark: #d1fae5;
+  
+  /* Navigasyon ve Kenar Çubuğu */
+  --nav-bg: #022c22;
+  --nav-text: #d1fae5;
+  --nav-active: var(--accent-500);
+  --nav-hover: var(--accent-700);
+  
+  /* Kartlar ve Paneller */
+  --card-border: #065f46;
+  --card-header: #064e3b;
+}
+
+/* 3. Blueish Theme - Karanlık Mod */
+.theme-blueish.dark {
+  --primary-light: #60a5fa;
+  --primary-dark: #3b82f6;
+  --primary-lighter: #93c5fd;
+  --primary-hover: #2563eb;
+  --primary-active: #1d4ed8;
+
+  --accent-light: #f472b6;
+  --accent-dark: #ec4899;
+  --accent-lighter: #f9a8d4;
+  --accent-hover: #db2777;
+  --accent-active: #be185d;
+  
+  /* Karanlık mod arka plan renkleri - daha mavimsi */
+  --background-light: #1e3a8a;
+  --background-dark: #172554;
+  
+  /* Karanlık mod metin renkleri */
+  --text-light: #eff6ff;
+  --text-dark: #dbeafe;
+}
+
+/* 4. Redish Theme - Karanlık Mod */
+.theme-redish.dark {
+  --primary-light: #f87171;
+  --primary-dark: #ef4444;
+  --primary-lighter: #fca5a5;
+  --primary-hover: #dc2626;
+  --primary-active: #b91c1c;
+
+  --accent-light: #a78bfa;
+  --accent-dark: #8b5cf6;
+  --accent-lighter: #c4b5fd;
+  --accent-hover: #7c3aed;
+  --accent-active: #6d28d9;
+  
+  /* Karanlık mod arka plan renkleri - daha kırmızımsı */
+  --background-light: #7f1d1d;
+  --background-dark: #450a0a;
+  
+  /* Karanlık mod metin renkleri */
+  --text-light: #fef2f2;
+  --text-dark: #fee2e2;
+}
+
+/* 5. High Contrast Dark Theme - Karanlık Mod */
+.theme-dark.dark {
+  --primary-light: #818cf8;
+  --primary-dark: #6366f1;
+  --primary-lighter: #a5b4fc;
+  --primary-hover: #4f46e5;
+  --primary-active: #4338ca;
+
+  --accent-light: #f472b6;
+  --accent-dark: #ec4899;
+  --accent-lighter: #f9a8d4;
+  --accent-hover: #db2777;
+  --accent-active: #be185d;
+  
+  /* Karanlık mod arka plan renkleri - yüksek kontrast */
+  --background-light: #1e1b4b;
+  --background-dark: #0f0a30;
+  
+  /* Karanlık mod metin renkleri */
+  --text-light: #eef2ff;
+  --text-dark: #e0e7ff;
+}
+
+/* 6. Emerald Gold Theme - Karanlık Mod */
+.theme-emerald.dark {
+  --primary-light: #10b981;
+  --primary-dark: #059669;
+  --primary-lighter: #34d399;
+  --primary-hover: #047857;
+  --primary-active: #065f46;
+
+  --accent-light: #fcd34d;
+  --accent-dark: #fbbf24;
+  --accent-lighter: #fde68a;
+  --accent-hover: #f59e0b;
+  --accent-active: #d97706;
+  
+  /* Karanlık mod arka plan renkleri - zümrüt yeşili tonu */
+  --background-light: #064e3b;
+  --background-dark: #022c22;
+  
+  /* Karanlık mod metin renkleri */
+  --text-light: #ecfdf5;
+  --text-dark: #d1fae5;
+  
+  /* Navigasyon ve Kenar Çubuğu */
+  --nav-bg: #022c22;
+  --nav-text: #d1fae5;
+  --nav-active: var(--accent-500);
+  --nav-hover: var(--accent-700);
+}
+
+/* 7. Purple Theme - Karanlık Mod */
+.theme-purple.dark {
+  --primary-light: #8b5cf6;
+  --primary-dark: #7c3aed;
+  --primary-lighter: #a78bfa;
+  --primary-hover: #6d28d9;
+  --primary-active: #5b21b6;
+
+  --accent-light: #fdba74;
+  --accent-dark: #fb923c;
+  --accent-lighter: #fed7aa;
+  --accent-hover: #f97316;
+  --accent-active: #ea580c;
+  
+  /* Karanlık mod arka plan renkleri - mor ağırlıklı */
+  --background-light: #4c1d95;
+  --background-dark: #2e1065;
+  
+  /* Karanlık mod metin renkleri */
+  --text-light: #f5f3ff;
+  --text-dark: #ede9fe;
+}
+
+/* 8. Navy Theme - Karanlık Mod */
+.theme-navy.dark {
+  --primary-light: #2563eb;
+  --primary-dark: #1d4ed8;
+  --primary-lighter: #3b82f6;
+  --primary-hover: #1e40af;
+  --primary-active: #1e3a8a;
+
+  --accent-light: #fb7185;
+  --accent-dark: #f43f5e;
+  --accent-lighter: #fda4af;
+  --accent-hover: #e11d48;
+  --accent-active: #be123c;
+  
+  /* Karanlık mod arka plan renkleri - lacivert tonları */
+  --background-light: #0f172a;
+  --background-dark: #020617;
+  
+  /* Karanlık mod metin renkleri */
+  --text-light: #f1f5f9;
+  --text-dark: #e2e8f0;
+}
+
+/* 9. Teal Theme - Karanlık Mod */
+.theme-teal.dark {
+  --primary-light: #14b8a6;
+  --primary-dark: #0d9488;
+  --primary-lighter: #2dd4bf;
+  --primary-hover: #0f766e;
+  --primary-active: #115e59;
+
+  --accent-light: #fb7185;
+  --accent-dark: #f43f5e;
+  --accent-lighter: #fda4af;
+  --accent-hover: #e11d48;
+  --accent-active: #be123c;
+  
+  /* Karanlık mod arka plan renkleri - turkuaz tonları */
+  --background-light: #134e4a;
+  --background-dark: #042f2e;
+  
+  /* Karanlık mod metin renkleri */
+  --text-light: #f0fdfa;
+  --text-dark: #ccfbf1;
+}
+
+/* 10. Slate Theme - Karanlık Mod */
+.theme-slate.dark {
+  --primary-light: #64748b;
+  --primary-dark: #475569;
+  --primary-lighter: #94a3b8;
+  --primary-hover: #334155;
+  --primary-active: #1e293b;
+
+  --accent-light: #fb923c;
+  --accent-dark: #f97316;
+  --accent-lighter: #fdba74;
+  --accent-hover: #ea580c;
+  --accent-active: #c2410c;
+  
+  /* Karanlık mod arka plan renkleri - arduvaz gri tonları */
+  --background-light: #0f172a;
+  --background-dark: #020617;
+  
+  /* Karanlık mod metin renkleri */
+  --text-light: #f8fafc;
+  --text-dark: #f1f5f9;
+}
+
+/* Tailwind Kullanımı İçin Geçersiz Kılma Sınıfları */
+.dark .dark\:bg-gray-900 {
+  background-color: var(--background-dark) !important; 
+}
+
+.dark .dark\:bg-gray-800 {
+  background-color: var(--background-light) !important;
+}
+
+.dark .dark\:text-white {
+  color: var(--text-light) !important;
+}
+
+.dark .dark\:text-gray-300, 
+.dark .dark\:text-gray-400 {
+  color: var(--text-dark) !important;
+}
+
+.dark .dark\:border-gray-700 {
+  border-color: var(--card-border) !important;
+}
+
+.dark .dark\:hover\:bg-gray-700:hover {
+  background-color: var(--accent-700) !important;
+}
+
+/* Menü öğeleri için aksan renkli hover */
+.sidebar-nav .nav-item:hover {
+  background-color: var(--nav-hover) !important;
+}
+
+.sidebar-nav .nav-item.active {
+  background-color: var(--nav-active) !important;
+  color: white !important;
+}
+
+/* Butonlar için aksan renkleri */
+.btn-secondary, .button-secondary {
+  background-color: var(--accent-500) !important;
+  border-color: var(--accent-600) !important;
+  color: white !important;
+}
+
+.btn-secondary:hover, .button-secondary:hover {
+  background-color: var(--accent-600) !important;
+  border-color: var(--accent-700) !important;
+}
+
+/* Tab elemanları için aksan renkleri */
+.tab.active, .tab-active {
+  border-color: var(--accent-500) !important;
+  color: var(--accent-700) !important;
+}
+
+/* Tooltip ve popover için aksan renkleri */
+.tooltip, .popover {
+  --tw-bg-opacity: 1;
+  background-color: var(--accent-500) !important;
+  color: white !important;
+}
+
+/* Seçim renkleri */
+::selection {
+  background-color: var(--accent-500) !important;
+  color: white !important;
 } 

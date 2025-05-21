@@ -21,9 +21,10 @@ export interface ISystemSettings {
     logoUrl: string;
   };
   theme: {
-    mode: 'light' | 'dark' | 'system';
+    mode: 'light' | 'dark' | 'system' | 'custom';
     primaryColor: string;
     accentColor: string;
+    backgroundColor: string;
     enableDarkMode: boolean;
     defaultDarkMode: boolean;
     enableCustomFonts: boolean;
@@ -34,6 +35,7 @@ export interface ISystemSettings {
     showLogo: boolean;
     showUserAvatar: boolean;
     menuStyle: 'side' | 'top';
+    themeName?: string;
   };
   backup: {
     backupSchedule: 'hourly' | 'daily' | 'weekly' | 'monthly' | 'manual';
@@ -128,6 +130,7 @@ const defaultSettings: ISystemSettings = {
     mode: 'light',
     primaryColor: '#1f6feb',
     accentColor: '#f97316',
+    backgroundColor: '#ffffff',
     enableDarkMode: true,
     defaultDarkMode: false,
     enableCustomFonts: false,
@@ -220,103 +223,26 @@ class SystemSettingsService {
     return defaultSettings;
   }
 
-  async getSettings(): Promise<{ success: boolean; data: ISystemSettings }> {
+  async getSettings(): Promise<ISystemSettings> {
     try {
-      const response = await api.get('/system');
-      localStorage.setItem('offlineSettings', JSON.stringify(response.data));
-      return response.data;
+      const response = await api.get<{ success: boolean; data: ISystemSettings }>('/system');
+      localStorage.setItem('offlineSettings', JSON.stringify(response.data.data));
+      return response.data.data;
     } catch (error) {
       console.error('Sistem ayarları alınırken hata:', error);
       
-      // Hata durumunda varsayılan ayarları döndür
-      const defaultSettings: ISystemSettings = {
-        _id: 'default',
-        companyName: 'SpesEngine',
-        systemTitle: 'SpesEngine',
-        defaultLanguage: 'tr',
-        timezone: 'Europe/Istanbul',
-        dateFormat: 'DD.MM.YYYY',
-        timeFormat: 'HH:mm',
-        logoUrl: '',
-        theme: {
-          mode: 'light',
-          primaryColor: '#1f6feb',
-          accentColor: '#f97316',
-          enableDarkMode: true,
-          defaultDarkMode: false,
-          enableCustomFonts: false,
-          customFont: 'Inter',
-          customLogoUrl: '',
-          enableCustomStyles: false,
-          customCSS: '',
-          showLogo: true,
-          showUserAvatar: true,
-          menuStyle: 'side'
-        },
-        backup: {
-          backupSchedule: 'daily',
-          backupTime: '00:00',
-          retentionPeriod: 30,
-          backupLocation: 'local',
-          s3Bucket: '',
-          s3Region: '',
-          backupDatabase: true,
-          backupUploads: true,
-          backupLogs: true,
-          compressionLevel: 'medium'
-        },
-        security: {
-          passwordPolicy: 'medium',
-          passwordExpiryDays: 90,
-          loginAttempts: 5,
-          sessionTimeout: 30,
-          allowedIPs: [],
-          enableTwoFactor: false,
-          enforceSSL: true
-        },
-        notifications: {
-          enableSystemNotifications: true,
-          enableEmailNotifications: false,
-          enablePushNotifications: false,
-          notifyUserOnLogin: true,
-          notifyUserOnPasswordChange: true,
-          notifyUserOnRoleChange: true,
-          notifyOnDataImport: true,
-          notifyOnDataExport: true,
-          notifyOnBulkChanges: true,
-          notifyOnSystemUpdates: true,
-          notifyOnBackupComplete: true,
-          notifyOnSystemErrors: true,
-          adminEmails: []
-        },
-        integrations: {
-          api: {
-            enabled: true,
-            rateLimit: 100
-          },
-          email: {
-            provider: 'smtp',
-            senderEmail: 'no-reply@spesengine.com'
-          },
-          sso: {
-            provider: ''
-          }
-        },
-        license: {
-          key: '',
-          type: 'community',
-          expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-          maxUsers: 10,
-          features: []
-        },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+      // Önce localStorage'daki ayarları kontrol et
+      const savedSettings = localStorage.getItem('offlineSettings');
+      if (savedSettings) {
+        try {
+          return JSON.parse(savedSettings);
+        } catch {
+          console.log('LocalStorage\'daki ayarlar okunamadı, varsayılan ayarlar kullanılacak');
+        }
+      }
       
-      return {
-        success: false,
-        data: defaultSettings
-      };
+      // Varsayılan ayarları döndür
+      return this.getOfflineSettings();
     }
   }
 
@@ -330,12 +256,26 @@ class SystemSettingsService {
     data: Partial<ISystemSettings[T]>
   ): Promise<{ success: boolean; data: ISystemSettings }> {
     try {
+      // Veriyi göndermeden önce bir kopyasını oluştur ve undefined değerleri kaldır
+      const sanitizedData = { ...data };
+      Object.keys(sanitizedData).forEach(key => {
+        if (sanitizedData[key as keyof typeof sanitizedData] === undefined) {
+          delete sanitizedData[key as keyof typeof sanitizedData];
+        }
+      });
+
+      console.log(`${section} için API'ye gönderilen veri:`, sanitizedData);
+      
       const response: AxiosResponse<{ success: boolean; data: ISystemSettings }> = await api.put(
         `${this.baseUrl}/${section}`,
-        data
+        sanitizedData
       );
       
-      localStorage.setItem('offlineSettings', JSON.stringify(response.data));
+      // Güncellenmiş verileri localStorage'a kaydet
+      const localSettings = this.getOfflineSettings();
+      localSettings[section] = response.data.data[section];
+      localStorage.setItem('offlineSettings', JSON.stringify(localSettings));
+      
       return response.data;
     } catch (error) {
       console.error(`${section} ayarları güncellenirken hata:`, error);
@@ -351,6 +291,8 @@ class SystemSettingsService {
       } else {
         localSettings[section] = data as ISystemSettings[T];
       }
+      
+      localStorage.setItem('offlineSettings', JSON.stringify(localSettings));
       
       return {
         success: false,

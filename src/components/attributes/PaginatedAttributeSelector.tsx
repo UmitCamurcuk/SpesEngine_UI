@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import attributeService from '../../services/api/attributeService';
 import attributeGroupService from '../../services/api/attributeGroupService';
 import { useTranslation } from '../../context/i18nContext';
@@ -7,6 +7,7 @@ import AttributeBadge from './AttributeBadge';
 interface PaginatedAttributeSelectorProps {
   selectedAttributes: string[];
   onChange: (attributeIds: string[]) => void;
+  excludeIds?: string[]; // Dışlanacak öznitelik ID'leri
 }
 
 // API'den dönen attributeGroup tipini tanımla
@@ -46,7 +47,8 @@ interface ApiAttribute {
 
 const PaginatedAttributeSelector: React.FC<PaginatedAttributeSelectorProps> = ({
   selectedAttributes,
-  onChange
+  onChange,
+  excludeIds = [] // Varsayılan olarak boş dizi
 }) => {
   const { t } = useTranslation();
   const [attributes, setAttributes] = useState<AttributeOption[]>([]);
@@ -58,6 +60,11 @@ const PaginatedAttributeSelector: React.FC<PaginatedAttributeSelectorProps> = ({
   const [pageSize, setPageSize] = useState<number>(20);
   const [attributeGroups, setAttributeGroups] = useState<AttributeGroupObject[]>([]);
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<string>('');
+  
+  // API çağrısını takip etmek için ref kullan
+  const isApiCallInProgress = useRef(false);
+  // Debounce için timeout ref'i
+  const debounceTimeout = useRef<number | null>(null);
 
   // Sayfalama değişkenleri
   const totalPages = Math.ceil(totalAttributes / pageSize);
@@ -76,35 +83,44 @@ const PaginatedAttributeSelector: React.FC<PaginatedAttributeSelectorProps> = ({
     fetchAttributeGroups();
   }, []);
   
-  // Sayfa, arama terimi veya grup filtresi değiştiğinde attribute'ları yükle
-  useEffect(() => {
-    const fetchAttributes = async () => {
-      setIsLoading(true);
-      setError(null);
+  // API çağrısı memoize
+  const fetchAttributes = useCallback(async () => {
+    // Eğer zaten bir API çağrısı devam ediyorsa yeni çağrı yapma
+    if (isApiCallInProgress.current) {
+      console.log('İşlem zaten devam ediyor, yeni istek atlanıyor');
+      return;
+    }
+    
+    isApiCallInProgress.current = true;
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Filtreleri oluştur
+      let queryParams: any = {
+        page,
+        limit: pageSize
+      };
       
-      try {
-        // Filtreleri oluştur
-        let queryParams: any = {
-          page,
-          limit: pageSize
-        };
-        
-        // Arama terimi varsa ekle
-        if (searchTerm.trim()) {
-          queryParams.search = searchTerm.trim();
-        }
-        
-        // Grup filtresi varsa ekle
-        if (selectedGroupFilter) {
-          queryParams.attributeGroup = selectedGroupFilter;
-        }
-        
-        // Attribute'ları getir
-        const result = await attributeService.getAttributes(queryParams);
-        setTotalAttributes(result.total);
-        
-        // Attribute'ları dönüştür
-        const mappedAttributes = result.attributes.map((attr: ApiAttribute) => {
+      // Arama terimi varsa ekle
+      if (searchTerm.trim()) {
+        queryParams.search = searchTerm.trim();
+      }
+      
+      // Grup filtresi varsa ekle
+      if (selectedGroupFilter) {
+        queryParams.attributeGroup = selectedGroupFilter;
+      }
+      
+      // Attribute'ları getir
+      console.log('Öznitelikler için API isteği gönderiliyor:', queryParams);
+      const result = await attributeService.getAttributes(queryParams);
+      setTotalAttributes(result.total);
+      
+      // Attribute'ları dönüştür ve dışlanacak ID'leri filtrele
+      const mappedAttributes = (result.attributes as any[])
+        .filter((attr) => !excludeIds.includes(attr._id)) // Dışlanacak ID'leri filtrele
+        .map((attr) => {
           let groupId = '';
           let groupName = '';
           let groupCode = '';
@@ -139,18 +155,36 @@ const PaginatedAttributeSelector: React.FC<PaginatedAttributeSelectorProps> = ({
             }
           };
         });
-        
-        setAttributes(mappedAttributes);
-      } catch (err: any) {
-        console.error('Attributes yüklenirken hata:', err);
-        setError(err.message || 'Öznitelikler yüklenemedi');
-      } finally {
-        setIsLoading(false);
+      
+      setAttributes(mappedAttributes);
+    } catch (err: any) {
+      console.error('Attributes yüklenirken hata:', err);
+      setError(err.message || 'Öznitelikler yüklenemedi');
+    } finally {
+      setIsLoading(false);
+      isApiCallInProgress.current = false;
+    }
+  }, [page, pageSize, searchTerm, selectedGroupFilter, attributeGroups, excludeIds]);
+  
+  // Sayfa, arama terimi veya grup filtresi değiştiğinde attribute'ları yükle
+  useEffect(() => {
+    // Önceki timeout'u temizle
+    if (debounceTimeout.current) {
+      window.clearTimeout(debounceTimeout.current);
+    }
+    
+    // API çağrısını 300ms gecikme ile yap (debounce)
+    debounceTimeout.current = window.setTimeout(() => {
+      fetchAttributes();
+    }, 300);
+    
+    // Cleanup function
+    return () => {
+      if (debounceTimeout.current) {
+        window.clearTimeout(debounceTimeout.current);
       }
     };
-    
-    fetchAttributes();
-  }, [page, pageSize, searchTerm, selectedGroupFilter, attributeGroups]);
+  }, [fetchAttributes]);
   
   // Arama işleminde sayfa numarasını sıfırla
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -54,9 +54,8 @@ const GeneralSettings: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        const response = await systemSettingsService.getSettings();
-        const settings = response.data;
-        
+        const settings  = await systemSettingsService.getSettings();
+       
         console.log('Backend\'den gelen ayarlar:', settings);
 
         if (!settings) {

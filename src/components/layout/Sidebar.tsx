@@ -261,6 +261,11 @@ const Sidebar = ({ isOpen, closeSidebar }: SidebarProps) => {
     setNavItems(items);
   }, [t, currentLanguage]); // currentLanguage ekleyerek dil değişiminde yeniden render olmasını sağlıyoruz
 
+  // isOpen değişikliğini izleyen log
+  useEffect(() => {
+    console.log("Sidebar isOpen durumu değişti:", isOpen);
+  }, [isOpen]);
+
   const activeClass = "bg-gray-100 dark:bg-gray-700 text-primary-light dark:text-primary-dark";
   const inactiveClass = "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700";
 
@@ -269,16 +274,20 @@ const Sidebar = ({ isOpen, closeSidebar }: SidebarProps) => {
       {/* Sidebar arkaplan overlay (sadece mobil) */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-gray-900 bg-opacity-50 z-20 md:hidden"
-          onClick={closeSidebar}
+          className="fixed inset-0 bg-gray-900 bg-opacity-50 z-30 md:hidden"
+          onClick={() => {
+            console.log('Overlay tıklandı, sidebar kapatılıyor');
+            closeSidebar();
+          }}
         />
       )}
 
       {/* Sidebar */}
       <aside
         ref={sidebarRef}
-        className={`fixed top-14 left-0 z-20 w-64 h-[calc(100vh-3.5rem)] transition-transform border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
+        className={`fixed top-14 left-0 z-40 w-64 h-[calc(100vh-3.5rem)] transition-transform duration-300 ease-in-out border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        } md:translate-x-0`}
       >
         <div className="h-full px-3 py-4 overflow-y-auto">
           <div className="space-y-1">

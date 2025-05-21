@@ -8,3 +8,4 @@ export { default as Stepper } from './Stepper';
 export { default as TabView } from './TabView';
 export { default as TreeView } from './TreeView';
 export { default as TreeViewWithCheckbox } from './TreeViewWithCheckbox';
+export { default as Modal } from './Modal';

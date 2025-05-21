@@ -14,7 +14,8 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { t } = useTranslation();
   const [systemTitle, setSystemTitle] = useState('SpesEngine');
-  const [logoUrl, setLogoUrl] = useState('/logo.png');
+  const [logoUrl, setLogoUrl] = useState<string | null>('/logo.png');
+  const [logoError, setLogoError] = useState(false);
 
   useEffect(() => {
     // LocalStorage'dan sistem ayarlarını al
@@ -27,6 +28,7 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
         }
         if (settings.logoUrl) {
           setLogoUrl(settings.logoUrl);
+          setLogoError(false); // Logo URL değiştiğinde hata durumunu sıfırla
         }
       } catch (error) {
         console.error('Sistem ayarları parse edilirken hata:', error);
@@ -43,28 +45,41 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
   };
 
   return (
-    <nav className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 fixed top-0 w-full z-30 h-14">
+    <nav className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 fixed top-0 w-full z-50 h-14">
       <div className="px-3 py-2 h-full flex items-center justify-between">
         {/* Sol Taraf: Hamburger ve Logo */}
         <div className="flex items-center">
           <button
             type="button"
             className="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none rounded-lg text-sm p-2 mr-2"
-            onClick={toggleSidebar}
+            onClick={() => {
+              console.log('Sidebar toggle butonuna tıklandı');
+              toggleSidebar();
+            }}
           >
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
               <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd"></path>
             </svg>
           </button>
           <Link to="/" className="flex items-center space-x-2">
-            <img 
-              src={logoUrl} 
-              alt={systemTitle}
-              className="h-8 w-auto"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = '/logo.png';
-              }}
-            />
+            {!logoError && logoUrl ? (
+              <img 
+                src={logoUrl} 
+                alt={systemTitle}
+                className="h-8 w-auto"
+                onError={(e) => {
+                  console.log('Logo yüklenemedi:', logoUrl);
+                  setLogoError(true);
+                  // Fallback logo denemesinde de hata olmaması için src temizlenir
+                  (e.target as HTMLImageElement).src = '';
+                }}
+              />
+            ) : (
+              // Logo yüklenemediğinde veya null olduğunda bu düğme gösterilir
+              <div className="h-8 w-8 flex items-center justify-center bg-primary-light dark:bg-primary-dark text-white rounded-md">
+                <span className="text-lg font-bold">{systemTitle.charAt(0)}</span>
+              </div>
+            )}
             <span className="text-primary-light dark:text-primary-dark text-xl font-semibold whitespace-nowrap">{systemTitle}</span>
           </Link>
         </div>

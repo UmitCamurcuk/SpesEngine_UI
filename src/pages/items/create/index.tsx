@@ -111,14 +111,90 @@ const AttributeField: React.FC<{
     validateField(newValue);
   };
   
+  // Validasyon kurallarını açıklayan tooltip içeriğini oluştur
+  const getValidationTooltip = () => {
+    const rules: string[] = [];
+    
+    if (attribute.isRequired) {
+      rules.push('Bu alan zorunludur');
+    }
+    
+    if (attribute.validations) {
+      switch (attribute.type) {
+        case 'number':
+          if (attribute.validations.min !== undefined) {
+            rules.push(`En düşük değer: ${attribute.validations.min}`);
+          }
+          if (attribute.validations.max !== undefined) {
+            rules.push(`En yüksek değer: ${attribute.validations.max}`);
+          }
+          if (attribute.validations.isInteger) {
+            rules.push('Sadece tam sayı girilebilir');
+          }
+          if (attribute.validations.isPositive) {
+            rules.push('Sadece pozitif sayı girilebilir');
+          }
+          break;
+          
+        case 'text':
+          if (attribute.validations.minLength !== undefined) {
+            rules.push(`En az ${attribute.validations.minLength} karakter`);
+          }
+          if (attribute.validations.maxLength !== undefined) {
+            rules.push(`En fazla ${attribute.validations.maxLength} karakter`);
+          }
+          if (attribute.validations.pattern) {
+            rules.push('Belirli bir format gerekli');
+          }
+          break;
+          
+        case 'date':
+          if (attribute.validations.minDate) {
+            rules.push(`En erken tarih: ${new Date(attribute.validations.minDate).toLocaleDateString()}`);
+          }
+          if (attribute.validations.maxDate) {
+            rules.push(`En geç tarih: ${new Date(attribute.validations.maxDate).toLocaleDateString()}`);
+          }
+          break;
+          
+        case 'select':
+        case 'multiselect':
+          if (attribute.validations.minSelections !== undefined) {
+            rules.push(`En az ${attribute.validations.minSelections} seçim yapılmalıdır`);
+          }
+          if (attribute.validations.maxSelections !== undefined) {
+            rules.push(`En fazla ${attribute.validations.maxSelections} seçim yapılabilir`);
+          }
+          break;
+      }
+    }
+    
+    return rules.length > 0 ? rules.join('\n') : null;
+  };
+  
+  const tooltipContent = getValidationTooltip();
+  
   return (
     <div key={attribute._id} className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
-      <label 
-        htmlFor={`attr-${attribute._id}`} 
-        className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-      >
-        {attribute.name} {attribute.isRequired && <span className="text-red-500">*</span>}
-      </label>
+      <div className="flex items-center mb-1">
+        <label 
+          htmlFor={`attr-${attribute._id}`} 
+          className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
+          {attribute.name} {attribute.isRequired && <span className="text-red-500">*</span>}
+        </label>
+        
+        {tooltipContent && (
+          <div className="relative flex ml-2 group">
+            <span className="flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-blue-500 rounded-full hover:bg-blue-600 cursor-help">?</span>
+            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 text-white text-xs rounded shadow-lg z-10 invisible group-hover:visible whitespace-pre-line">
+              <div className="font-semibold mb-1">Geçerlilik Kuralları:</div>
+              {tooltipContent}
+              <div className="h-2 w-2 bg-gray-800 transform rotate-45 absolute -bottom-1 left-1/2 -translate-x-1/2"></div>
+            </div>
+          </div>
+        )}
+      </div>
       
       {attribute.type === 'text' && (
         <div>

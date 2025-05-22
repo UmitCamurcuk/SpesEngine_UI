@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../redux/store';
 import { useTranslation } from '../../context/i18nContext';
+import systemSettingsService from '../../services/api/systemSettingsService';
 
 interface NavbarProps {
   toggleSidebar: () => void;
@@ -18,22 +19,61 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
   const [logoError, setLogoError] = useState(false);
 
   useEffect(() => {
-    // LocalStorage'dan sistem ayarlarını al
-    const systemSettings = localStorage.getItem('systemSettings');
-    if (systemSettings) {
+    // LocalStorage'dan sistem ayarlarını al ve sistemin logo/başlık ayarlarını yükle
+    const loadSystemSettings = async () => {
       try {
-        const settings = JSON.parse(systemSettings);
-        if (settings.systemTitle) {
-          setSystemTitle(settings.systemTitle);
+        console.log('Sistem ayarları yükleniyor...');
+        
+        // Önce localStorage'dan kontrol et
+        const systemSettingsStr = localStorage.getItem('systemSettings');
+        console.log('LocalStorage\'dan okunan ayarlar:', systemSettingsStr ? 'Mevcut' : 'Yok');
+        
+        let settings = null;
+        
+        if (systemSettingsStr) {
+          try {
+            settings = JSON.parse(systemSettingsStr);
+            console.log('Ayarlar başarıyla parse edildi:', settings);
+          } catch (parseError) {
+            console.error('Sistem ayarları parse edilirken hata:', parseError);
+          }
         }
-        if (settings.logoUrl) {
-          setLogoUrl(settings.logoUrl);
-          setLogoError(false); // Logo URL değiştiğinde hata durumunu sıfırla
+        
+        // LocalStorage'da ayarlar yoksa veya parse edilemiyorsa API'den getir
+        if (!settings) {
+          console.log('LocalStorage\'da geçerli ayarlar bulunamadı, API\'den alınıyor...');
+          try {
+            settings = await systemSettingsService.getSettings();
+            console.log('API\'den alınan ayarlar:', settings);
+            
+            // Alınan ayarları localStorage'a kaydet
+            localStorage.setItem('systemSettings', JSON.stringify(settings));
+          } catch (apiError) {
+            console.error('API\'den sistem ayarları alınırken hata:', apiError);
+          }
+        }
+        
+        // Ayarları uygula
+        if (settings) {
+          if (settings.systemTitle) {
+            console.log('Sistem başlığı ayarlanıyor:', settings.systemTitle);
+            setSystemTitle(settings.systemTitle);
+          }
+          
+          if (settings.logoUrl) {
+            console.log('Logo URL ayarlanıyor:', settings.logoUrl);
+            setLogoUrl(settings.logoUrl);
+            setLogoError(false);
+          }
+        } else {
+          console.log('Ayarlar bulunamadı, varsayılanlar kullanılıyor');
         }
       } catch (error) {
-        console.error('Sistem ayarları parse edilirken hata:', error);
+        console.error('Sistem ayarları yüklenirken beklenmeyen hata:', error);
       }
-    }
+    };
+    
+    loadSystemSettings();
   }, []);
 
   const handleLogout = () => {

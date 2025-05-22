@@ -20,8 +20,8 @@ const LoadingPage = () => {
       setLoadingText('Sistem ayarları yükleniyor');
       
       try {
-        const response = await systemSettingsService.getSettings();
-        const settings = response.data;
+        const settings = await systemSettingsService.getSettings();
+        console.log('Yüklenen sistem ayarları:', settings);
         
         // Tema ayarlarını güvenli bir şekilde kaydet
         const defaultTheme = {
@@ -43,8 +43,11 @@ const LoadingPage = () => {
         // Mevcut tema ayarlarını al veya varsayılan temayı kullan
         const currentTheme = settings?.theme || defaultTheme;
         
-        // Tema ayarlarını localStorage'a kaydet
+        // Sistem ayarlarını localStorage'a kaydet
         localStorage.setItem('systemSettings', JSON.stringify(settings));
+        console.log('localStorage\'a kaydedilen sistem ayarları:', settings);
+        
+        // Tema ayarlarını ayrıca kaydet
         localStorage.setItem('themeSettings', JSON.stringify(currentTheme));
 
         // Adım 3: Yönlendirme

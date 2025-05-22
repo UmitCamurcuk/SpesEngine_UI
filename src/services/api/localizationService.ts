@@ -50,6 +50,23 @@ const localizationService = {
       console.error('[localizationService] Çeviri eklenirken/güncellenirken hata oluştu:', error);
       throw error;
     }
+  },
+  
+  // Yeni çeviri oluştur (create sayfası için)
+  createTranslation: async (formData: { key: string, namespace: string, translations: Record<string, string> }) => {
+    try {
+      // upsertTranslation metodunu kullan
+      const response = await localizationService.upsertTranslation({
+        key: formData.key,
+        namespace: formData.namespace,
+        translations: formData.translations
+      });
+      
+      return response;
+    } catch (error) {
+      console.error('[localizationService] Yeni çeviri oluşturulurken hata oluştu:', error);
+      throw error;
+    }
   }
 };
 

@@ -99,9 +99,8 @@ const LocalizationCreatePage: React.FC = () => {
     setIsLoading(true);
     
     try {
-      // Backend API'si tamamlandığında buradaki kodu güncelle
-      // const result = await localizationService.createTranslation(formData);
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Mock delay
+      // Gerçek API çağrısı
+      const result = await localizationService.createTranslation(formData);
       
       toast.success('Çeviri başarıyla eklendi');
       navigate(`/localizations/details/${formData.namespace}/${formData.key}`);

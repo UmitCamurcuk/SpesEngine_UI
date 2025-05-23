@@ -53,6 +53,16 @@ const FamilyDetailsPage: React.FC = () => {
   // Üst aileler listesi
   const [parentFamilies, setParentFamilies] = useState<Family[]>([]);
   
+  // Kategori ağacı ve seçimi için
+  const [categoryTree, setCategoryTree] = useState<{
+    id: string,
+    name: string, 
+    data?: any,
+    children?: any[]
+  }[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
+  const [categoryName, setCategoryName] = useState<string>('');
+  
   // Form hataları
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   
@@ -115,6 +125,7 @@ const FamilyDetailsPage: React.FC = () => {
           code: familyData.code,
           description: familyData.description,
           parentFamily: familyData.parentFamily,
+          category: familyData.category,
           attributes: familyData.attributes || [],
           isActive: familyData.isActive
         });
@@ -126,6 +137,17 @@ const FamilyDetailsPage: React.FC = () => {
             setParentFamily(parentFamilyData);
           } catch (err) {
             console.error('Üst aile getirilirken hata oluştu:', err);
+          }
+        }
+
+        // Kategori bilgisini getir
+        if (familyData.category) {
+          try {
+            const categoryData = await categoryService.getCategoryById(familyData.category);
+            setCategoryName(categoryData.name);
+            setSelectedCategory(familyData.category);
+          } catch (err) {
+            console.error('Kategori bilgisi getirilirken hata oluştu:', err);
           }
         }
         
@@ -140,6 +162,8 @@ const FamilyDetailsPage: React.FC = () => {
           
           // Aile ağacını oluştur
           await fetchFamilyTree();
+          // Kategori ağacını oluştur
+          await fetchCategoryTree();
         } catch (err) {
           console.error('Aileler getirilirken hata oluştu:', err);
         }
@@ -149,7 +173,7 @@ const FamilyDetailsPage: React.FC = () => {
           try {
             const fetchedAttributes = [];
             for (const attributeId of familyData.attributes) {
-              const attributeData = await attributeService.getAttributeById(attributeId._id);
+              const attributeData = await attributeService.getAttributeById(attributeId._id || attributeId);
               fetchedAttributes.push({ 
                 id: attributeData._id, 
                 name: attributeData.name,
@@ -168,12 +192,15 @@ const FamilyDetailsPage: React.FC = () => {
             const fetchedGroups = [];
             for (const groupData of familyData.attributeGroups) {
               // API'den gelen grup verisi direkt olarak kullanılıyor
+              const groupId = typeof groupData === 'string' ? groupData : groupData._id;
+              const attributeGroupData = await attributeGroupService.getAttributeGroupById(groupId);
+              
               fetchedGroups.push({ 
-                id: groupData._id, 
-                name: groupData.name,
-                code: groupData.code,
-                description: groupData.description,
-                attributes: groupData.attributes || []
+                id: attributeGroupData._id, 
+                name: attributeGroupData.name,
+                code: attributeGroupData.code,
+                description: attributeGroupData.description,
+                attributes: attributeGroupData.attributes || []
               });
             }
             setAttributeGroups(fetchedGroups);
@@ -248,6 +275,78 @@ const FamilyDetailsPage: React.FC = () => {
     }
   };
   
+  // Kategori ağacını getir
+  const fetchCategoryTree = async () => {
+    try {
+      // Tüm kategorileri getir
+      const { categories } = await categoryService.getCategories({ limit: 500 });
+      
+      // Ağaç yapısını oluştur
+      const buildCategoryTree = (parentId: string | null = null): any[] => {
+        const nodes = categories
+          .filter(cat => {
+            // Kategorinin parent değeri (string veya obje olabilir)
+            let parentValue = null;
+            
+            if (cat.parent) {
+              // Eğer string ise direkt kullan
+              if (typeof cat.parent === 'string') {
+                parentValue = cat.parent;
+              } 
+              // Obje ise ve id özelliği varsa
+              else if (typeof cat.parent === 'object') {
+                const parentObj = cat.parent as any;
+                if (parentObj.id) {
+                  parentValue = parentObj.id;
+                } else if (parentObj._id) {
+                  parentValue = parentObj._id;
+                }
+              }
+            } 
+            // Eski kodlar için geriye dönük uyumluluk sağlama
+            else if (cat.parentCategory) {
+              // Eğer string ise direkt kullan
+              if (typeof cat.parentCategory === 'string') {
+                parentValue = cat.parentCategory;
+              } 
+              // Obje ise ve id özelliği varsa
+              else if (typeof cat.parentCategory === 'object') {
+                const parentObj = cat.parentCategory as any;
+                if (parentObj.id) {
+                  parentValue = parentObj.id;
+                } else if (parentObj._id) {
+                  parentValue = parentObj._id;
+                }
+              }
+            }
+            
+            // Parent ID ile eşleştir
+            return (parentId === null && !parentValue) || (parentValue === parentId);
+          })
+          .map(cat => {
+            const catId = cat._id;
+            const children = buildCategoryTree(catId);
+            return {
+              id: catId,
+              name: cat.name,
+              data: cat,
+              children: children.length > 0 ? children : undefined
+            };
+          });
+        
+        return nodes;
+      };
+      
+      const tree = buildCategoryTree();
+      setCategoryTree(tree);
+      
+      console.log('Kategori ağacı oluşturuldu:', tree);
+      
+    } catch (err) {
+      console.error('Kategori ağacı oluşturulurken hata oluştu:', err);
+    }
+  };
+  
   // Form değişiklik işleyicisi
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -293,8 +392,8 @@ const FamilyDetailsPage: React.FC = () => {
   };
   
   // Güncelleme işlemi
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleUpdate = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     
     if (!id || !validateForm()) return;
     
@@ -308,10 +407,13 @@ const FamilyDetailsPage: React.FC = () => {
         code: formData.code.trim(),
         description: formData.description.trim(),
         parentFamily: formData.parentFamily || undefined,
+        category: formData.category,
         isActive: formData.isActive,
         attributes: attributes.map(a => a.id),
         attributeGroups: attributeGroups.map(g => g.id)
       };
+      
+      console.log("API'ye gönderilecek veriler:", familyData);
       
       // API isteği gönder
       const updatedFamily = await familyService.updateFamily(id, familyData);
@@ -332,6 +434,22 @@ const FamilyDetailsPage: React.FC = () => {
           }
         } else {
           setParentFamily(null);
+        }
+      }
+      
+      // Kategori değiştiyse, kategori bilgisini güncelle
+      if (updatedFamily.category !== family?.category) {
+        if (updatedFamily.category) {
+          try {
+            const categoryData = await categoryService.getCategoryById(updatedFamily.category);
+            setCategoryName(categoryData.name);
+            setSelectedCategory(updatedFamily.category);
+          } catch (err) {
+            console.error('Kategori bilgisi getirilirken hata oluştu:', err);
+          }
+        } else {
+          setCategoryName('');
+          setSelectedCategory(undefined);
         }
       }
       
@@ -506,7 +624,7 @@ const FamilyDetailsPage: React.FC = () => {
         Hiyerarşik İlişkiler
       </h3>
       
-      <div className="grid grid-cols-1 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Aile Hiyerarşisi */}
         <div className="space-y-3">
           <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -534,6 +652,8 @@ const FamilyDetailsPage: React.FC = () => {
                           console.log("Hiyerarşi tab - formData güncellendi:", updated);
                           return updated;
                         });
+                      } else if (selectedIds.length === 0) {
+                        setFormData(prev => ({ ...prev, parentFamily: undefined }));
                       }
                     }}
                     className="shadow-sm"
@@ -568,9 +688,9 @@ const FamilyDetailsPage: React.FC = () => {
                 >
                   Tekrar Dene
                 </button>
-              </div>
+                  </div>
             )}
-          </div>
+                </div>
           
           {/* Seçili Üst Aile Bilgisi */}
           {parentFamily && (
@@ -583,6 +703,95 @@ const FamilyDetailsPage: React.FC = () => {
                   <h4 className="text-sm font-medium text-blue-700 dark:text-blue-300">Üst Aile Bilgisi</h4>
                   <p className="mt-1 text-sm text-blue-600 dark:text-blue-400">
                     Bu aile, <strong>{parentFamily.name}</strong> ailesinin alt ailesidir.
+                </p>
+              </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Kategori Hiyerarşisi */}
+        <div className="space-y-3">
+          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Kategori Seçimi
+          </h4>
+          <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+            {categoryTree.length > 0 ? (
+              <div>
+                {isEditing ? (
+                  <TreeViewWithCheckbox 
+                    key={`category-tree-${tabRefreshCounter}-${formData.category || 'none'}`}
+                    data={categoryTree} 
+                    defaultSelectedIds={formData.category ? [formData.category] : []}
+                    expandAll={true}
+                    maxHeight="300px"
+                    showRelationLines={true}
+                    variant="spectrum"
+                    onSelectionChange={(selectedIds) => {
+                      if (selectedIds.length > 0) {
+                        // Düzenleme modunda seçilen kategoriyi ayarla
+                        const newCategoryId = selectedIds[0] || undefined;
+                        console.log("Kategori seçildi:", newCategoryId);
+                        setSelectedCategory(newCategoryId);
+                        setFormData(prev => {
+                          const updated = { ...prev, category: newCategoryId };
+                          return updated;
+                        });
+                      } else {
+                        setSelectedCategory(undefined);
+                        setFormData(prev => {
+                          const updated = { ...prev, category: undefined };
+                          return updated;
+                        });
+                      }
+                    }}
+                    className="shadow-sm"
+                  />
+                ) : (
+                  <TreeView 
+                    data={categoryTree} 
+                    activeNodeId={selectedCategory}
+                    expandAll={true}
+                    maxHeight="300px"
+                    showRelationLines={true}
+                    variant="spectrum"
+                    onNodeClick={(node) => {
+                      if (node.id !== id) {
+                        // Sadece görüntüleme için
+                      }
+                    }}
+                    className="shadow-sm"
+                    key={`category-tree-view-${selectedCategory || 'none'}`}
+                  />
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <svg className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                </svg>
+                <p className="text-gray-500 dark:text-gray-400">Kategori listesi yüklenemedi.</p>
+                <button 
+                  onClick={() => fetchCategoryTree()} 
+                  className="mt-3 px-3 py-1.5 bg-primary-light text-white rounded-md hover:bg-primary-light/90 dark:bg-primary-dark dark:hover:bg-primary-dark/90 transition-colors text-sm"
+                >
+                  Tekrar Dene
+                </button>
+              </div>
+            )}
+          </div>
+          
+          {/* Seçili Kategori Bilgisi */}
+          {categoryName && (
+            <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-md border border-green-200 dark:border-green-800">
+              <div className="flex items-start">
+                <svg className="w-5 h-5 mr-2 mt-0.5 text-green-500 dark:text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <h4 className="text-sm font-medium text-green-700 dark:text-green-300">Seçili Kategori</h4>
+                  <p className="mt-1 text-sm text-green-600 dark:text-green-400">
+                    Bu aile, <strong>{categoryName}</strong> kategorisine bağlıdır.
                   </p>
                 </div>
               </div>
@@ -793,25 +1002,25 @@ const FamilyDetailsPage: React.FC = () => {
     if (!isEditing) return;
     
     // Öznitelik grubunu listeden kaldır
-    setAttributeGroups(prev => prev.filter(group => group.id !== groupId));
+      setAttributeGroups(prev => prev.filter(group => group.id !== groupId));
     
     toast.success("Öznitelik grubu kaldırıldı");
     console.log(`Öznitelik grubu kaldırıldı: ${groupId}`);
   };
-
+  
   // Gruptan öznitelik kaldırma handler'ı
   const handleRemoveAttributeFromGroup = (attributeId: string, groupId: string) => {
     if (!isEditing) return;
     
     // Özniteliği gruptan kaldır
     setAttributeGroups(prev => prev.map(group => {
-      if (group.id === groupId) {
-        return {
-          ...group,
+          if (group.id === groupId) {
+            return {
+              ...group,
           attributes: group.attributes ? group.attributes.filter((attr: any) => attr._id !== attributeId) : []
-        };
-      }
-      return group;
+            };
+          }
+          return group;
     }));
     
     toast.success("Öznitelik gruptan kaldırıldı");
@@ -823,7 +1032,7 @@ const FamilyDetailsPage: React.FC = () => {
     if (!isEditing) return;
     
     // Özniteliği listeden kaldır
-    setAttributes(prev => prev.filter(attr => attr.id !== attributeId));
+      setAttributes(prev => prev.filter(attr => attr.id !== attributeId));
     
     toast.success("Öznitelik kaldırıldı");
     console.log(`Öznitelik kaldırıldı: ${attributeId}`);
@@ -836,6 +1045,14 @@ const FamilyDetailsPage: React.FC = () => {
     // Öznitelik gruplarını getir ve state'e ekle
     const fetchAndAddGroups = async () => {
       try {
+        const newGroups: {
+          id: string,
+          name: string,
+          code: string,
+          description?: string,
+          attributes?: any[]
+        }[] = [];
+        
         for (const groupId of selectedGroupIds) {
           // Grup zaten ekli mi kontrol et
           if (attributeGroups.some(g => g.id === groupId)) continue;
@@ -844,17 +1061,24 @@ const FamilyDetailsPage: React.FC = () => {
             includeAttributes: true
           });
           
-          setAttributeGroups(prev => [...prev, {
+          newGroups.push({
             id: groupData._id,
             name: groupData.name,
             code: groupData.code,
             description: groupData.description,
             attributes: groupData.attributes || []
-          }]);
+          });
         }
         
-        toast.success("Öznitelik grupları başarıyla eklendi");
+        if (newGroups.length > 0) {
+          setAttributeGroups(prev => [...prev, ...newGroups]);
+          toast.success(`${newGroups.length} öznitelik grupları başarıyla eklendi`);
+        } else {
+          toast.error("Seçilen gruplar zaten eklenmiş");
+        }
+        
         setShowAttributeGroupModal(false);
+        setSelectedGroupIdsForModal([]);
       } catch (err) {
         toast.error("Öznitelik grupları eklenirken hata oluştu");
         console.error('Öznitelik grupları eklenirken hata:', err);
@@ -871,21 +1095,34 @@ const FamilyDetailsPage: React.FC = () => {
     // Öznitelikleri getir ve state'e ekle
     const fetchAndAddAttributes = async () => {
       try {
+        const newAttributes: {
+          id: string,
+          name: string,
+          type: string
+        }[] = [];
+        
         for (const attrId of selectedAttributeIds) {
           // Öznitelik zaten ekli mi kontrol et
           if (attributes.some(a => a.id === attrId)) continue;
           
           const attrData = await attributeService.getAttributeById(attrId);
           
-          setAttributes(prev => [...prev, {
+          newAttributes.push({
             id: attrData._id,
             name: attrData.name,
             type: attrData.type
-          }]);
+          });
         }
         
-        toast.success("Öznitelikler başarıyla eklendi");
+        if (newAttributes.length > 0) {
+          setAttributes(prev => [...prev, ...newAttributes]);
+          toast.success(`${newAttributes.length} öznitelik başarıyla eklendi`);
+        } else {
+          toast.error("Seçilen öznitelikler zaten eklenmiş");
+        }
+        
         setShowAttributeModal(false);
+        setSelectedAttributeIdsForModal([]);
       } catch (err) {
         toast.error("Öznitelikler eklenirken hata oluştu");
         console.error('Öznitelikler eklenirken hata:', err);
@@ -984,8 +1221,18 @@ const FamilyDetailsPage: React.FC = () => {
   useEffect(() => {
     if (isEditing && family) {
       const parentFamilyId = getEntityId(family.parentFamily);
+      const categoryId = getEntityId(family.category);
       
-      console.log("Düzenleme modu değişti. Parent Family ID:", parentFamilyId);
+      console.log("Düzenleme modu değişti. Parent Family ID:", parentFamilyId, "Category ID:", categoryId);
+      
+      // Form verisini güncelle
+      setFormData(prev => ({
+        ...prev, 
+        parentFamily: parentFamilyId,
+        category: categoryId
+      }));
+      
+      setSelectedCategory(categoryId);
       
       // TreeView bileşenlerinin yeniden render edilmesi için tabRefreshCounter'ı artır
       setTabRefreshCounter(prev => prev + 1);
@@ -1011,13 +1258,13 @@ const FamilyDetailsPage: React.FC = () => {
       <div className="bg-red-50 dark:bg-red-900/20 p-6 rounded-lg border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400">
         <h3 className="text-lg font-semibold mb-2">Hata Oluştu</h3>
         <p>{error || 'Bilinmeyen bir hata oluştu'}</p>
-        <Button
-          variant="outline"
-          className="mt-4"
-          onClick={() => navigate('/families/list')}
-        >
+            <Button
+              variant="outline"
+              className="mt-4"
+              onClick={() => navigate('/families/list')}
+            >
           Listeye Dön
-        </Button>
+            </Button>
       </div>
     );
   }
@@ -1026,38 +1273,38 @@ const FamilyDetailsPage: React.FC = () => {
     <>
       <div className="space-y-6">
         {/* Başlık */}
-        <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
           <div className="flex justify-between items-center mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
-                <svg className="w-7 h-7 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
-                </svg>
-                {isEditing ? 'Aile Düzenle' : 'Aile Detayları'}
-              </h1>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
+              <svg className="w-7 h-7 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+              </svg>
+              {isEditing ? 'Aile Düzenle' : 'Aile Detayları'}
+            </h1>
               <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                 {family.name} ailesinin detaylı bilgileri
               </p>
-            </div>
-            
+          </div>
+          
             <div className="flex space-x-2">
-              <Button
-                variant="outline"
-                onClick={() => navigate('/families/list')}
+            <Button
+              variant="outline"
+              onClick={() => navigate('/families/list')}
                 className="flex items-center"
-              >
-                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
+            >
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
                 Listeye Dön
-              </Button>
-              
+            </Button>
+            
               {isEditing ? (
-                <>
-                  <Button
-                    variant="outline"
+              <>
+                <Button
+                  variant="outline"
                     onClick={handleCancel}
-                    className="flex items-center"
+                  className="flex items-center"
                     disabled={isSubmitting}
                   >
                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -1066,7 +1313,7 @@ const FamilyDetailsPage: React.FC = () => {
                     İptal
                   </Button>
                   <Button
-                    onClick={handleUpdate}
+                    onClick={() => handleUpdate()}
                     variant="primary"
                     className="flex items-center"
                     disabled={isSubmitting}
@@ -1095,28 +1342,28 @@ const FamilyDetailsPage: React.FC = () => {
                     variant="primary"
                     onClick={handleEdit}
                     className="flex items-center"
-                  >
-                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
                     Düzenle
-                  </Button>
-                  <Button
-                    variant="danger"
-                    className="flex items-center"
-                    onClick={handleDelete}
-                  >
-                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
+                </Button>
+                <Button
+                  variant="danger"
+                  className="flex items-center"
+                  onClick={handleDelete}
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
                     Sil
-                  </Button>
-                </>
-              )}
-            </div>
+                </Button>
+              </>
+            )}
           </div>
         </div>
-        
+      </div>
+      
         {/* Ana İçerik */}
         <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
           {error && (
@@ -1125,18 +1372,18 @@ const FamilyDetailsPage: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <span>{error}</span>
-            </div>
+      </div>
           )}
-          
-          {success && (
+      
+      {success && (
             <div className="mb-4 bg-green-50 dark:bg-green-900/20 p-4 rounded-md border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 flex items-start">
               <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
               <span>Aile başarıyla güncellendi!</span>
-            </div>
-          )}
-          
+        </div>
+      )}
+      
           {isEditing ? (
             <div className="space-y-6">
               <TabView 
@@ -1164,7 +1411,7 @@ const FamilyDetailsPage: React.FC = () => {
                             {formErrors.name && (
                               <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.name}</p>
                             )}
-                          </div>
+        </div>
                           
                           {/* Kod */}
                           <div>
@@ -1182,8 +1429,8 @@ const FamilyDetailsPage: React.FC = () => {
                             />
                             {formErrors.code && (
                               <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.code}</p>
-                            )}
-                          </div>
+      )}
+    </div>
                           
                           {/* Açıklama */}
                           <div className="col-span-1 md:col-span-2">

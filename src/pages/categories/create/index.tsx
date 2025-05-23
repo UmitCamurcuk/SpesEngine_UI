@@ -685,6 +685,7 @@ const CategoryCreatePage: React.FC = () => {
           <div className="space-y-4">
             {/* Öznitelikler */}
             <PaginatedAttributeSelector
+              key="category-create-attribute-selector"
               selectedAttributes={selectedAttributes}
               onChange={handleAttributeChange}
             />

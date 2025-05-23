@@ -45,7 +45,7 @@ interface ApiAttribute {
   [key: string]: any;
 }
 
-const PaginatedAttributeSelector: React.FC<PaginatedAttributeSelectorProps> = ({
+const PaginatedAttributeSelector: React.FC<PaginatedAttributeSelectorProps> = React.memo(({
   selectedAttributes,
   onChange,
   excludeIds = [] // Varsayılan olarak boş dizi
@@ -65,6 +65,8 @@ const PaginatedAttributeSelector: React.FC<PaginatedAttributeSelectorProps> = ({
   const isApiCallInProgress = useRef(false);
   // Debounce için timeout ref'i
   const debounceTimeout = useRef<number | null>(null);
+  // Son API çağrısı zamanı
+  const lastFetchTime = useRef<number>(0);
 
   // Sayfalama değişkenleri
   const totalPages = Math.ceil(totalAttributes / pageSize);
@@ -81,10 +83,24 @@ const PaginatedAttributeSelector: React.FC<PaginatedAttributeSelectorProps> = ({
     };
     
     fetchAttributeGroups();
+    
+    // Component unmount olduğunda timeout'u temizle
+    return () => {
+      if (debounceTimeout.current) {
+        window.clearTimeout(debounceTimeout.current);
+      }
+    };
   }, []);
   
   // API çağrısı memoize
   const fetchAttributes = useCallback(async () => {
+    // Eğer son API çağrısından bu yana 1 saniye geçmediyse, çağrıyı iptal et
+    const now = Date.now();
+    if (now - lastFetchTime.current < 1000) {
+      console.log('Son API çağrısından bu yana çok az zaman geçti, yeni istek atlanıyor');
+      return;
+    }
+    
     // Eğer zaten bir API çağrısı devam ediyorsa yeni çağrı yapma
     if (isApiCallInProgress.current) {
       console.log('İşlem zaten devam ediyor, yeni istek atlanıyor');
@@ -92,6 +108,7 @@ const PaginatedAttributeSelector: React.FC<PaginatedAttributeSelectorProps> = ({
     }
     
     isApiCallInProgress.current = true;
+    lastFetchTime.current = now;
     setIsLoading(true);
     setError(null);
     
@@ -173,10 +190,17 @@ const PaginatedAttributeSelector: React.FC<PaginatedAttributeSelectorProps> = ({
       window.clearTimeout(debounceTimeout.current);
     }
     
-    // API çağrısını 300ms gecikme ile yap (debounce)
+    // Referans değeri tut
+    const lastAttemptTime = Date.now();
+    const debounceDelay = 500; // Gecikmeyi artırarak sorunu çözelim
+    
+    // API çağrısını debounce ile yap
     debounceTimeout.current = window.setTimeout(() => {
-      fetchAttributes();
-    }, 300);
+      // Eğer son API çağrısından bu yana yeterli zaman geçmişse
+      if (Date.now() - lastAttemptTime >= debounceDelay) {
+        fetchAttributes();
+      }
+    }, debounceDelay);
     
     // Cleanup function
     return () => {
@@ -486,6 +510,42 @@ const PaginatedAttributeSelector: React.FC<PaginatedAttributeSelectorProps> = ({
       </p>
     </div>
   );
-};
+}, (prevProps, nextProps) => {
+  // selectedAttributes dizileri aynı referansa sahip değilse ama içerik aynıysa
+  // gereksiz render'ı önle
+  if (prevProps.selectedAttributes.length !== nextProps.selectedAttributes.length) {
+    return false; // Render et
+  }
+  
+  // excludeIds karşılaştırması
+  if (
+    (prevProps.excludeIds && !nextProps.excludeIds) || 
+    (!prevProps.excludeIds && nextProps.excludeIds) ||
+    (prevProps.excludeIds && nextProps.excludeIds && 
+     prevProps.excludeIds.length !== nextProps.excludeIds.length)
+  ) {
+    return false; // Render et
+  }
+  
+  // selectedAttributes içeriğini kontrol et
+  for (let i = 0; i < prevProps.selectedAttributes.length; i++) {
+    if (prevProps.selectedAttributes[i] !== nextProps.selectedAttributes[i]) {
+      return false; // Render et
+    }
+  }
+  
+  // excludeIds içeriğini kontrol et (varsa)
+  if (prevProps.excludeIds && nextProps.excludeIds) {
+    for (let i = 0; i < prevProps.excludeIds.length; i++) {
+      if (prevProps.excludeIds[i] !== nextProps.excludeIds[i]) {
+        return false; // Render et
+      }
+    }
+  }
+  
+  // onChange fonksiyonu karşılaştırması yapmıyoruz çünkü 
+  // genellikle her render'da yeni bir referans oluşturulur
+  return true; // Render etme
+});
 
 export default PaginatedAttributeSelector; 

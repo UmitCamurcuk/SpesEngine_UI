@@ -45,6 +45,7 @@ const CategoryDetailsPage: React.FC = () => {
   const [categoryTree, setCategoryTree] = useState<TreeNode[]>([]);
   const [familyTree, setFamilyTree] = useState<TreeNode[]>([]);
   const [familyName, setFamilyName] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
   const [attributes, setAttributes] = useState<{id: string, name: string, type: string}[]>([]);
   const [attributeGroups, setAttributeGroups] = useState<{
     id: string, 
@@ -146,6 +147,11 @@ const CategoryDetailsPage: React.FC = () => {
           parentId: parentId || undefined,
           family: familyId || undefined
         });
+
+        // Seçili kategoriyi ayarla
+        if (familyId) {
+          setSelectedCategory(familyId);
+        }
         
         // Üst kategoriyi getir
         if (categoryData.parentCategory) {
@@ -489,104 +495,251 @@ const CategoryDetailsPage: React.FC = () => {
   const renderGeneralInfo = () => (
     <div className="space-y-6" key="general-info-content">
       {/* Bilgi görüntüleme */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Temel Bilgiler Başlığı */}
-        <div className="col-span-1 md:col-span-2">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Temel Bilgiler</h3>
-        </div>
-        
-        {/* İsim */}
-        <div>
-          <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Kategori Adı</h4>
-          <p className="mt-1 text-gray-900 dark:text-white">{category?.name}</p>
-        </div>
-        
-        {/* Kod */}
-        <div>
-          <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Kod</h4>
-          <p className="mt-1 text-gray-900 dark:text-white">{category?.code}</p>
-        </div>
-        
-        {/* Üst Kategori */}
-        <div>
-          <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Üst Kategori</h4>
-          {isEditing ? (
-            <TreeViewWithCheckbox
-              key={`category-tree-${tabRefreshCounter}-${formData.parentId || 'none'}`}
-              data={categoryTree.map(cat => ({
-                id: cat.id,
-                name: cat.name,
-                label: cat.name,
-                children: cat.children
-              }))}
-              onSelectionChange={(selectedIds) => {
-                if (selectedIds.length > 0 && selectedIds[0] !== id) {
-                  // Düzenleme modunda seçilen kategoriyi üst kategori olarak ayarla
-                  const newParentId = selectedIds[0] || undefined;
-                  console.log("Hiyerarşi tab - Üst kategori değişti:", newParentId);
-                  setFormData(prev => {
-                    const updated = { ...prev, parentId: newParentId };
-                    console.log("Hiyerarşi tab - formData güncellendi:", updated);
-                    return updated;
-                  });
-                }
-              }}
-              defaultSelectedIds={formData.parentId ? [formData.parentId] : []}
-              expandAll={true}
-              variant="spectrum"
-              maxHeight="200px"
-            />
-          ) : (
-            <p className="text-gray-900 dark:text-white">
-              {category?.parentId ? categoryTree.find(c => c.id === category.parentId)?.name : 'Ana Kategori'}
-            </p>
-          )}
-        </div>
-        
-        {/* Aile */}
-        <div>
-          <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Aile</h4>
-          <p className="mt-1 text-gray-900 dark:text-white">
-            {familyName || <span className="text-gray-500 italic">Atanmamış</span>}
-          </p>
-        </div>
-        
-        {/* Durum */}
-        <div>
-          <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Durum</h4>
-          <div className="mt-1">
-            {category?.isActive ? (
-              <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500">
-                Aktif
-              </span>
-            ) : (
-              <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-500">
-                Pasif
-              </span>
-            )}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Sol Taraf - Temel Bilgiler */}
+        <div className="lg:col-span-7 space-y-6">
+          {/* Temel Bilgiler Kartı */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <div className="flex items-center border-b border-gray-100 dark:border-gray-700 px-6 py-4">
+              <svg className="w-5 h-5 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Temel Bilgiler</h3>
+            </div>
+            <div className="p-6 space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* İsim */}
+                <div className="space-y-1">
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 mr-1.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                    </svg>
+                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Kategori Adı</h4>
+                  </div>
+                  <p className="text-base font-medium text-gray-900 dark:text-white">{category?.name || '-'}</p>
+                </div>
+                
+                {/* Kod */}
+                <div className="space-y-1">
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 mr-1.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                    </svg>
+                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Kod</h4>
+                  </div>
+                  <p className="text-base font-medium text-gray-900 dark:text-white font-mono">{category?.code || '-'}</p>
+                </div>
+                
+                {/* Üst Kategori */}
+                <div className="space-y-1">
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 mr-1.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                    </svg>
+                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Üst Kategori</h4>
+                  </div>
+                  {isEditing ? (
+                    <TreeViewWithCheckbox
+                      key={`category-tree-${tabRefreshCounter}-${formData.parentId || 'none'}`}
+                      data={categoryTree.map(cat => ({
+                        id: cat.id,
+                        name: cat.name,
+                        label: cat.name,
+                        children: cat.children
+                      }))}
+                      onSelectionChange={(selectedIds) => {
+                        if (selectedIds.length > 0 && selectedIds[0] !== id) {
+                          // Düzenleme modunda seçilen kategoriyi üst kategori olarak ayarla
+                          const newParentId = selectedIds[0] || undefined;
+                          console.log("Hiyerarşi tab - Üst kategori değişti:", newParentId);
+                          setFormData(prev => {
+                            const updated = { ...prev, parentId: newParentId };
+                            console.log("Hiyerarşi tab - formData güncellendi:", updated);
+                            return updated;
+                          });
+                        }
+                      }}
+                      defaultSelectedIds={formData.parentId ? [formData.parentId] : []}
+                      expandAll={true}
+                      variant="spectrum"
+                      maxHeight="200px"
+                    />
+                  ) : (
+                    <div className="flex items-center mt-1">
+                      {parentCategoryName ? (
+                        <p className="text-base font-medium text-gray-900 dark:text-white">{parentCategoryName}</p>
+                      ) : (
+                        <p className="text-base font-medium text-gray-500 dark:text-gray-400 italic">Ana Kategori</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Aile */}
+                <div className="space-y-1">
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 mr-1.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path>
+                    </svg>
+                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Aile</h4>
+                  </div>
+                  <div className="flex items-center mt-1">
+                    {familyName ? (
+                      <p className="text-base font-medium text-gray-900 dark:text-white">{familyName}</p>
+                    ) : (
+                      <p className="text-base font-medium text-gray-500 dark:text-gray-400 italic">Atanmamış</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Durum */}
+              <div className="space-y-1 pt-2 border-t border-gray-100 dark:border-gray-700">
+                <div className="flex items-center">
+                  <svg className="w-4 h-4 mr-1.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Durum</h4>
+                </div>
+                <div className="mt-1">
+                  {category?.isActive ? (
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500">
+                      <span className="w-2 h-2 mr-1 bg-green-500 rounded-full"></span>
+                      Aktif
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-500">
+                      <span className="w-2 h-2 mr-1 bg-red-500 rounded-full"></span>
+                      Pasif
+                    </span>
+                  )}
+                </div>
+              </div>
+              
+              {/* Açıklama */}
+              <div className="space-y-1 pt-2 border-t border-gray-100 dark:border-gray-700">
+                <div className="flex items-center">
+                  <svg className="w-4 h-4 mr-1.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7"></path>
+                  </svg>
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Açıklama</h4>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 mt-1">
+                  <p className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">
+                    {category?.description || <span className="text-gray-500 dark:text-gray-400 italic">Açıklama bulunmuyor</span>}
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         
-        {/* Açıklama */}
-        <div className="col-span-1 md:col-span-2">
-          <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Açıklama</h4>
-          <p className="mt-1 text-gray-900 dark:text-white whitespace-pre-wrap">{category?.description || '-'}</p>
-        </div>
-        
-        {/* Oluşturulma Tarihi */}
-        <div>
-          <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Oluşturulma Tarihi</h4>
-          <p className="mt-1 text-gray-900 dark:text-white">
-            {new Date(category?.createdAt || '').toLocaleString('tr-TR')}
-          </p>
-        </div>
-        
-        {/* Son Güncelleme */}
-        <div>
-          <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Son Güncelleme</h4>
-          <p className="mt-1 text-gray-900 dark:text-white">
-            {new Date(category?.updatedAt || '').toLocaleString('tr-TR')}
-          </p>
+        {/* Sağ Taraf - Meta Bilgiler */}
+        <div className="lg:col-span-5 space-y-6">
+          {/* Meta Bilgiler Kartı */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <div className="flex items-center border-b border-gray-100 dark:border-gray-700 px-6 py-4">
+              <svg className="w-5 h-5 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Meta Bilgiler</h3>
+            </div>
+            <div className="p-6 space-y-4">
+              {/* Oluşturulma Tarihi */}
+              <div className="flex justify-between items-center pb-3 border-b border-gray-100 dark:border-gray-700">
+                <div className="flex items-center">
+                  <svg className="w-4 h-4 mr-1.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                  </svg>
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Oluşturulma Tarihi</h4>
+                </div>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  {new Date(category?.createdAt || '').toLocaleString('tr-TR')}
+                </p>
+              </div>
+              
+              {/* Son Güncelleme */}
+              <div className="flex justify-between items-center pb-3 border-b border-gray-100 dark:border-gray-700">
+                <div className="flex items-center">
+                  <svg className="w-4 h-4 mr-1.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Son Güncelleme</h4>
+                </div>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  {new Date(category?.updatedAt || '').toLocaleString('tr-TR')}
+                </p>
+              </div>
+              
+              {/* ID Bilgisi */}
+              <div className="flex justify-between items-center pb-3 border-b border-gray-100 dark:border-gray-700">
+                <div className="flex items-center">
+                  <svg className="w-4 h-4 mr-1.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                  </svg>
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Kategori ID</h4>
+                </div>
+                <p className="text-sm font-mono text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                  {category?._id || '-'}
+                </p>
+              </div>
+              
+              {/* İlişkili Veriler */}
+              <div className="space-y-2 pt-2">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">İlişkili Veriler</h4>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <div className="inline-flex items-center bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg">
+                    <svg className="w-4 h-4 mr-1.5 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                    </svg>
+                    <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                      {attributeGroups.length} Öznitelik Grubu
+                    </span>
+                  </div>
+                  <div className="inline-flex items-center bg-purple-50 dark:bg-purple-900/20 px-3 py-1.5 rounded-lg">
+                    <svg className="w-4 h-4 mr-1.5 text-purple-500 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
+                      {attributes.length} Öznitelik
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Hızlı İşlemler Kartı */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <div className="flex items-center border-b border-gray-100 dark:border-gray-700 px-6 py-4">
+              <svg className="w-5 h-5 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+              </svg>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Hızlı İşlemler</h3>
+            </div>
+            <div className="p-4 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                className="flex items-center justify-center px-4 py-2.5 text-sm font-medium rounded-lg text-blue-700 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-900/30 dark:hover:bg-blue-900/50"
+                onClick={() => setActiveTab('attributes')}
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7"></path>
+                </svg>
+                Özniteliklere Git
+              </button>
+              <button
+                type="button"
+                className="flex items-center justify-center px-4 py-2.5 text-sm font-medium rounded-lg text-purple-700 bg-purple-50 hover:bg-purple-100 dark:text-purple-400 dark:bg-purple-900/30 dark:hover:bg-purple-900/50"
+                onClick={() => setActiveTab('hierarchy')}
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                </svg>
+                Hiyerarşiye Git
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -685,7 +838,7 @@ const CategoryDetailsPage: React.FC = () => {
         {/* Aile Hiyerarşisi */}
         <div className="space-y-3">
           <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Aile Hiyerarşisi
+            Aile Seçimi
           </h4>
           <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
             {familyTree.length > 0 ? (
@@ -700,8 +853,12 @@ const CategoryDetailsPage: React.FC = () => {
                       children: fam.children
                     }))}
                     onSelectionChange={(selectedIds) => {
-                      console.log("Seçilen aile ID:", selectedIds[0] || undefined);
-                      setFormData({ ...formData, family: selectedIds[0] || undefined });
+                      if (isEditing) {
+                        const newFamilyId = selectedIds[0] || undefined;
+                        console.log("Seçilen aile ID:", newFamilyId);
+                        setSelectedCategory(newFamilyId);
+                        setFormData(prev => ({ ...prev, family: newFamilyId }));
+                      }
                     }}
                     defaultSelectedIds={getEntityId(category?.family) ? [getEntityId(category?.family)!] : []}
                     expandAll={true}
@@ -716,7 +873,7 @@ const CategoryDetailsPage: React.FC = () => {
                     maxHeight="300px"
                     showRelationLines={true}
                     variant="spectrum"
-                    onNodeClick={() => {}}
+                    onNodeClick={(node) => {}}
                     className="shadow-sm"
                     key={`family-tree-view-${getEntityId(category?.family) || 'none'}`}
                   />
@@ -739,7 +896,7 @@ const CategoryDetailsPage: React.FC = () => {
           </div>
           
           {/* Seçili Aile Bilgisi */}
-          {category?.family && (
+          {familyName && (
             <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-md border border-green-200 dark:border-green-800">
               <div className="flex items-start">
                 <svg className="w-5 h-5 mr-2 mt-0.5 text-green-500 dark:text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -945,17 +1102,29 @@ const CategoryDetailsPage: React.FC = () => {
       parentId: parentId || undefined,
       family: familyId || undefined
     });
+
+    // Aile seçimini de ayarla
+    setSelectedCategory(familyId);
   };
 
   const handleCancel = () => {
     setIsEditing(false);
+    
+    // Kategori verilerini orijinal haline geri getir
+    const parentId = getEntityId(category?.parentCategory) || getEntityId(category?.parent);
+    const familyId = getEntityId(category?.family);
+    
     setFormData({
       name: category?.name || '',
       code: category?.code || '',
       description: category?.description || '',
       isActive: category?.isActive || true,
-      parentId: category?.parentId || undefined
+      parentId: parentId || undefined,
+      family: familyId || undefined
     });
+    
+    // Aile seçimini orijinal haline getir
+    setSelectedCategory(familyId);
   };
   
   // Öznitelik grubu kaldırma handler'ı
@@ -1426,8 +1595,12 @@ const CategoryDetailsPage: React.FC = () => {
                               children: fam.children
                             }))}
                             onSelectionChange={(selectedIds) => {
-                              console.log("Seçilen aile ID:", selectedIds[0] || undefined);
-                              setFormData({ ...formData, family: selectedIds[0] || undefined });
+                              if (isEditing) {
+                                const newFamilyId = selectedIds[0] || undefined;
+                                console.log("Seçilen aile ID:", newFamilyId);
+                                setSelectedCategory(newFamilyId);
+                                setFormData(prev => ({ ...prev, family: newFamilyId }));
+                              }
                             }}
                             defaultSelectedIds={getEntityId(category?.family) ? [getEntityId(category?.family)!] : []}
                             expandAll={true}

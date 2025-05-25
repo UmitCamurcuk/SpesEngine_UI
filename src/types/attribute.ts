@@ -52,11 +52,21 @@ export interface Attribute {
   description: string;
   isRequired: boolean;
   options: string[];
-  attributeGroup?: string;
+  attributeGroup?: string | {
+    _id: string;
+    name: string;
+    code?: string;
+    description?: string;
+  };
   validations?: AttributeValidation;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  // Ek alanlar - details sayfası için
+  usageCount?: number;
+  relationships?: Array<{ entityType: string; count: number }>;
+  history?: Array<{ action: string; date: string; user: string; type: string }>;
+  examples?: string[];
 }
 
 // Response için tip tanımı
@@ -72,10 +82,10 @@ export interface ApiResponse<T> {
 
 // Yeni attribute için tip tanımı
 export interface CreateAttributeDto {
-  name: string;
+  name: string | any; // Translation ID olabilir
   code: string;
   type: AttributeType;
-  description?: string;
+  description?: string | any; // Translation ID olabilir
   isRequired?: boolean;
   options?: string[];
   attributeGroup?: string;

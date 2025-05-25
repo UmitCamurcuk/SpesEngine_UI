@@ -1,76 +1,92 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Table from '../../../components/ui/Table';
 import type { TableColumn, SortParams, FilterParams, PaginationParams } from '../../../components/ui/Table';
 import Button from '../../../components/ui/Button';
+import Breadcrumb from '../../../components/common/Breadcrumb';
 import AttributeBadge from '../../../components/attributes/AttributeBadge';
 import attributeService from '../../../services/api/attributeService';
-import type { Attribute, AttributeApiParams } from '../../../services/api/attributeService';
+import { Attribute } from '../../../types/attribute';
 import { AttributeType } from '../../../types/attribute';
 import { useTranslation } from '../../../context/i18nContext';
+import { getEntityName, getEntityDescription } from '../../../utils/translationUtils';
+
+interface AttributeApiParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sort?: string;
+  direction?: 'asc' | 'desc';
+  [key: string]: any;
+}
+
+const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <div className={`bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden ${className}`}>
+    {children}
+  </div>
+);
+
+const CardHeader: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <div className={`px-6 py-4 border-b border-gray-200 dark:border-gray-700 ${className}`}>
+    {children}
+  </div>
+);
+
+const CardBody: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <div className={`p-6 ${className}`}>
+    {children}
+  </div>
+);
 
 const AttributesListPage: React.FC = () => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, currentLanguage } = useTranslation();
   
-  // State tanımlamaları
   const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
   
-  // Pagination state
   const [pagination, setPagination] = useState<PaginationParams>({
     page: 1,
     limit: 10,
     total: 0
   });
   
-  // Sıralama state
   const [sort, setSort] = useState<SortParams | null>(null);
   
-  // Filtre state
   const [filters, setFilters] = useState<FilterParams[]>([]);
   
-  // İstatistikler
   const [stats, setStats] = useState({
     total: 0,
     required: 0,
     types: {} as Record<AttributeType, number>
   });
 
-  // Öznitelikleri getir
-  const fetchAttributes = async () => {
+  const fetchAttributes = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     
     try {
-      // API parametrelerini hazırla
       const params: AttributeApiParams = {
         page: pagination.page,
         limit: pagination.limit
       };
       
-      // Arama terimi varsa ekle
       if (searchTerm.trim()) {
         params.search = searchTerm.trim();
       }
       
-      // Sıralama parametreleri
       if (sort) {
-        console.log('API\'ye gönderilen sıralama parametreleri:', { field: sort.field, direction: sort.direction });
         params.sort = sort.field;
         params.direction = sort.direction;
       }
       
-      // Filtre parametreleri
       filters.forEach(filter => {
         params[filter.field] = filter.value;
       });
       
-      // API'den veri al
       const result = await attributeService.getAttributes(params);
-      console.log('Backend\'den dönen veri:', result);
       
       setAttributes(result.attributes);
       setPagination({
@@ -79,16 +95,13 @@ const AttributesListPage: React.FC = () => {
         total: result.total
       });
       
-      // İstatistikleri hesapla
       if (result.attributes.length > 0) {
         const typeCounts = {} as Record<AttributeType, number>;
         let requiredCount = 0;
         
         result.attributes.forEach(attr => {
-          // Tip sayısını artır
           typeCounts[attr.type] = (typeCounts[attr.type] || 0) + 1;
           
-          // Zorunlu sayısını artır
           if (attr.isRequired) {
             requiredCount++;
           }
@@ -101,79 +114,79 @@ const AttributesListPage: React.FC = () => {
         });
       }
     } catch (err: any) {
-      setError(err.message || 'Öznitelikler getirilirken bir hata oluştu');
+      setError(err.message || t('attributes_fetch_error', 'attributes'));
     } finally {
       setIsLoading(false);
     }
-  };
-  
-  // Bağımlılıklar değiştiğinde yeniden veri çek
-  useEffect(() => {
-    console.log('useEffect triggered with sort:', sort);
-    fetchAttributes();
-  }, [pagination.page, pagination.limit, sort, filters, searchTerm]);
-  
-  // Sayfa değişim handler
+  }, [pagination.page, pagination.limit, sort, filters]);
+
+  const debouncedSearch = useCallback(
+    debounce((term: string) => {
+      setSearchTerm(term);
+      setPagination(prev => ({ ...prev, page: 1 }));
+    }, 500),
+    []
+  );
+
   const handlePageChange = (page: number) => {
     setPagination(prev => ({ ...prev, page }));
   };
-  
-  // Sıralama değişim handler
+
   const handleSort = (sort: SortParams) => {
-    console.log('Sıralama isteği:', sort.field, 'Yön:', sort.direction);
-    
-    // Sadece backend'in yapması için state'i güncelliyoruz
-    // Frontend'de sıralama yapmıyoruz
     setSort(sort);
   };
-  
-  // Filtre değişim handler
+
   const handleFilter = (filters: FilterParams[]) => {
     setFilters(filters);
-    // Filtreleme yapıldığında ilk sayfaya dön
     setPagination(prev => ({ ...prev, page: 1 }));
   };
-  
-  // Arama handler
+
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setPagination(prev => ({ ...prev, page: 1 }));
   };
-  
-  // Satır tıklama handler - detay sayfasına yönlendir
+
   const handleRowClick = (attribute: Attribute) => {
-    navigate(`/attributes/${attribute._id}`);
+    navigate(`/attributes/details/${attribute._id}`);
   };
-  
-  // Öznitelik oluştur handler
+
   const handleCreateAttribute = () => {
     navigate('/attributes/create');
   };
-  
-  // Silme işlemi handler
+
   const handleDeleteAttribute = async (id: string, name: string) => {
     if (window.confirm(`"${name}" ${t('delete_confirm', 'attributes')}`)) {
       try {
         await attributeService.deleteAttribute(id);
-        // Silme başarılı olduğunda listeyi yenile
         fetchAttributes();
       } catch (err: any) {
-        setError(err.message || 'Öznitelik silinirken bir hata oluştu');
+        setError(err.message || t('attribute_delete_error', 'attributes'));
       }
     }
   };
-  
-  // Tablo sütunları
+
+  useEffect(() => {
+    fetchAttributes();
+  }, [fetchAttributes]);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchAttributes();
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
+
   const columns: TableColumn<Attribute>[] = [
     {
       key: 'name',
       header: t('name', 'attributes'),
       sortable: true,
-      filterable: true,
+      filterable: false,
       render: (row) => (
         <div className="flex items-center">
-          <div className="font-medium text-gray-900 dark:text-white truncate max-w-[200px]" title={row.name}>
-            {row.name}
+          <div className="font-medium text-gray-900 dark:text-white truncate max-w-[200px]" title={getEntityName(row, currentLanguage)}>
+            {getEntityName(row, currentLanguage)}
           </div>
         </div>
       )
@@ -182,7 +195,7 @@ const AttributesListPage: React.FC = () => {
       key: 'code',
       header: t('code', 'attributes'),
       sortable: true,
-      filterable: true,
+      filterable: false,
       render: (row) => (
         <div className="font-mono text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded truncate max-w-[150px]" title={row.code}>
           {row.code}
@@ -193,14 +206,15 @@ const AttributesListPage: React.FC = () => {
       key: 'type',
       header: t('type', 'attributes'),
       sortable: true,
+      filterable: true,
       render: (row) => <AttributeBadge type={row.type as AttributeType} showLabel={true} />
     },
     {
       key: 'description',
       header: t('description', 'attributes'),
       render: (row) => (
-        <div className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={row.description}>
-          {row.description || <span className="text-gray-400 italic">{t('no_description', 'attributes')}</span>}
+        <div className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={getEntityDescription(row, currentLanguage)}>
+          {getEntityDescription(row, currentLanguage) || <span className="text-gray-400 italic">{t('no_description', 'attributes')}</span>}
         </div>
       )
     },
@@ -245,7 +259,6 @@ const AttributesListPage: React.FC = () => {
     }
   ];
 
-  // Tablo için işlem butonları
   const renderActions = (attribute: Attribute) => (
     <div className="flex space-x-2">
       <Button
@@ -253,7 +266,7 @@ const AttributesListPage: React.FC = () => {
         className="p-1 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900 rounded-md"
         onClick={(e) => {
           e.stopPropagation();
-          navigate(`/attributes/${attribute._id}`);
+          navigate(`/attributes/details/${attribute._id}`);
         }}
         title={t('view', 'attributes')}
       >
@@ -267,7 +280,7 @@ const AttributesListPage: React.FC = () => {
         className="p-1 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900 rounded-md"
         onClick={(e) => {
           e.stopPropagation();
-          handleDeleteAttribute(attribute._id, attribute.name);
+          handleDeleteAttribute(attribute._id, getEntityName(attribute, currentLanguage));
         }}
         title={t('delete', 'attributes')}
       >
@@ -280,89 +293,120 @@ const AttributesListPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Üst Başlık ve İstatistikler */}
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+      <div className="flex items-center justify-between">
+        <Breadcrumb 
+          items={[
+            { label: t('attributes_title', 'attributes') }
+          ]} 
+        />
+      </div>
+
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center">
+          <div className="h-10 w-10 rounded-lg bg-primary-100 dark:bg-primary-900/50 
+                         flex items-center justify-center mr-3">
+            <svg className="h-5 w-5 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+            </svg>
+          </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
-              <svg className="w-6 h-6 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-              </svg>
-              {t('attributes_title', 'attributes')}
-            </h1>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('attributes_title', 'attributes')}</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               {t('manage_attributes', 'attributes')}
             </p>
           </div>
-          
-          <div className="mt-4 md:mt-0">
-            <Button
-              variant="primary"
-              className="flex items-center shadow-md"
-              onClick={handleCreateAttribute}
-            >
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              <span>{t('new_attribute', 'attributes')}</span>
-            </Button>
-          </div>
         </div>
         
-        {/* İstatistik kartları */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-900">
-            <div className="text-blue-500 dark:text-blue-400 text-sm font-medium">{t('total_attributes', 'attributes')}</div>
-            <div className="mt-2 flex items-baseline">
-              <span className="text-2xl font-bold text-blue-700 dark:text-blue-300">{stats.total}</span>
-              <span className="ml-2 text-xs text-blue-500 dark:text-blue-400">{t('count_unit', 'attributes')}</span>
-            </div>
-          </div>
-          
-          <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-100 dark:border-green-900">
-            <div className="text-green-500 dark:text-green-400 text-sm font-medium">{t('required_attributes', 'attributes')}</div>
-            <div className="mt-2 flex items-baseline">
-              <span className="text-2xl font-bold text-green-700 dark:text-green-300">{stats.required}</span>
-              <span className="ml-2 text-xs text-green-500 dark:text-green-400">{t('count_unit', 'attributes')}</span>
-            </div>
-          </div>
-          
-          <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-100 dark:border-purple-900">
-            <div className="text-purple-500 dark:text-purple-400 text-sm font-medium">{t('on_this_page', 'attributes')}</div>
-            <div className="mt-2 flex items-baseline">
-              <span className="text-2xl font-bold text-purple-700 dark:text-purple-300">{attributes.length}</span>
-              <span className="ml-2 text-xs text-purple-500 dark:text-purple-400">/{stats.total} {t('count_unit', 'attributes')}</span>
-            </div>
-          </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="primary"
+            className="flex items-center"
+            onClick={handleCreateAttribute}
+          >
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            {t('new_attribute', 'attributes')}
+          </Button>
         </div>
       </div>
-      
-      {/* Arama ve Filtreleme */}
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4">
-        <form className="flex w-full max-w-lg" onSubmit={handleSearch}>
-          <div className="relative flex-grow">
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-              <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card>
+          <CardBody className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 dark:border-blue-500">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-8 w-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <div className="text-sm font-medium text-blue-500 dark:text-blue-400">{t('total_attributes', 'attributes')}</div>
+                <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{stats.total}</div>
+              </div>
             </div>
-            <input
-              type="text"
-              className="block w-full p-2 pl-10 text-sm border border-gray-300 rounded-l-lg focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
-              placeholder={t('search_attributes', 'attributes')}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <Button
-            type="submit"
-            variant="primary"
-            className="rounded-l-none"
-          >
-            {t('search', 'attributes')}
-          </Button>
-        </form>
+          </CardBody>
+        </Card>
+        
+        <Card>
+          <CardBody className="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-400 dark:border-green-500">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-8 w-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <div className="text-sm font-medium text-green-500 dark:text-green-400">{t('required_attributes', 'attributes')}</div>
+                <div className="text-2xl font-bold text-green-700 dark:text-green-300">{stats.required}</div>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+        
+        <Card>
+          <CardBody className="bg-purple-50 dark:bg-purple-900/20 border-l-4 border-purple-400 dark:border-purple-500">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-8 w-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <div className="text-sm font-medium text-purple-500 dark:text-purple-400">{t('on_this_page', 'attributes')}</div>
+                <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">{attributes.length}</div>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
       </div>
+      
+      <Card>
+        <CardBody>
+          <form className="flex w-full max-w-lg" onSubmit={handleSearch}>
+            <div className="relative flex-grow">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                className="block w-full p-2 pl-10 text-sm border border-gray-300 rounded-l-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                placeholder={t('search_attributes', 'attributes')}
+                onChange={(e) => debouncedSearch(e.target.value)}
+              />
+            </div>
+            <Button
+              type="submit"
+              variant="primary"
+              className="rounded-l-none"
+            >
+              {t('search', 'attributes')}
+            </Button>
+          </form>
+        </CardBody>
+      </Card>
 
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 flex items-start">
@@ -373,7 +417,7 @@ const AttributesListPage: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+      <Card>
         <Table
           columns={columns}
           data={attributes}
@@ -384,7 +428,7 @@ const AttributesListPage: React.FC = () => {
           onSort={handleSort}
           onFilter={handleFilter}
           onRowClick={handleRowClick}
-          actions={renderActions}
+          renderActions={renderActions}
           emptyMessage={
             <div className="text-center py-12">
               <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -406,9 +450,17 @@ const AttributesListPage: React.FC = () => {
             </div>
           }
         />
-      </div>
+      </Card>
     </div>
   );
 };
+
+function debounce<T extends (...args: any[]) => any>(func: T, delay: number): (...args: Parameters<T>) => void {
+  let timeoutId: number;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
+  };
+}
 
 export default AttributesListPage; 

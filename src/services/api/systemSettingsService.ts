@@ -7,6 +7,7 @@ export interface ISystemSettings {
   companyName: string;
   systemTitle: string;
   defaultLanguage: string;
+  supportedLanguages: string[];
   timezone: string;
   dateFormat: string;
   timeFormat: string;
@@ -122,6 +123,7 @@ const defaultSettings: ISystemSettings = {
   companyName: 'SpesEngine',
   systemTitle: 'SpesEngine',
   defaultLanguage: 'tr',
+  supportedLanguages: ['tr', 'en'],
   timezone: 'Europe/Istanbul',
   dateFormat: 'DD.MM.YYYY',
   timeFormat: 'HH:mm',

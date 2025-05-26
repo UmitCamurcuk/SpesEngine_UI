@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
 import Breadcrumb from '../../../components/common/Breadcrumb';
 import AttributeBadge from '../../../components/attributes/AttributeBadge';
+import AttributeHistoryList from '../../../components/attributes/AttributeHistoryList';
 import attributeService from '../../../services/api/attributeService';
 import { Attribute } from '../../../types/attribute';
 import dayjs from 'dayjs';
@@ -43,6 +44,20 @@ const AttributeDetailsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('details');
   const [showJsonPreview, setShowJsonPreview] = useState(false);
   
+  // Edit state'leri ekle
+  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  
+  // Edit form data
+  const [editableFields, setEditableFields] = useState({
+    name: '',
+    code: '',
+    description: '',
+    isRequired: false,
+    isActive: true
+  });
+  
   // HELPER FUNCTIONS
   const formatDate = (dateString?: string) => {
     if (!dateString) return '-';
@@ -65,32 +80,19 @@ const AttributeDetailsPage: React.FC = () => {
     }
   };
 
-  const getHistoryIcon = (type: string) => {
-    switch (type) {
-      case 'create':
-        return (
-          <svg className="h-4 w-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-        );
-      case 'update':
-        return (
-          <svg className="h-4 w-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-          </svg>
-        );
-      case 'delete':
-        return (
-          <svg className="h-4 w-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
-        );
-      default:
-        return (
-          <svg className="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-        );
+  const getRequiredIcon = (isRequired?: boolean) => {
+    if (isRequired) {
+      return (
+        <svg className="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      );
+    } else {
+      return (
+        <svg className="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      );
     }
   };
   
@@ -108,10 +110,19 @@ const AttributeDetailsPage: React.FC = () => {
         const data = await attributeService.getAttributeById(id);
         if (isMounted) {
           setAttribute(data);
+          
+          // Initialize editable fields
+          setEditableFields({
+            name: getEntityName(data, currentLanguage),
+            code: data.code || '',
+            description: getEntityDescription(data, currentLanguage),
+            isRequired: data.isRequired,
+            isActive: data.isActive
+          });
         }
       } catch (err: any) {
         if (isMounted) {
-          setError(err.message || t('attribute_details_fetch_error', 'attributes'));
+          setError(err.message || t('attribute_not_found', 'attributes'));
         }
       } finally {
         if (isMounted) {
@@ -125,7 +136,7 @@ const AttributeDetailsPage: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [id]);
+  }, [id, t, currentLanguage]);
   
   // LOADING STATE
   if (isLoading) {
@@ -180,6 +191,129 @@ const AttributeDetailsPage: React.FC = () => {
     );
   }
 
+  // Form input change handler
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    
+    if (type === 'checkbox') {
+      setEditableFields(prev => ({
+        ...prev,
+        [name]: (e.target as HTMLInputElement).checked
+      }));
+    } else {
+      setEditableFields(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+    
+    // Clear error when user starts typing
+    if (formErrors[name]) {
+      setFormErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
+  };
+
+  // Form validation
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    
+    if (!editableFields.name.trim()) {
+      errors.name = t('name_required', 'attributes');
+    }
+    
+    if (!editableFields.code.trim()) {
+      errors.code = t('code_required', 'attributes');
+    }
+    
+    if (!editableFields.description.trim()) {
+      errors.description = t('description_required', 'common');
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Save changes
+  const handleSave = async () => {
+    if (!id || !attribute) return;
+    
+    if (!validateForm()) return;
+    
+    setIsSaving(true);
+    setError(null);
+    
+    try {
+      const updatedData = {
+        name: editableFields.name.trim(),
+        code: editableFields.code.trim(),
+        description: editableFields.description.trim(),
+        isRequired: editableFields.isRequired,
+        isActive: editableFields.isActive
+      };
+      
+      const updatedAttribute = await attributeService.updateAttribute(id, updatedData);
+      setAttribute(updatedAttribute);
+      setIsEditing(false);
+      
+      // Show success message
+      alert(t('attribute_updated_success', 'attributes'));
+    } catch (err: any) {
+      setError(err.message || t('attribute_update_error', 'attributes'));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Cancel edit
+  const handleCancelEdit = () => {
+    if (!attribute) return;
+    
+    // Reset form to original values
+    setEditableFields({
+      name: getEntityName(attribute, currentLanguage),
+      code: attribute.code || '',
+      description: getEntityDescription(attribute, currentLanguage),
+      isRequired: attribute.isRequired,
+      isActive: attribute.isActive
+    });
+    
+    setFormErrors({});
+    setIsEditing(false);
+  };
+
+  // Start editing
+  const handleStartEdit = () => {
+    if (!attribute) return;
+    
+    setEditableFields({
+      name: getEntityName(attribute, currentLanguage),
+      code: attribute.code || '',
+      description: getEntityDescription(attribute, currentLanguage),
+      isRequired: attribute.isRequired,
+      isActive: attribute.isActive
+    });
+    
+    setIsEditing(true);
+  };
+
+  // Delete attribute
+  const handleDelete = async () => {
+    if (!id || !attribute) return;
+    
+    if (window.confirm(t('confirm_delete_attribute', 'attributes').replace('{{name}}', getEntityName(attribute, currentLanguage)))) {
+      try {
+        await attributeService.deleteAttribute(id);
+        navigate('/attributes/list');
+      } catch (err: any) {
+        setError(err.message || t('attribute_delete_error', 'attributes'));
+      }
+    }
+  };
+
   // MAIN RENDER
   return (
     <div className="space-y-6">
@@ -211,36 +345,134 @@ const AttributeDetailsPage: React.FC = () => {
             </svg>
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{getEntityName(attribute, currentLanguage)}</h1>
+            {isEditing ? (
+              <div>
+                <input
+                  type="text"
+                  name="name"
+                  value={editableFields.name}
+                  onChange={handleInputChange}
+                  className={`text-2xl font-bold bg-transparent border-b-2 ${
+                    formErrors.name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                  } text-gray-900 dark:text-white focus:outline-none focus:border-primary-500`}
+                  placeholder={t('attribute_name', 'attributes')}
+                />
+                {formErrors.name && (
+                  <p className="mt-1 text-sm text-red-500 dark:text-red-400">{formErrors.name}</p>
+                )}
+              </div>
+            ) : (
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{getEntityName(attribute, currentLanguage)}</h1>
+            )}
             <div className="flex items-center mt-1">
-              <AttributeBadge type={attribute.type} size="sm" />
+              {isEditing ? (
+                <input
+                  type="text"
+                  name="code"
+                  value={editableFields.code}
+                  onChange={handleInputChange}
+                  className={`text-sm font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded ${
+                    formErrors.code ? 'border border-red-500' : ''
+                  } text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500`}
+                  placeholder={t('attribute_code', 'attributes')}
+                />
+              ) : (
+                <span className="text-sm font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-gray-700 dark:text-gray-300">
+                  {attribute.code}
+                </span>
+              )}
+              {formErrors.code && (
+                <p className="ml-2 text-sm text-red-500 dark:text-red-400">{formErrors.code}</p>
+              )}
               <span className="mx-2 text-gray-300 dark:text-gray-600">•</span>
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                {typeof attribute.attributeGroup === 'string' ? attribute.attributeGroup : attribute.attributeGroup?.name || t('no_group', 'attributes')}
-              </span>
+              <div className={`text-xs px-2 py-1 rounded-full font-medium ${
+                (isEditing ? editableFields.isActive : attribute.isActive)
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' 
+                  : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+              }`}>
+                {isEditing ? (
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="isActive"
+                      name="isActive"
+                      checked={editableFields.isActive}
+                      onChange={handleInputChange}
+                      className="h-3 w-3 text-primary-light focus:ring-primary-light border-gray-300 rounded"
+                    />
+                    <label htmlFor="isActive" className="ml-1 text-xs">
+                      {editableFields.isActive ? t('active', 'common') : t('inactive', 'common')}
+                    </label>
+                  </div>
+                ) : (
+                  attribute.isActive ? t('active', 'common') : t('inactive', 'common')
+                )}
+              </div>
             </div>
           </div>
         </div>
         
         <div className="flex items-center space-x-2">
-          <Button 
-            variant="outline" 
-            className="flex items-center"
-            onClick={() => setShowJsonPreview(!showJsonPreview)}
-          >
-            <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-            </svg>
-            {t('view_json', 'attributes')}
-          </Button>
-          <Link to={`/attributes/${id}/edit`}>
-            <Button variant="primary" className="flex items-center">
-              <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-              </svg>
-              {t('edit_button', 'common')}
-            </Button>
-          </Link>
+          {isEditing ? (
+            <>
+              <Button
+                variant="primary"
+                className="flex items-center"
+                onClick={handleSave}
+                loading={isSaving}
+                disabled={isSaving}
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span>{t('save', 'common')}</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="flex items-center"
+                onClick={handleCancelEdit}
+                disabled={isSaving}
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                <span>{t('cancel', 'common')}</span>
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button 
+                variant="outline" 
+                className="flex items-center"
+                onClick={() => setShowJsonPreview(!showJsonPreview)}
+              >
+                <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                </svg>
+                {t('view_json', 'attributes')}
+              </Button>
+              <Button
+                variant="primary"
+                className="flex items-center"
+                onClick={handleStartEdit}
+              >
+                <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+                {t('edit', 'common')}
+              </Button>
+              <Button
+                variant="secondary"
+                className="flex items-center text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900"
+                onClick={handleDelete}
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                {t('delete', 'common')}
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -295,6 +527,21 @@ const AttributeDetailsPage: React.FC = () => {
           </button>
           <button
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'permissions'
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+            }`}
+            onClick={() => setActiveTab('permissions')}
+          >
+            <div className="flex items-center">
+              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              {t('permissions', 'common')}
+            </div>
+          </button>
+          <button
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'history'
                 ? 'border-primary-500 text-primary-600 dark:text-primary-400'
                 : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
@@ -305,7 +552,7 @@ const AttributeDetailsPage: React.FC = () => {
               <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              {t('history_tab', 'attributes')}
+              {t('history', 'common')}
             </div>
           </button>
         </nav>
@@ -347,10 +594,28 @@ const AttributeDetailsPage: React.FC = () => {
               <CardBody>
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('description_label', 'common')}</h3>
-                    <p className="mt-2 text-gray-900 dark:text-gray-100">
-                      {getEntityDescription(attribute, currentLanguage) || t('no_description', 'common')}
-                    </p>
+                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('description', 'common')}</h3>
+                    {isEditing ? (
+                      <div className="mt-2">
+                        <textarea
+                          name="description"
+                          value={editableFields.description}
+                          onChange={handleInputChange}
+                          rows={4}
+                          className={`w-full px-3 py-2 border ${
+                            formErrors.description ? 'border-red-500 dark:border-red-700' : 'border-gray-300 dark:border-gray-600'
+                          } rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark`}
+                          placeholder={t('description_placeholder', 'attributes')}
+                        />
+                        {formErrors.description && (
+                          <p className="mt-1 text-sm text-red-500 dark:text-red-400">{formErrors.description}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-gray-900 dark:text-gray-100">
+                        {getEntityDescription(attribute, currentLanguage) || t('no_description', 'common')}
+                      </p>
+                    )}
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -831,47 +1096,7 @@ const AttributeDetailsPage: React.FC = () => {
             <h2 className="text-lg font-medium text-gray-900 dark:text-white">{t('change_history_title', 'attributes')}</h2>
           </CardHeader>
           <CardBody>
-            <div className="flow-root">
-              <ul className="-mb-8">
-                {attribute.history && attribute.history.length > 0 ? (
-                  attribute.history.map((event, index) => (
-                    <li key={index}>
-                      <div className="relative pb-8">
-                        {index !== attribute.history!.length - 1 ? (
-                          <span
-                            className="absolute top-5 left-5 -ml-px h-full w-0.5 bg-gray-200 dark:bg-gray-700"
-                            aria-hidden="true"
-                          ></span>
-                        ) : null}
-                        <div className="relative flex items-start space-x-3">
-                          <div className="relative">
-                            <div className="h-10 w-10 rounded-lg bg-gray-100 dark:bg-gray-800 
-                                          flex items-center justify-center">
-                              {getHistoryIcon(event.type)}
-                            </div>
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="text-sm text-gray-900 dark:text-gray-100">
-                              <span className="font-medium">{event.user}</span>
-                              <span className="ml-2 text-gray-500 dark:text-gray-400">{event.action}</span>
-                            </div>
-                            <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                              {event.date}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </li>
-                  ))
-                ) : (
-                  <li className="text-center py-8">
-                    <div className="text-gray-500 dark:text-gray-400">
-                      {t('no_history_available', 'attributes')}
-                    </div>
-                  </li>
-                )}
-              </ul>
-            </div>
+            <AttributeHistoryList attributeId={id!} />
           </CardBody>
         </Card>
       )}

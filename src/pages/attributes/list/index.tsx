@@ -147,7 +147,7 @@ const AttributesListPage: React.FC = () => {
   };
 
   const handleRowClick = (attribute: Attribute) => {
-    navigate(`/attributes/details/${attribute._id}`);
+    navigate(`/attributes/${attribute._id}`);
   };
 
   const handleCreateAttribute = () => {
@@ -266,7 +266,7 @@ const AttributesListPage: React.FC = () => {
         className="p-1 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900 rounded-md"
         onClick={(e) => {
           e.stopPropagation();
-          navigate(`/attributes/details/${attribute._id}`);
+          navigate(`/attributes/${attribute._id}`);
         }}
         title={t('view', 'attributes')}
       >

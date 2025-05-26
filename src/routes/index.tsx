@@ -41,12 +41,17 @@ import RelationshipTypeDetailsPage from '../pages/relationships/types/details';
 import SystemSettingsPage from '../pages/system/settings';
 import LoadingPage from '../pages/auth/loading';
 import LogoutPage from '../pages/auth/logout';
-import DashboardOverview from '../pages/dashboard/Dashboard1/components/overview';
 import Dashboard2 from '../pages/dashboard/Dashboard2/index';
 import Dashboard3 from '../pages/dashboard/Dashboard3/index';
+
+// Error Pages
+import NotFoundPage from '../pages/errors/NotFound';
+import ServerErrorPage from '../pages/errors/ServerError';
+import ForbiddenPage from '../pages/errors/Forbidden';
+
 // Ana sayfa için basit bir test component'i
-const HomePage = () => (
-  <div>
+const DashboardOverview = () => (
+  <div className="p-8">
     <h1 className="text-xl font-semibold mb-4">Master Data Management Ana Sayfası</h1>
     <p className="text-gray-700 dark:text-gray-300">Bu alan yetkilendirilmiş kullanıcılar için görünür.</p>
   </div>
@@ -73,6 +78,20 @@ const routes: RouteObject[] = [
       {
         path: 'auth/logout',
         element: <LogoutPage />
+      },
+      
+      // Error Routes - Layout dışında
+      {
+        path: 'error/404',
+        element: <NotFoundPage />
+      },
+      {
+        path: 'error/500',
+        element: <ServerErrorPage />
+      },
+      {
+        path: 'error/403',
+        element: <ForbiddenPage />
       },
       
       // Ana Layout içindeki sayfalar
@@ -263,13 +282,14 @@ const routes: RouteObject[] = [
             element: <LocalizationDetailsPage />
           }
         ]
+      },
+      
+      // Catch-all route for 404
+      {
+        path: '*',
+        element: <NotFoundPage />
       }
     ]
-  },
-  // Catch-all route (404 sayfası)
-  {
-    path: '*',
-    element: <div className="p-8">Sayfa bulunamadı.</div>
   }
 ];
 

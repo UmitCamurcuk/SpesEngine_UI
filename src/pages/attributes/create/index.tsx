@@ -14,6 +14,7 @@ import ValidationFactory from '../../../components/attributes/validation/Validat
 import { useTranslation } from '../../../context/i18nContext';
 import TranslationFields from '../../../components/common/TranslationFields';
 import { useTranslationForm } from '../../../hooks/useTranslationForm';
+import { getEntityName } from '../../../utils/translationUtils';
 
 // Adım 1: Genel bilgiler
 interface Step1FormData {
@@ -407,7 +408,7 @@ const AttributeCreatePage: React.FC = () => {
                 <option value="">{t('select_optional', 'attributes')}</option>
                 {attributeGroups.map((group) => (
                   <option key={group._id} value={group._id}>
-                    {group.name}
+                    {getEntityName(group, currentLanguage)}
                   </option>
                 ))}
               </select>

@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
 import Breadcrumb from '../../../components/common/Breadcrumb';
+import AttributeHistoryList from '../../../components/attributes/AttributeHistoryList';
 import attributeGroupService from '../../../services/api/attributeGroupService';
+import attributeService from '../../../services/api/attributeService';
 import { AttributeGroup } from '../../../types/attributeGroup';
 import { Attribute } from '../../../types/attribute';
 import dayjs from 'dayjs';
@@ -49,6 +51,11 @@ const AttributeGroupDetailsPage: React.FC = () => {
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  
+  // Available attributes for selection
+  const [availableAttributes, setAvailableAttributes] = useState<Attribute[]>([]);
+  const [selectedAttributeIds, setSelectedAttributeIds] = useState<string[]>([]);
+  const [showAttributeSelector, setShowAttributeSelector] = useState<boolean>(false);
   
   const [editableFields, setEditableFields] = useState<EditableAttributeGroupFields>({
     name: '',
@@ -117,6 +124,16 @@ const AttributeGroupDetailsPage: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
 
+  const getAttributeGroupName = (group: AttributeGroup | null) => {
+    if (!group) return '';
+    return getEntityName(group, currentLanguage);
+  };
+
+  const getAttributeGroupDescription = (group: AttributeGroup | null) => {
+    if (!group) return '';
+    return getEntityDescription(group, currentLanguage);
+  };
+
   const handleSave = async () => {
     if (!id || !attributeGroup) return;
     
@@ -148,9 +165,9 @@ const AttributeGroupDetailsPage: React.FC = () => {
     if (!attributeGroup) return;
     
     setEditableFields({
-      name: attributeGroup.name,
+      name: getAttributeGroupName(attributeGroup),
       code: attributeGroup.code || '',
-      description: attributeGroup.description || '',
+      description: getAttributeGroupDescription(attributeGroup),
       isActive: attributeGroup.isActive
     });
     
@@ -161,12 +178,92 @@ const AttributeGroupDetailsPage: React.FC = () => {
   const handleDelete = async () => {
     if (!id || !attributeGroup) return;
     
-    if (window.confirm(t('confirm_delete_attribute_group', 'attribute_groups').replace('{{name}}', getEntityName(attributeGroup, currentLanguage)))) {
+    if (window.confirm(t('confirm_delete_attribute_group', 'attribute_groups').replace('{{name}}', getAttributeGroupName(attributeGroup)))) {
       try {
         await attributeGroupService.deleteAttributeGroup(id);
         navigate('/attributeGroups/list');
       } catch (err: any) {
         setError(err.message || t('attribute_group_delete_error', 'attribute_groups'));
+      }
+    }
+  };
+  
+  // Fetch available attributes
+  const fetchAvailableAttributes = async () => {
+    try {
+      const response = await attributeService.getAttributes({ isActive: true });
+      setAvailableAttributes(response.attributes);
+    } catch (err: any) {
+      console.error('Available attributes fetch error:', err);
+    }
+  };
+
+  // Handle attribute selection
+  const handleAttributeToggle = (attributeId: string) => {
+    setSelectedAttributeIds(prev => {
+      if (prev.includes(attributeId)) {
+        return prev.filter(id => id !== attributeId);
+      } else {
+        return [...prev, attributeId];
+      }
+    });
+  };
+
+  // Add selected attributes to group
+  const handleAddAttributes = async () => {
+    if (!id || selectedAttributeIds.length === 0) return;
+    
+    try {
+      const currentAttributeIds = attributes.map(attr => attr._id);
+      const newAttributeIds = [...new Set([...currentAttributeIds, ...selectedAttributeIds])];
+      
+      const updatedData = {
+        attributes: newAttributeIds
+      };
+      
+      const updatedAttributeGroup = await attributeGroupService.updateAttributeGroup(id, updatedData);
+      setAttributeGroup(updatedAttributeGroup);
+      
+      // Refresh attributes
+      if (Array.isArray(updatedAttributeGroup.attributes) && updatedAttributeGroup.attributes.length > 0) {
+        setAttributes(updatedAttributeGroup.attributes as unknown as Attribute[]);
+      }
+      
+      setSelectedAttributeIds([]);
+      setShowAttributeSelector(false);
+      
+      alert(t('attributes_added_success', 'attribute_groups'));
+    } catch (err: any) {
+      setError(err.message || t('attributes_add_error', 'attribute_groups'));
+    }
+  };
+
+  // Remove attribute from group
+  const handleRemoveAttribute = async (attributeId: string) => {
+    if (!id) return;
+    
+    if (window.confirm(t('confirm_remove_attribute', 'attribute_groups'))) {
+      try {
+        const currentAttributeIds = attributes.map(attr => attr._id);
+        const newAttributeIds = currentAttributeIds.filter(id => id !== attributeId);
+        
+        const updatedData = {
+          attributes: newAttributeIds
+        };
+        
+        const updatedAttributeGroup = await attributeGroupService.updateAttributeGroup(id, updatedData);
+        setAttributeGroup(updatedAttributeGroup);
+        
+        // Refresh attributes
+        if (Array.isArray(updatedAttributeGroup.attributes) && updatedAttributeGroup.attributes.length > 0) {
+          setAttributes(updatedAttributeGroup.attributes as unknown as Attribute[]);
+        } else {
+          setAttributes([]);
+        }
+        
+        alert(t('attribute_removed_success', 'attribute_groups'));
+      } catch (err: any) {
+        setError(err.message || t('attribute_remove_error', 'attribute_groups'));
       }
     }
   };
@@ -186,9 +283,9 @@ const AttributeGroupDetailsPage: React.FC = () => {
           setAttributeGroup(data);
           
           setEditableFields({
-            name: data.name,
+            name: getEntityName(data, currentLanguage),
             code: data.code || '',
-            description: data.description || '',
+            description: getEntityDescription(data, currentLanguage),
             isActive: data.isActive
           });
           
@@ -198,7 +295,7 @@ const AttributeGroupDetailsPage: React.FC = () => {
         }
       } catch (err: any) {
         if (isMounted) {
-          setError(err.message || t('attribute_group_details_fetch_error', 'attribute_groups'));
+          setError(err.message || t('attribute_group_not_found', 'attribute_groups'));
         }
       } finally {
         if (isMounted) {
@@ -208,11 +305,12 @@ const AttributeGroupDetailsPage: React.FC = () => {
     };
     
     fetchAttributeGroupDetails();
+    fetchAvailableAttributes();
     
     return () => {
       isMounted = false;
     };
-  }, [id]);
+  }, [id, t, currentLanguage]);
   
   if (isLoading) {
     return (
@@ -270,7 +368,7 @@ const AttributeGroupDetailsPage: React.FC = () => {
         <Breadcrumb 
           items={[
             { label: t('attribute_groups_title', 'attribute_groups'), path: '/attributeGroups/list' },
-            { label: getEntityName(attributeGroup, currentLanguage) }
+            { label: getAttributeGroupName(attributeGroup) }
           ]} 
         />
       </div>
@@ -309,7 +407,7 @@ const AttributeGroupDetailsPage: React.FC = () => {
                 )}
               </div>
             ) : (
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{attributeGroup.name}</h1>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{getAttributeGroupName(attributeGroup)}</h1>
             )}
             <div className="flex items-center mt-1">
               <span className="text-sm font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-gray-700 dark:text-gray-300">
@@ -440,6 +538,21 @@ const AttributeGroupDetailsPage: React.FC = () => {
               {t('attributes', 'common')} ({attributes.length})
             </div>
           </button>
+          <button
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'history'
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+            }`}
+            onClick={() => setActiveTab('history')}
+          >
+            <div className="flex items-center">
+              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {t('history', 'common')}
+            </div>
+          </button>
         </nav>
       </div>
 
@@ -496,7 +609,7 @@ const AttributeGroupDetailsPage: React.FC = () => {
                       </div>
                     ) : (
                       <p className="mt-2 text-gray-900 dark:text-gray-100">
-                        {getEntityDescription(attributeGroup, currentLanguage) || t('no_description', 'common')}
+                        {getAttributeGroupDescription(attributeGroup) || t('no_description', 'common')}
                       </p>
                     )}
                   </div>
@@ -575,9 +688,22 @@ const AttributeGroupDetailsPage: React.FC = () => {
                 </svg>
                 {t('attributes', 'common')}
               </h3>
-              <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-sm px-3 py-1 rounded-full">
-                {attributes.length} {attributes.length === 1 ? t('attribute', 'attributes') : t('attributes', 'attributes')}
-              </span>
+              <div className="flex items-center space-x-2">
+                <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-sm px-3 py-1 rounded-full">
+                  {attributes.length} {attributes.length === 1 ? t('attribute', 'attributes') : t('attributes', 'attributes')}
+                </span>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setShowAttributeSelector(true)}
+                  className="flex items-center"
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  {t('add_attributes', 'attribute_groups')}
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardBody>
@@ -590,16 +716,29 @@ const AttributeGroupDetailsPage: React.FC = () => {
                   >
                     <div className="p-4">
                       <div className="flex justify-between items-start">
-                        <div>
+                        <div className="flex-1">
                           <h4 className="font-semibold text-gray-900 dark:text-white">{attribute.name}</h4>
                           <p className="text-sm text-gray-500 dark:text-gray-400 font-mono mt-1">{attribute.code}</p>
                         </div>
-                        <div className={`text-xs px-2 py-1 rounded-full font-medium ${
-                          attribute.isActive 
-                            ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' 
-                            : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
-                        }`}>
-                          {attribute.isActive ? t('active', 'common') : t('inactive', 'common')}
+                        <div className="flex items-center space-x-2">
+                          <div className={`text-xs px-2 py-1 rounded-full font-medium ${
+                            attribute.isActive 
+                              ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' 
+                              : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                          }`}>
+                            {attribute.isActive ? t('active', 'common') : t('inactive', 'common')}
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRemoveAttribute(attribute._id)}
+                            className="text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900 p-1"
+                            title={t('remove_attribute', 'attribute_groups')}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </Button>
                         </div>
                       </div>
                       {attribute.description && (
@@ -613,13 +752,9 @@ const AttributeGroupDetailsPage: React.FC = () => {
                         variant="outline"
                         size="sm"
                         className="w-full"
-                        onClick={() => navigate(`/attributes/details/${attribute._id}`)}
+                        onClick={() => navigate(`/attributes/${attribute._id}`)}
                       >
-                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        {t('view_details', 'common')}
+                        {t('view', 'attributes')}
                       </Button>
                     </div>
                   </div>
@@ -648,6 +783,123 @@ const AttributeGroupDetailsPage: React.FC = () => {
                 </Button>
               </div>
             )}
+          </CardBody>
+        </Card>
+      )}
+      
+      {/* Attribute Selector Modal */}
+      {showAttributeSelector && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                  {t('select_attributes_to_add', 'attribute_groups')}
+                </h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setShowAttributeSelector(false);
+                    setSelectedAttributeIds([]);
+                  }}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </Button>
+              </div>
+            </div>
+            
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              {availableAttributes.length === 0 ? (
+                <div className="text-center py-8">
+                  <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                  </svg>
+                  <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">{t('no_attributes_available', 'attribute_groups')}</h3>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{t('create_attributes_first', 'attribute_groups')}</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {availableAttributes
+                    .filter(attr => !attributes.some(existingAttr => existingAttr._id === attr._id))
+                    .map((attribute) => (
+                      <div
+                        key={attribute._id}
+                        className={`relative rounded-lg border p-4 cursor-pointer transition-colors ${
+                          selectedAttributeIds.includes(attribute._id)
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                            : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                        }`}
+                        onClick={() => handleAttributeToggle(attribute._id)}
+                      >
+                        <div className="flex items-start">
+                          <div className="flex items-center h-5">
+                            <input
+                              type="checkbox"
+                              checked={selectedAttributeIds.includes(attribute._id)}
+                              onChange={() => handleAttributeToggle(attribute._id)}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                          </div>
+                          <div className="ml-3 flex-1">
+                            <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                              {getEntityName(attribute, currentLanguage)}
+                            </h4>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              {attribute.code}
+                            </p>
+                            {getEntityDescription(attribute, currentLanguage) && (
+                              <p className="text-xs text-gray-600 dark:text-gray-300 mt-2 line-clamp-2">
+                                {getEntityDescription(attribute, currentLanguage)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                {selectedAttributeIds.length > 0 && (
+                  <span>{t('selected_count', 'attribute_groups').replace('{{count}}', selectedAttributeIds.length.toString())}</span>
+                )}
+              </div>
+              <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowAttributeSelector(false);
+                    setSelectedAttributeIds([]);
+                  }}
+                >
+                  {t('cancel', 'common')}
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={handleAddAttributes}
+                  disabled={selectedAttributeIds.length === 0}
+                >
+                  {t('add_selected', 'attribute_groups')}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* TAB CONTENT - HISTORY */}
+      {activeTab === 'history' && (
+        <Card>
+          <CardHeader>
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white">{t('change_history_title', 'attribute_groups')}</h2>
+          </CardHeader>
+          <CardBody>
+            <AttributeHistoryList attributeId={id!} />
           </CardBody>
         </Card>
       )}

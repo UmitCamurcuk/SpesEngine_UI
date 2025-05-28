@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
-import { TabView, TreeView, TreeViewWithCheckbox } from '../../../components/ui';
 import Modal from '../../../components/ui/Modal';
 import categoryService from '../../../services/api/categoryService';
 import attributeService from '../../../services/api/attributeService';
@@ -9,28 +8,46 @@ import attributeGroupService from '../../../services/api/attributeGroupService';
 import familyService from '../../../services/api/familyService';
 import type { Category } from '../../../types/category';
 import type { TreeNode } from '../../../components/ui/TreeView';
-import { toast } from 'react-hot-toast';
+import { TreeView, TreeViewWithCheckbox } from '../../../components/ui';
+import TabView from '../../../components/ui/TabView';
 import PaginatedAttributeSelector from '../../../components/attributes/PaginatedAttributeSelector';
 import AttributeGroupSelector from '../../../components/attributes/AttributeGroupSelector';
+import dayjs from 'dayjs';
+import 'dayjs/locale/tr';
+import { useTranslation } from '../../../context/i18nContext';
+import { getEntityName, getEntityDescription } from '../../../utils/translationUtils';
 
 // Yardımcı fonksiyon: Category veya Family objelerinden ID'yi almak için
+const getId = (item: any): string => {
+  return typeof item === 'object' && item !== null ? item._id || item.id || '' : item || '';
+};
+
+// getEntityId fonksiyonu ekliyoruz
 const getEntityId = (entity: any): string | undefined => {
   if (!entity) return undefined;
-  
-  // String ise direkt döndür
   if (typeof entity === 'string') return entity;
-  
-  // Obje ise _id veya id özelliğini döndür
-  if (typeof entity === 'object') {
-    // TypeScript'in any kullanımı nedeniyle as operatörü kullanıyoruz
-    const record = entity as Record<string, any>;
-    
-    if (record._id) return String(record._id);
-    if (record.id) return String(record.id);
-  }
-  
-  return undefined;
+  return entity._id || entity.id;
 };
+
+// UTILITY COMPONENTS
+const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <div className={`bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden ${className}`}>
+    {children}
+  </div>
+);
+
+const CardBody: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <div className={`p-6 ${className}`}>
+    {children}
+  </div>
+);
+
+interface EditableCategoryFields {
+  name: string;
+  code: string;
+  description: string;
+  isActive: boolean;
+}
 
 const CategoryDetailsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -112,8 +129,8 @@ const CategoryDetailsPage: React.FC = () => {
           const groupsWithAttributes = categoryData.attributeGroups.map((group: any) => {
             // Bu gruba ait nitelikleri bul
             const groupAttributes = categoryData.attributes.filter((attr: any) => 
-              getEntityId(attr.attributeGroup) === getEntityId(group._id) ||
-              getEntityId(attr.attributeGroup) === getEntityId(group)
+              getId(attr.attributeGroup) === getId(group._id) ||
+              getId(attr.attributeGroup) === getId(group)
             );
             
             // Grubu klonla ve nitelikleri ekle
@@ -132,9 +149,9 @@ const CategoryDetailsPage: React.FC = () => {
         // State'i güncelle
         setCategory(categoryData);
         
-        // Parent veya ParentCategory değerini formData'ya uygun şekilde atar
-        const parentId = getEntityId(categoryData.parentCategory) || getEntityId(categoryData.parent);
-        const familyId = getEntityId(categoryData.family);
+        // Parent veya ParentCategory değerini formData'yı uygun şekilde atar
+        const parentId = getId(categoryData.parentCategory) || getId(categoryData.parent);
+        const familyId = getId(categoryData.family);
         
         console.log("Veriden yüklenen parentId:", parentId);
         console.log("Veriden yüklenen familyId:", familyId);
@@ -157,7 +174,7 @@ const CategoryDetailsPage: React.FC = () => {
         if (categoryData.parentCategory) {
           try {
             console.log("Üst kategori bilgisi:", categoryData.parentCategory);
-            let parentCategoryId = getEntityId(categoryData.parentCategory);
+            let parentCategoryId = getId(categoryData.parentCategory);
             
             if (parentCategoryId) {
               console.log("Üst kategori ID:", parentCategoryId);
@@ -175,7 +192,7 @@ const CategoryDetailsPage: React.FC = () => {
           // Alternatif veri yapısı - bazı API yanıtlarında parent kullanılmış olabilir
           try {
             console.log("Parent bilgisi:", categoryData.parent);
-            let parentId = getEntityId(categoryData.parent);
+            let parentId = getId(categoryData.parent);
             
             if (parentId) {
               console.log("Parent ID:", parentId);
@@ -499,139 +516,141 @@ const CategoryDetailsPage: React.FC = () => {
         {/* Sol Taraf - Temel Bilgiler */}
         <div className="lg:col-span-7 space-y-6">
           {/* Temel Bilgiler Kartı */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-            <div className="flex items-center border-b border-gray-100 dark:border-gray-700 px-6 py-4">
-              <svg className="w-5 h-5 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Temel Bilgiler</h3>
-            </div>
-            <div className="p-6 space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {/* İsim */}
-                <div className="space-y-1">
-                  <div className="flex items-center">
-                    <svg className="w-4 h-4 mr-1.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                    </svg>
-                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Kategori Adı</h4>
+          <Card>
+            <CardBody>
+              <div className="flex items-center border-b border-gray-100 dark:border-gray-700 px-6 py-4">
+                <svg className="w-5 h-5 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Temel Bilgiler</h3>
+              </div>
+              <div className="p-6 space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* İsim */}
+                  <div className="space-y-1">
+                    <div className="flex items-center">
+                      <svg className="w-4 h-4 mr-1.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                      </svg>
+                      <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Kategori Adı</h4>
+                    </div>
+                    <p className="text-base font-medium text-gray-900 dark:text-white">{category?.name || '-'}</p>
                   </div>
-                  <p className="text-base font-medium text-gray-900 dark:text-white">{category?.name || '-'}</p>
-                </div>
-                
-                {/* Kod */}
-                <div className="space-y-1">
-                  <div className="flex items-center">
-                    <svg className="w-4 h-4 mr-1.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
-                    </svg>
-                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Kod</h4>
+                  
+                  {/* Kod */}
+                  <div className="space-y-1">
+                    <div className="flex items-center">
+                      <svg className="w-4 h-4 mr-1.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                      </svg>
+                      <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Kod</h4>
+                    </div>
+                    <p className="text-base font-medium text-gray-900 dark:text-white font-mono">{category?.code || '-'}</p>
                   </div>
-                  <p className="text-base font-medium text-gray-900 dark:text-white font-mono">{category?.code || '-'}</p>
-                </div>
-                
-                {/* Üst Kategori */}
-                <div className="space-y-1">
-                  <div className="flex items-center">
-                    <svg className="w-4 h-4 mr-1.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
-                    </svg>
-                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Üst Kategori</h4>
+                  
+                  {/* Üst Kategori */}
+                  <div className="space-y-1">
+                    <div className="flex items-center">
+                      <svg className="w-4 h-4 mr-1.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                      </svg>
+                      <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Üst Kategori</h4>
+                    </div>
+                    {isEditing ? (
+                      <TreeViewWithCheckbox
+                        key={`category-tree-${tabRefreshCounter}-${formData.parentId || 'none'}`}
+                        data={categoryTree.map(cat => ({
+                          id: cat.id,
+                          name: cat.name,
+                          label: cat.name,
+                          children: cat.children
+                        }))}
+                        onSelectionChange={(selectedIds) => {
+                          if (selectedIds.length > 0 && selectedIds[0] !== id) {
+                            // Düzenleme modunda seçilen kategoriyi üst kategori olarak ayarla
+                            const newParentId = selectedIds[0] || undefined;
+                            console.log("Hiyerarşi tab - Üst kategori değişti:", newParentId);
+                            setFormData(prev => {
+                              const updated = { ...prev, parentId: newParentId };
+                              console.log("Hiyerarşi tab - formData güncellendi:", updated);
+                              return updated;
+                            });
+                          }
+                        }}
+                        defaultSelectedIds={formData.parentId ? [formData.parentId] : []}
+                        expandAll={true}
+                        variant="spectrum"
+                        maxHeight="200px"
+                      />
+                    ) : (
+                      <div className="flex items-center mt-1">
+                        {parentCategoryName ? (
+                          <p className="text-base font-medium text-gray-900 dark:text-white">{parentCategoryName}</p>
+                        ) : (
+                          <p className="text-base font-medium text-gray-500 dark:text-gray-400 italic">Ana Kategori</p>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  {isEditing ? (
-                    <TreeViewWithCheckbox
-                      key={`category-tree-${tabRefreshCounter}-${formData.parentId || 'none'}`}
-                      data={categoryTree.map(cat => ({
-                        id: cat.id,
-                        name: cat.name,
-                        label: cat.name,
-                        children: cat.children
-                      }))}
-                      onSelectionChange={(selectedIds) => {
-                        if (selectedIds.length > 0 && selectedIds[0] !== id) {
-                          // Düzenleme modunda seçilen kategoriyi üst kategori olarak ayarla
-                          const newParentId = selectedIds[0] || undefined;
-                          console.log("Hiyerarşi tab - Üst kategori değişti:", newParentId);
-                          setFormData(prev => {
-                            const updated = { ...prev, parentId: newParentId };
-                            console.log("Hiyerarşi tab - formData güncellendi:", updated);
-                            return updated;
-                          });
-                        }
-                      }}
-                      defaultSelectedIds={formData.parentId ? [formData.parentId] : []}
-                      expandAll={true}
-                      variant="spectrum"
-                      maxHeight="200px"
-                    />
-                  ) : (
+                  
+                  {/* Aile */}
+                  <div className="space-y-1">
+                    <div className="flex items-center">
+                      <svg className="w-4 h-4 mr-1.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path>
+                      </svg>
+                      <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Aile</h4>
+                    </div>
                     <div className="flex items-center mt-1">
-                      {parentCategoryName ? (
-                        <p className="text-base font-medium text-gray-900 dark:text-white">{parentCategoryName}</p>
+                      {familyName ? (
+                        <p className="text-base font-medium text-gray-900 dark:text-white">{familyName}</p>
                       ) : (
-                        <p className="text-base font-medium text-gray-500 dark:text-gray-400 italic">Ana Kategori</p>
+                        <p className="text-base font-medium text-gray-500 dark:text-gray-400 italic">Atanmamış</p>
                       )}
                     </div>
-                  )}
+                  </div>
                 </div>
-                
-                {/* Aile */}
-                <div className="space-y-1">
+
+                {/* Durum */}
+                <div className="space-y-1 pt-2 border-t border-gray-100 dark:border-gray-700">
                   <div className="flex items-center">
                     <svg className="w-4 h-4 mr-1.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
-                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Aile</h4>
+                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Durum</h4>
                   </div>
-                  <div className="flex items-center mt-1">
-                    {familyName ? (
-                      <p className="text-base font-medium text-gray-900 dark:text-white">{familyName}</p>
+                  <div className="mt-1">
+                    {category?.isActive ? (
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500">
+                        <span className="w-2 h-2 mr-1 bg-green-500 rounded-full"></span>
+                        Aktif
+                      </span>
                     ) : (
-                      <p className="text-base font-medium text-gray-500 dark:text-gray-400 italic">Atanmamış</p>
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-500">
+                        <span className="w-2 h-2 mr-1 bg-red-500 rounded-full"></span>
+                        Pasif
+                      </span>
                     )}
                   </div>
                 </div>
-              </div>
-
-              {/* Durum */}
-              <div className="space-y-1 pt-2 border-t border-gray-100 dark:border-gray-700">
-                <div className="flex items-center">
-                  <svg className="w-4 h-4 mr-1.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Durum</h4>
-                </div>
-                <div className="mt-1">
-                  {category?.isActive ? (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500">
-                      <span className="w-2 h-2 mr-1 bg-green-500 rounded-full"></span>
-                      Aktif
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-500">
-                      <span className="w-2 h-2 mr-1 bg-red-500 rounded-full"></span>
-                      Pasif
-                    </span>
-                  )}
+                
+                {/* Açıklama */}
+                <div className="space-y-1 pt-2 border-t border-gray-100 dark:border-gray-700">
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 mr-1.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7"></path>
+                    </svg>
+                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Açıklama</h4>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 mt-1">
+                    <p className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">
+                      {category?.description || <span className="text-gray-500 dark:text-gray-400 italic">Açıklama bulunmuyor</span>}
+                    </p>
+                  </div>
                 </div>
               </div>
-              
-              {/* Açıklama */}
-              <div className="space-y-1 pt-2 border-t border-gray-100 dark:border-gray-700">
-                <div className="flex items-center">
-                  <svg className="w-4 h-4 mr-1.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7"></path>
-                  </svg>
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Açıklama</h4>
-                </div>
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 mt-1">
-                  <p className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">
-                    {category?.description || <span className="text-gray-500 dark:text-gray-400 italic">Açıklama bulunmuyor</span>}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+            </CardBody>
+          </Card>
         </div>
         
         {/* Sağ Taraf - Meta Bilgiler */}

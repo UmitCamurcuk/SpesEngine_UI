@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import attributeGroupService from '../../services/api/attributeGroupService';
 import attributeService from '../../services/api/attributeService';
 import { useTranslation } from '../../context/i18nContext';
+import { getEntityName, getEntityDescription } from '../../utils/translationUtils';
 
 interface AttributeGroupSelectorProps {
   selectedAttributeGroups: string[];
@@ -21,8 +22,8 @@ const AttributeGroupSelector: React.FC<AttributeGroupSelectorProps> = ({
   selectedAttributeGroups,
   onChange
 }) => {
-  const { t } = useTranslation();
-  const [attributeGroups, setAttributeGroups] = useState<AttributeGroupOption[]>([]);
+  const { t, currentLanguage } = useTranslation();
+  const [attributeGroups, setAttributeGroups] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -36,18 +37,7 @@ const AttributeGroupSelector: React.FC<AttributeGroupSelectorProps> = ({
       try {
         // Tüm öznitelik gruplarını getir
         const result = await attributeGroupService.getAttributeGroups({ limit: 100 });
-        
-        // AttributeGroup'ları dönüştür
-        const groupsWithCounts = result.attributeGroups.map(group => ({
-          _id: group._id,
-          name: group.name,
-          code: group.code,
-          description: group.description || '',
-          attributeCount: Array.isArray(group.attributes) ? group.attributes.length : 0,
-          isActive: group.isActive
-        }));
-        
-        setAttributeGroups(groupsWithCounts);
+        setAttributeGroups(result.attributeGroups);
       } catch (err: any) {
         console.error('Öznitelik grupları yüklenirken hata:', err);
         setError(err.message || 'Öznitelik grupları yüklenemedi');
@@ -57,19 +47,23 @@ const AttributeGroupSelector: React.FC<AttributeGroupSelectorProps> = ({
     };
     
     fetchAttributeGroups();
-  }, []);
+  }, [currentLanguage]);
   
   // Arama terimine göre filtrelenmiş öznitelik grupları
   const filteredAttributeGroups = useMemo(() => {
     if (!searchTerm.trim()) return attributeGroups;
     
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
-    return attributeGroups.filter(group => 
-      group.name.toLowerCase().includes(lowerCaseSearchTerm) ||
-      group.code.toLowerCase().includes(lowerCaseSearchTerm) ||
-      group.description.toLowerCase().includes(lowerCaseSearchTerm)
-    );
-  }, [attributeGroups, searchTerm]);
+    return attributeGroups.filter(group => {
+      const name = getEntityName(group, currentLanguage) || '';
+      const code = group.code || '';
+      const description = getEntityDescription(group, currentLanguage) || '';
+      
+      return name.toLowerCase().includes(lowerCaseSearchTerm) ||
+             code.toLowerCase().includes(lowerCaseSearchTerm) ||
+             description.toLowerCase().includes(lowerCaseSearchTerm);
+    });
+  }, [attributeGroups, searchTerm, currentLanguage]);
   
   // Checkbox değişikliğini ele al
   const handleCheckboxChange = (attributeGroupId: string) => {
@@ -197,7 +191,7 @@ const AttributeGroupSelector: React.FC<AttributeGroupSelectorProps> = ({
                   <td className="px-4 py-3">
                     <div className="flex flex-col">
                       <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        {group.name}
+                        {getEntityName(group, currentLanguage)}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 md:hidden">
                         {group.code}
@@ -210,13 +204,13 @@ const AttributeGroupSelector: React.FC<AttributeGroupSelectorProps> = ({
                     </div>
                   </td>
                   <td className="hidden lg:table-cell px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                    <div className="truncate max-w-xs" title={group.description}>
-                      {group.description || '-'}
+                    <div className="truncate max-w-xs" title={getEntityDescription(group, currentLanguage) || ''}>
+                      {getEntityDescription(group, currentLanguage) || '-'}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-center whitespace-nowrap">
                     <span className="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                      {group.attributeCount} öznitelik
+                      {Array.isArray(group.attributes) ? group.attributes.length : 0} öznitelik
                     </span>
                   </td>
                 </tr>

@@ -106,9 +106,14 @@ const attributeService = {
   },
   
   // Mevcut özniteliği güncelle
-  updateAttribute: async (id: string, attributeData: Partial<CreateAttributeDto>): Promise<Attribute> => {
+  updateAttribute: async (id: string, attributeData: any): Promise<Attribute> => {
     try {
+      console.log('[AttributeService] Öznitelik güncelleme isteği:', JSON.stringify(attributeData, null, 2));
+      
       const response = await api.put<ApiResponse<Attribute>>(`/attributes/${id}`, attributeData);
+      
+      console.log('[AttributeService] Güncelleme yanıtı:', response.data);
+      
       return response.data.data;
     } catch (error) {
       console.error(`${id} ID'li öznitelik güncellenirken hata oluştu:`, error);

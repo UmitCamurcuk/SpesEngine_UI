@@ -364,34 +364,62 @@ const AttributeGroupCreatePage: React.FC = () => {
           <div className="space-y-6">
             <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">{t('review_and_create', 'attribute_groups')}</h3>
             
+            {/* Genel Bilgiler */}
             <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 space-y-4">
+              
+              {/* Name Translations */}
               <div>
-                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('group_name', 'attribute_groups')}</h4>
-                <p className="mt-1 text-gray-900 dark:text-white">{translationData.nameTranslations[currentLanguage]}</p>
+                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">{t('group_name', 'attribute_groups')}</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {supportedLanguages.map((language) => (
+                    <div key={language} className="bg-white dark:bg-gray-700 p-3 rounded border">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-medium text-gray-400 uppercase">{language}</span>
+                      </div>
+                      <p className="text-sm text-gray-900 dark:text-white">
+                        {translationData.nameTranslations[language] || '-'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
               
+              {/* Code */}
               <div>
-                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('group_code', 'attribute_groups')}</h4>
-                <p className="mt-1 text-gray-900 dark:text-white font-mono">{formData.code}</p>
+                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">{t('group_code', 'attribute_groups')}</h4>
+                <p className="text-sm text-gray-900 dark:text-white font-mono bg-white dark:bg-gray-700 p-2 rounded border">{formData.code}</p>
               </div>
               
+              {/* Description Translations */}
               <div>
-                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('description_label', 'common')}</h4>
-                <p className="mt-1 text-gray-900 dark:text-white">{translationData.descriptionTranslations[currentLanguage]}</p>
+                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">{t('description_label', 'common')}</h4>
+                <div className="space-y-3">
+                  {supportedLanguages.map((language) => (
+                    <div key={language} className="bg-white dark:bg-gray-700 p-3 rounded border">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-medium text-gray-400 uppercase">{language}</span>
+                      </div>
+                      <p className="text-sm text-gray-900 dark:text-white">
+                        {translationData.descriptionTranslations[language] || '-'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
               
+              {/* Selected Attributes */}
               <div>
-                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('selected_attributes', 'attribute_groups')}</h4>
+                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">{t('selected_attributes', 'attribute_groups')}</h4>
                 {selectedAttributes.length === 0 ? (
-                  <p className="mt-1 text-gray-500 dark:text-gray-400">{t('no_attributes_selected', 'attribute_groups')}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{t('no_attributes_selected', 'attribute_groups')}</p>
                 ) : (
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {selectedAttributes.map((attrId) => {
                       const attribute = availableAttributes.find(attr => attr._id === attrId);
                       return attribute ? (
                         <span
                           key={attrId}
-                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400"
                         >
                           {getEntityName(attribute, currentLanguage)}
                         </span>

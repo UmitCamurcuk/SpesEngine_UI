@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
+import Breadcrumb from '../../../components/common/Breadcrumb';
 import Stepper from '../../../components/ui/Stepper';
+import TranslationFields from '../../../components/common/TranslationFields';
 import { TreeView, TreeViewWithCheckbox } from '../../../components/ui';
 import categoryService from '../../../services/api/categoryService';
 import attributeService from '../../../services/api/attributeService';
@@ -11,6 +13,9 @@ import type { CreateCategoryDto } from '../../../types/category';
 import type { TreeNode } from '../../../components/ui/TreeView';
 import AttributeGroupSelector from '../../../components/attributes/AttributeGroupSelector';
 import PaginatedAttributeSelector from '../../../components/attributes/PaginatedAttributeSelector';
+import { useTranslation } from '../../../context/i18nContext';
+import { useTranslationForm } from '../../../hooks/useTranslationForm';
+import { getEntityName } from '../../../utils/translationUtils';
 
 interface CategoryOption {
   _id: string;
@@ -38,6 +43,15 @@ interface FamilyOption {
 
 const CategoryCreatePage: React.FC = () => {
   const navigate = useNavigate();
+  const { t, currentLanguage } = useTranslation();
+  
+  // Translation hook'unu kullan
+  const {
+    supportedLanguages,
+    translationData,
+    handleTranslationChange,
+    createTranslations
+  } = useTranslationForm();
   
   // Form state
   const [formData, setFormData] = useState<CreateCategoryDto>({
@@ -81,6 +95,7 @@ const CategoryCreatePage: React.FC = () => {
     { title: 'Hiyerarşi', description: 'Üst kategori seçimi' },
     { title: 'Öznitelik Grupları', description: 'Kategoriye öznitelik grupları atama' },
     { title: 'Öznitelikler', description: 'Kategoriye ait öznitelikler' },
+    { title: 'Gözden Geçir ve Oluştur', description: 'Son kontrol ve kayıt' },
   ], []);
   
   // Kategori, öznitelik ve öznitelik grubu seçeneklerini yükle
@@ -302,9 +317,14 @@ const CategoryCreatePage: React.FC = () => {
     setSuccess(false);
     
     try {
+      // Çevirileri oluştur
+      const { nameId, descriptionId } = await createTranslations(formData.code, 'categories');
+
       // Form verisini hazırla - tüm seçili öznitelik ID'lerini ekle
       const payload: CreateCategoryDto = {
         ...formData,
+        name: nameId,
+        description: descriptionId || '',
         attributes: selectedAttributes,
         attributeGroups: selectedAttributeGroups,
         parentCategory: formData.parentCategory || undefined
@@ -330,16 +350,20 @@ const CategoryCreatePage: React.FC = () => {
   const validateStep1 = (): boolean => {
     const errors: Record<string, string> = {};
     
-    if (!formData.name.trim()) {
-      errors.name = 'Kategori adı zorunludur';
+    // Name translations kontrolü
+    const hasNameTranslation = Object.values(translationData.nameTranslations).some(name => name.trim());
+    if (!hasNameTranslation) {
+      errors.nameTranslations = 'En az bir dilde kategori adı zorunludur';
     }
     
     if (!formData.code.trim()) {
       errors.code = 'Kod zorunludur';
     }
     
-    if (!formData.description.trim()) {
-      errors.description = 'Açıklama zorunludur';
+    // Description translations kontrolü
+    const hasDescriptionTranslation = Object.values(translationData.descriptionTranslations).some(desc => desc.trim());
+    if (!hasDescriptionTranslation) {
+      errors.descriptionTranslations = 'En az bir dilde açıklama zorunludur';
     }
     
     setFormErrors(errors);
@@ -360,6 +384,11 @@ const CategoryCreatePage: React.FC = () => {
     // Öznitelikler zorunlu değil
     return true;
   };
+
+  const validateStep5 = (): boolean => {
+    // Review adımında genel validasyon
+    return true;
+  };
   
   const handleNextStep = () => {
     let isValid = false;
@@ -373,6 +402,8 @@ const CategoryCreatePage: React.FC = () => {
       isValid = validateStep3();
     } else if (currentStep === 3) {
       isValid = validateStep4();
+    } else if (currentStep === 4) {
+      isValid = validateStep5();
     }
     
     if (isValid) {
@@ -402,28 +433,23 @@ const CategoryCreatePage: React.FC = () => {
     switch (currentStep) {
       case 0:
         return (
-          <div className="space-y-4">
-            {/* İsim */}
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Kategori Adı <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                required
-                className={`bg-gray-50 border ${formErrors.name ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
-                placeholder="Kategori adını girin"
-              />
-              {formErrors.name && (
-                <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>
-              )}
-            </div>
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">Temel Bilgiler</h3>
             
-            {/* Kod */}
+            {/* NAME TRANSLATIONS */}
+            <TranslationFields
+              label="Kategori Adı"
+              fieldType="input"
+              translations={translationData.nameTranslations}
+              supportedLanguages={supportedLanguages}
+              currentLanguage={currentLanguage}
+              onChange={(language, value) => handleTranslationChange('nameTranslations', language, value)}
+              error={formErrors.nameTranslations}
+              placeholder="Kategori adını girin"
+              required
+            />
+
+            {/* CODE */}
             <div>
               <label htmlFor="code" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Kod <span className="text-red-500">*</span>
@@ -434,33 +460,34 @@ const CategoryCreatePage: React.FC = () => {
                 name="code"
                 value={formData.code}
                 onChange={handleChange}
-                required
-                className={`bg-gray-50 border ${formErrors.code ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 font-mono ${
+                  formErrors.code
+                    ? 'border-red-300 focus:ring-red-500 dark:border-red-700'
+                    : 'border-gray-300 focus:ring-blue-500 dark:border-gray-600'
+                } dark:bg-gray-700 dark:text-white`}
                 placeholder="Kategori kodunu girin (örn: CAT001)"
               />
               {formErrors.code && (
-                <p className="mt-1 text-sm text-red-500">{formErrors.code}</p>
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.code}</p>
               )}
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Kod format bilgisi: Küçük harfler, sayılar ve alt çizgi kullanın
+              </p>
             </div>
-            
-            {/* Açıklama */}
-            <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Açıklama <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                rows={3}
-                className={`bg-gray-50 border ${formErrors.description ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
-                placeholder="Kategori hakkında açıklama girin"
-              />
-              {formErrors.description && (
-                <p className="mt-1 text-sm text-red-500">{formErrors.description}</p>
-              )}
-            </div>
+
+            {/* DESCRIPTION TRANSLATIONS */}
+            <TranslationFields
+              label="Açıklama"
+              fieldType="textarea"
+              translations={translationData.descriptionTranslations}
+              supportedLanguages={supportedLanguages}
+              currentLanguage={currentLanguage}
+              onChange={(language, value) => handleTranslationChange('descriptionTranslations', language, value)}
+              error={formErrors.descriptionTranslations}
+              placeholder="Kategori açıklamasını girin"
+              required
+              rows={3}
+            />
             
             {/* Aktif/Pasif */}
             <div className="flex items-center">
@@ -707,6 +734,139 @@ const CategoryCreatePage: React.FC = () => {
           </div>
         );
       
+      case 4:
+        return (
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">Gözden Geçir ve Oluştur</h3>
+            
+            {/* Temel Bilgiler */}
+            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Temel Bilgiler</h4>
+              
+              {/* Name Translations */}
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Kategori Adı</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {supportedLanguages.map((language) => (
+                    <div key={language} className="bg-white dark:bg-gray-700 p-3 rounded border">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-medium text-gray-400 uppercase">{language}</span>
+                      </div>
+                      <p className="text-sm text-gray-900 dark:text-white">
+                        {translationData.nameTranslations[language] || '-'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Code */}
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Kod</label>
+                <p className="text-sm text-gray-900 dark:text-white font-mono bg-white dark:bg-gray-700 p-2 rounded border">
+                  {formData.code || '-'}
+                </p>
+              </div>
+              
+              {/* Description Translations */}
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Açıklama</label>
+                <div className="space-y-3">
+                  {supportedLanguages.map((language) => (
+                    <div key={language} className="bg-white dark:bg-gray-700 p-3 rounded border">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-medium text-gray-400 uppercase">{language}</span>
+                      </div>
+                      <p className="text-sm text-gray-900 dark:text-white">
+                        {translationData.descriptionTranslations[language] || '-'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Status */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Durum</label>
+                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                  formData.isActive 
+                    ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                    : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                }`}>
+                  {formData.isActive ? 'Aktif' : 'Pasif'}
+                </span>
+              </div>
+            </div>
+            
+            {/* Hiyerarşi Bilgileri */}
+            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Hiyerarşi</h4>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Parent Category */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Üst Kategori</label>
+                  <p className="text-sm text-gray-900 dark:text-white">
+                    {formData.parentCategory 
+                      ? parentCategoryOptions.find(cat => cat._id === formData.parentCategory)?.name || 'Bilinmiyor'
+                      : 'Seçilmedi'
+                    }
+                  </p>
+                </div>
+                
+                {/* Family */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Aile</label>
+                  <p className="text-sm text-gray-900 dark:text-white">
+                    {formData.family 
+                      ? familyOptions.find(family => family._id === formData.family)?.name || 'Bilinmiyor'
+                      : 'Seçilmedi'
+                    }
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Attribute Groups */}
+            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Öznitelik Grupları</h4>
+              {selectedAttributeGroups.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {selectedAttributeGroups.map(groupId => {
+                    const group = attributeGroupOptions.find(g => g._id === groupId);
+                    return (
+                      <span key={groupId} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
+                        {group?.name || 'Bilinmiyor'}
+                      </span>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400">Hiç öznitelik grubu seçilmedi</p>
+              )}
+            </div>
+            
+            {/* Attributes */}
+            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Öznitelikler</h4>
+              {selectedAttributes.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {selectedAttributes.map(attrId => {
+                    const attribute = attributeOptions.find(a => a._id === attrId);
+                    return (
+                      <span key={attrId} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400">
+                        {attribute?.name || 'Bilinmiyor'}
+                      </span>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400">Hiç öznitelik seçilmedi</p>
+              )}
+            </div>
+          </div>
+        );
+      
       default:
         return null;
     }
@@ -714,12 +874,22 @@ const CategoryCreatePage: React.FC = () => {
   
   return (
     <div className="space-y-6">
-      {/* Başlık */}
+      {/* BREADCRUMB */}
+      <div className="flex items-center justify-between">
+        <Breadcrumb 
+          items={[
+            { label: 'Kategoriler', path: '/categories/list' },
+            { label: 'Yeni Kategori' }
+          ]} 
+        />
+      </div>
+
+      {/* HEADER */}
       <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
-              <svg className="w-7 h-7 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <svg className="w-6 h-6 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
               Yeni Kategori Oluştur
@@ -731,88 +901,96 @@ const CategoryCreatePage: React.FC = () => {
           
           <Button
             variant="outline"
+            className="flex items-center mt-4 md:mt-0"
             onClick={() => navigate('/categories/list')}
-            className="flex items-center"
           >
             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-            Listeye Dön
+            <span>Listeye Dön</span>
           </Button>
         </div>
       </div>
-      
-      {/* Stepper */}
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-        <Stepper 
-          steps={steps}
-          activeStep={currentStep}
-          completedSteps={completedSteps}
-        />
-      </div>
-      
-      {/* Form */}
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-        {error && (
-          <div className="mb-4 bg-red-50 dark:bg-red-900/20 p-4 rounded-md border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 flex items-start">
-            <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{error}</span>
-          </div>
-        )}
+
+      {/* STEPPER */}
+      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <Stepper 
+            steps={steps}
+            activeStep={currentStep}
+            completedSteps={completedSteps}
+          />
+        </div>
         
-        {success && (
-          <div className="mb-4 bg-green-50 dark:bg-green-900/20 p-4 rounded-md border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 flex items-start">
-            <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <span>Kategori başarıyla oluşturuldu! Yönlendiriliyorsunuz...</span>
-          </div>
-        )}
-        
-        <div className="space-y-6">
-          {/* Adımlı form içeriği */}
-          {renderStepContent()}
-          
-          {/* Navigasyon butonları */}
-          <div className="flex justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
-            <Button
-              variant="outline"
-              disabled={currentStep === 0}
-              onClick={handlePrevStep}
-              className="flex items-center"
-            >
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        {/* FORM CONTENT */}
+        <div className="p-6">
+          {error && (
+            <div className="bg-red-50 dark:bg-red-900/20 p-4 mb-6 border border-red-200 dark:border-red-800 rounded-md text-red-700 dark:text-red-400 flex items-start">
+              <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              Önceki
-            </Button>
+              <span>{error}</span>
+            </div>
+          )}
+          
+          {success && (
+            <div className="bg-green-50 dark:bg-green-900/20 p-4 mb-6 border border-green-200 dark:border-green-800 rounded-md text-green-700 dark:text-green-400 flex items-start">
+              <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span>Kategori başarıyla oluşturuldu! Yönlendiriliyorsunuz...</span>
+            </div>
+          )}
+          
+          <form onSubmit={handleSubmit}>
+            {renderStepContent()}
             
+            {/* NAVIGATION BUTTONS */}
+            <div className="flex justify-between mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
               <Button
-                variant="primary"
-              onClick={handleNextStep}
-              loading={isLoading}
-                className="flex items-center"
+                variant="outline"
+                type="button"
+                onClick={handlePrevStep}
+                disabled={currentStep === 0}
+                className={`${currentStep === 0 ? 'invisible' : ''}`}
               >
-              {currentStep === steps.length - 1 ? (
-                  <>
-                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  Kaydet
-                </>
-              ) : (
-                <>
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Önceki
+              </Button>
+              
+              {currentStep < steps.length - 1 ? (
+                <Button
+                  variant="primary"
+                  type="button"
+                  onClick={handleNextStep}
+                >
                   Sonraki
                   <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
-                  </>
-                )}
-              </Button>
+                </Button>
+              ) : (
+                <Button
+                  variant="primary"
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleSubmit(e);
+                  }}
+                  loading={isLoading}
+                  disabled={isLoading}
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Kategori Oluştur
+                </Button>
+              )}
             </div>
-          </div>
+          </form>
+        </div>
       </div>
     </div>
   );

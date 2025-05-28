@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
 import Breadcrumb from '../../../components/common/Breadcrumb';
-import AttributeHistoryList from '../../../components/attributes/AttributeHistoryList';
+import EntityHistoryList from '../../../components/common/EntityHistoryList';
 import attributeGroupService from '../../../services/api/attributeGroupService';
 import attributeService from '../../../services/api/attributeService';
 import { AttributeGroup } from '../../../types/attributeGroup';
@@ -143,11 +143,27 @@ const AttributeGroupDetailsPage: React.FC = () => {
     setError(null);
     
     try {
-      const updatedData = {
-        name: editableFields.name.trim(),
-        description: editableFields.description.trim(),
+      // Sadece değişen translation'ları gönder
+      const currentName = getAttributeGroupName(attributeGroup);
+      const currentDescription = getAttributeGroupDescription(attributeGroup);
+      
+      const updatedData: any = {
         isActive: editableFields.isActive
       };
+      
+      // Name değişmişse translation'ı ekle
+      if (editableFields.name.trim() !== currentName) {
+        updatedData.nameTranslations = {
+          [currentLanguage]: editableFields.name.trim()
+        };
+      }
+      
+      // Description değişmişse translation'ı ekle  
+      if (editableFields.description.trim() !== currentDescription) {
+        updatedData.descriptionTranslations = {
+          [currentLanguage]: editableFields.description.trim()
+        };
+      }
       
       const updatedAttributeGroup = await attributeGroupService.updateAttributeGroup(id, updatedData);
       setAttributeGroup(updatedAttributeGroup);
@@ -899,7 +915,7 @@ const AttributeGroupDetailsPage: React.FC = () => {
             <h2 className="text-lg font-medium text-gray-900 dark:text-white">{t('change_history_title', 'attribute_groups')}</h2>
           </CardHeader>
           <CardBody>
-            <AttributeHistoryList attributeId={id!} />
+            <EntityHistoryList entityId={id!} entityType="attributeGroup" title="Öznitelik Grubu Geçmişi" />
           </CardBody>
         </Card>
       )}

@@ -97,6 +97,7 @@ const AttributeCreatePage: React.FC = () => {
     { title: t('type_selection', 'attributes'), description: t('attribute_type_and_requirement', 'attributes') },
     { title: t('type_properties', 'attributes'), description: t('type_specific_info', 'attributes') },
     { title: t('validation_rules', 'attributes'), description: t('validation_rules_desc', 'attributes') },
+    { title: t('review_and_create', 'attributes'), description: t('review_before_creating', 'attributes') },
   ], [t, currentLanguage]);
   
   // Öznitelik gruplarını yükle
@@ -199,6 +200,12 @@ const AttributeCreatePage: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
   
+  // Adım 4 için doğrulama (validation rules)
+  const validateStep4 = (): boolean => {
+    // Validasyon kuralları opsiyonel
+    return true;
+  };
+  
   // Sadece form gönderiminde çalışacak validasyon
   const validateFormBeforeSubmit = (): boolean => {
     const errors: Record<string, string> = {};
@@ -264,7 +271,10 @@ const AttributeCreatePage: React.FC = () => {
         isValid = validateStep3();
         break;
       case 3:
-        // 4. adımda bir sonraki adım yok, bu adımda sadece submit butonu var.
+        isValid = validateStep4();
+        break;
+      case 4:
+        // 5. adımda bir sonraki adım yok, bu adımda sadece submit butonu var.
         // Ayrıca burada validasyon yapmıyoruz, validasyon sadece form submit esnasında yapılacak
         return; // Direkt olarak fonksiyondan çıkıyoruz, bu adımda ilerleme yok
       default:
@@ -566,6 +576,142 @@ const AttributeCreatePage: React.FC = () => {
               validation={formData.validations} 
               onChange={handleValidationChange} 
             />
+          </div>
+        );
+      
+      case 4:
+        return (
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">{t('review_and_create', 'attributes')}</h3>
+            
+            {/* Genel Bilgiler */}
+            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">{t('general_info', 'attributes')}</h4>
+              
+              {/* Name Translations */}
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">{t('attribute_name', 'attributes')}</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {supportedLanguages.map((language) => (
+                    <div key={language} className="bg-white dark:bg-gray-700 p-3 rounded border">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-medium text-gray-400 uppercase">{language}</span>
+                      </div>
+                      <p className="text-sm text-gray-900 dark:text-white">
+                        {translationData.nameTranslations[language] || '-'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Code */}
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('attribute_code', 'attributes')}</label>
+                <p className="text-sm text-gray-900 dark:text-white font-mono bg-white dark:bg-gray-700 p-2 rounded border">
+                  {formData.code || '-'}
+                </p>
+              </div>
+              
+              {/* Description Translations */}
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">{t('description', 'attributes')}</label>
+                <div className="space-y-3">
+                  {supportedLanguages.map((language) => (
+                    <div key={language} className="bg-white dark:bg-gray-700 p-3 rounded border">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-medium text-gray-400 uppercase">{language}</span>
+                      </div>
+                      <p className="text-sm text-gray-900 dark:text-white">
+                        {translationData.descriptionTranslations[language] || '-'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Attribute Group */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('attribute_group', 'attributes')}</label>
+                <p className="text-sm text-gray-900 dark:text-white">
+                  {formData.attributeGroup 
+                    ? attributeGroups.find(group => group._id === formData.attributeGroup)?.name || 'Bilinmiyor'
+                    : t('not_selected', 'attributes')
+                  }
+                </p>
+              </div>
+            </div>
+            
+            {/* Tip ve Ayarlar */}
+            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">{t('type_and_settings', 'attributes')}</h4>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Type */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('attribute_type', 'attributes')}</label>
+                  <div className="flex items-center space-x-2">
+                    <AttributeBadge type={formData.type} />
+                    <span className="text-sm text-gray-900 dark:text-white">
+                      {t(AttributeTypeLabels[formData.type].key, AttributeTypeLabels[formData.type].namespace, { use: true })}
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Required */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('is_required', 'attributes')}</label>
+                  <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                    formData.isRequired 
+                      ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                      : 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                  }`}>
+                    {formData.isRequired ? t('required', 'attributes') : t('optional', 'attributes')}
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Seçenekler (SELECT/MULTISELECT için) */}
+            {(formData.type === AttributeType.SELECT || formData.type === AttributeType.MULTISELECT) && formData.options && (
+              <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">{t('options', 'attributes')}</h4>
+                <div className="flex flex-wrap gap-2">
+                  {formData.options
+                    .split(',')
+                    .map(option => option.trim())
+                    .filter(option => option.length > 0)
+                    .map((option, index) => (
+                      <span
+                        key={`review-option-${index}-${option}`}
+                        className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400"
+                      >
+                        {option}
+                      </span>
+                    ))
+                  }
+                </div>
+              </div>
+            )}
+            
+            {/* Validasyon Kuralları */}
+            {formData.validations && Object.keys(formData.validations).length > 0 && (
+              <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">{t('validation_rules', 'attributes')}</h4>
+                <div className="space-y-2">
+                  {Object.entries(formData.validations).map(([key, value]) => (
+                    <div key={key} className="flex justify-between items-center text-sm">
+                      <span className="text-gray-600 dark:text-gray-400 capitalize">
+                        {key.replace(/([A-Z])/g, ' $1').trim()}:
+                      </span>
+                      <span className="text-gray-900 dark:text-white font-medium">
+                        {typeof value === 'boolean' ? (value ? 'Evet' : 'Hayır') : String(value)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         );
         

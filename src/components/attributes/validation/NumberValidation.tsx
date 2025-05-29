@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { AttributeValidation } from '../../../services/api/attributeService';
+import React, { useState, useEffect } from 'react';
+import { AttributeValidation } from '../../../types/attribute';
 import { useTranslation } from '../../../context/i18nContext';
 
 interface NumberValidationProps {
@@ -10,34 +10,54 @@ interface NumberValidationProps {
 const NumberValidation: React.FC<NumberValidationProps> = ({ validation, onChange }) => {
   const { t, currentLanguage } = useTranslation();
   const [exactDigits, setExactDigits] = useState<string>('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
     
+    let processedValue: any = value;
+    
     if (type === 'checkbox') {
-      const updatedValidation = {
-        ...validation,
-        [name]: (e.target as HTMLInputElement).checked
-      };
-      console.log(`Checkbox değişti - ${name}: ${(e.target as HTMLInputElement).checked}`, updatedValidation);
-      onChange(updatedValidation);
-    } else {
-      // Sayısal değerler için özel işleme - boş string'i null yap (undefined değil)
-      let parsedValue;
+      processedValue = (e.target as HTMLInputElement).checked;
+    } else if (type === 'number') {
+      // Boş string kontrolü
       if (value === '') {
-        parsedValue = null; // MongoDB ve mongoose için undefined yerine null kullan
+        processedValue = undefined;
       } else {
-        parsedValue = parseFloat(value);
+        const numValue = parseFloat(value);
+        processedValue = isNaN(numValue) ? undefined : numValue;
       }
-      
-      const updatedValidation = {
-        ...validation,
-        [name]: parsedValue
-      };
-      console.log(`Input değişti - ${name}: ${parsedValue}`, updatedValidation);
-      onChange(updatedValidation);
     }
+    
+    const newValidation = {
+      ...validation,
+      [name]: processedValue
+    };
+    
+    // Cross-validation kontrolü
+    validateFields(newValidation);
+    
+    onChange(newValidation);
   };
+  
+  const validateFields = (currentValidation: Partial<AttributeValidation>) => {
+    const newErrors: Record<string, string> = {};
+    
+    // Min/Max value cross-validation
+    if (currentValidation.min !== undefined && 
+        currentValidation.max !== undefined && 
+        currentValidation.min > currentValidation.max) {
+      newErrors.min = 'Minimum değer maksimum değerden büyük olamaz';
+      newErrors.max = 'Maksimum değer minimum değerden küçük olamaz';
+    }
+    
+    setErrors(newErrors);
+  };
+  
+  // Component mount olduğunda mevcut validation'ı kontrol et
+  useEffect(() => {
+    validateFields(validation);
+  }, [validation]);
   
   // Tam olarak X haneli sayı kısayolu
   const handleExactDigitsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -120,12 +140,16 @@ const NumberValidation: React.FC<NumberValidationProps> = ({ validation, onChang
             name="min"
             value={validation.min === undefined ? '' : validation.min}
             onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white"
+            className={`w-full px-3 py-2 border ${errors.min ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white`}
             placeholder={t('min_value_placeholder', 'validation')}
           />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            {t('min_value_help', 'validation')}
-          </p>
+          {errors.min ? (
+            <p className="mt-1 text-xs text-red-500">{errors.min}</p>
+          ) : (
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {t('min_value_help', 'validation')}
+            </p>
+          )}
         </div>
         
         {/* Maximum Değer */}
@@ -139,12 +163,16 @@ const NumberValidation: React.FC<NumberValidationProps> = ({ validation, onChang
             name="max"
             value={validation.max === undefined ? '' : validation.max}
             onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white"
+            className={`w-full px-3 py-2 border ${errors.max ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white`}
             placeholder={t('max_value_placeholder', 'validation')}
           />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            {t('max_value_help', 'validation')}
-          </p>
+          {errors.max ? (
+            <p className="mt-1 text-xs text-red-500">{errors.max}</p>
+          ) : (
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {t('max_value_help', 'validation')}
+            </p>
+          )}
         </div>
       </div>
       

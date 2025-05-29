@@ -1,13 +1,45 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Table from '../../../components/ui/Table';
 import type { TableColumn, SortParams, FilterParams, PaginationParams } from '../../../components/ui/Table';
 import Button from '../../../components/ui/Button';
+import Breadcrumb from '../../../components/common/Breadcrumb';
 import familyService from '../../../services/api/familyService';
-import type { Family, FamilyApiParams } from '../../../services/api/familyService';
+import type { Family, FamilyApiParams } from '../../../types/family';
+import { useTranslation } from '../../../context/i18nContext';
+import { getEntityName } from '../../../utils/translationUtils';
+
+// Card bileşenleri
+const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <div className={`bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden ${className}`}>
+    {children}
+  </div>
+);
+
+const CardHeader: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <div className={`px-6 py-4 border-b border-gray-200 dark:border-gray-700 ${className}`}>
+    {children}
+  </div>
+);
+
+const CardBody: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <div className={`p-6 ${className}`}>
+    {children}
+  </div>
+);
+
+// Debounce utility function
+function debounce<T extends (...args: any[]) => any>(func: T, delay: number): (...args: Parameters<T>) => void {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
+  };
+}
 
 const FamiliesListPage: React.FC = () => {
   const navigate = useNavigate();
+  const { t, currentLanguage } = useTranslation();
   
   // State tanımlamaları
   const [families, setFamilies] = useState<Family[]>([]);
@@ -31,11 +63,13 @@ const FamiliesListPage: React.FC = () => {
   // İstatistikler
   const [stats, setStats] = useState({
     total: 0,
-    active: 0
+    active: 0,
+    withParent: 0,
+    withAttributeGroups: 0
   });
 
   // Aileleri getir
-  const fetchFamilies = async () => {
+  const fetchFamilies = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     
@@ -75,16 +109,26 @@ const FamiliesListPage: React.FC = () => {
       // İstatistikleri hesapla
       if (result.families.length > 0) {
         let activeCount = 0;
+        let withParentCount = 0;
+        let withAttributeGroupsCount = 0;
         
         result.families.forEach(family => {
           if (family.isActive) {
             activeCount++;
           }
+          if (family.parentFamily) {
+            withParentCount++;
+          }
+          if (family.attributeGroups && family.attributeGroups.length > 0) {
+            withAttributeGroupsCount++;
+          }
         });
         
         setStats({
           total: result.total,
-          active: activeCount
+          active: activeCount,
+          withParent: withParentCount,
+          withAttributeGroups: withAttributeGroupsCount
         });
       }
     } catch (err: any) {
@@ -92,12 +136,29 @@ const FamiliesListPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-  
+  }, [pagination.page, pagination.limit, sort, filters, searchTerm]);
+
+  // Debounced search
+  const debouncedSearch = useCallback(
+    debounce((term: string) => {
+      setSearchTerm(term);
+      setPagination(prev => ({ ...prev, page: 1 }));
+    }, 500),
+    []
+  );
+
   // Bağımlılıklar değiştiğinde yeniden veri çek
   useEffect(() => {
     fetchFamilies();
-  }, [pagination.page, pagination.limit, sort, filters, searchTerm]);
+  }, [fetchFamilies]);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchFamilies();
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
   
   // Sayfa değişim handler
   const handlePageChange = (page: number) => {
@@ -154,8 +215,8 @@ const FamiliesListPage: React.FC = () => {
       filterable: true,
       render: (row) => (
         <div className="flex items-center">
-          <div className="font-medium text-gray-900 dark:text-white truncate max-w-[200px]" title={row.name}>
-            {row.name}
+          <div className="font-medium text-gray-900 dark:text-white truncate max-w-[200px]" title={getEntityName(row, currentLanguage) || row.name}>
+            {getEntityName(row, currentLanguage) || row.name}
           </div>
         </div>
       )
@@ -262,71 +323,85 @@ const FamiliesListPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Başlık Kartı */}
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
-              <svg className="w-7 h-7 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
-              </svg>
-              Ürün Aileleri
-            </h1>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              Tüm ürün ailelerini görüntüleyin, düzenleyin ve yönetin
-            </p>
+      {/* BREADCRUMB */}
+      <Breadcrumb 
+        items={[
+          { label: 'Aileler' }
+        ]} 
+      />
+
+      {/* HEADER CARD */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
+                <svg className="w-7 h-7 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+                </svg>
+                Ürün Aileleri
+              </h1>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                Tüm ürün ailelerini görüntüleyin, düzenleyin ve yönetin
+              </p>
+              
+              {/* Basit istatistikler */}
+              <div className="flex mt-2 space-x-4 text-xs">
+                <div className="text-gray-500 dark:text-gray-400">
+                  <span className="font-semibold text-gray-900 dark:text-white">{stats.total}</span> Toplam
+                </div>
+                <div className="text-gray-500 dark:text-gray-400">
+                  <span className="font-semibold text-green-600 dark:text-green-400">{stats.active}</span> Aktif
+                </div>
+                <div className="text-gray-500 dark:text-gray-400">
+                  <span className="font-semibold text-red-600 dark:text-red-400">{stats.total - stats.active}</span> Pasif
+                </div>
+              </div>
+            </div>
             
-            {/* Basit istatistikler */}
-            <div className="flex mt-2 space-x-4 text-xs">
-              <div className="text-gray-500 dark:text-gray-400">
-                <span className="font-semibold text-gray-900 dark:text-white">{stats.total}</span> Toplam
-              </div>
-              <div className="text-gray-500 dark:text-gray-400">
-                <span className="font-semibold text-green-600 dark:text-green-400">{stats.active}</span> Aktif
-              </div>
-              <div className="text-gray-500 dark:text-gray-400">
-                <span className="font-semibold text-red-600 dark:text-red-400">{stats.total - stats.active}</span> Pasif
-              </div>
-            </div>
-          </div>
-          
-          <Button
-            className="mt-4 md:mt-0 flex items-center"
-            onClick={handleCreateFamily}
-          >
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Yeni Aile Oluştur
-          </Button>
-        </div>
-      </div>
-      
-      {/* Arama ve Filtreleme Kartı */}
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4">
-        <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-              <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <Button
+              className="mt-4 md:mt-0 flex items-center"
+              onClick={handleCreateFamily}
+            >
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-            </div>
-            <input 
-              type="text" 
-              className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full pl-10 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark" 
-              placeholder="Aile adı, kod veya açıklama ara..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+              Yeni Aile Oluştur
+            </Button>
           </div>
-          <Button type="submit" className="md:w-auto">
-            Ara
-          </Button>
-        </form>
-      </div>
+        </CardHeader>
+      </Card>
       
-      {/* Veri Tablosu */}
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+      {/* SEARCH CARD */}
+      <Card>
+        <CardBody className="py-4">
+          <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 relative">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <input 
+                type="text" 
+                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full pl-10 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark" 
+                placeholder="Aile adı, kod veya açıklama ara..." 
+                value={searchTerm}
+                onChange={(e) => {
+                  e.preventDefault();
+                  debouncedSearch(e.target.value);
+                }}
+              />
+            </div>
+            <Button type="submit" className="md:w-auto">
+              Ara
+            </Button>
+          </form>
+        </CardBody>
+      </Card>
+      
+      {/* DATA TABLE CARD */}
+      <Card>
         {error && (
           <div className="bg-red-50 dark:bg-red-900/20 p-4 border-b border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 flex items-start">
             <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -349,7 +424,7 @@ const FamiliesListPage: React.FC = () => {
           onRowClick={handleRowClick}
           emptyMessage="Henüz hiç aile oluşturulmamış"
         />
-      </div>
+      </Card>
     </div>
   );
 };

@@ -208,8 +208,8 @@ const CategoriesListPage: React.FC = () => {
       filterable: false,
       render: (row) => (
         <div className="flex items-center">
-          <div className="font-medium text-gray-900 dark:text-white truncate max-w-[200px]" title={getEntityName(row, currentLanguage)}>
-            {getEntityName(row, currentLanguage)}
+          <div className="font-medium text-gray-900 dark:text-white truncate max-w-[200px]" title={row.name}>
+            {row.name}
           </div>
         </div>
       )
@@ -229,8 +229,8 @@ const CategoriesListPage: React.FC = () => {
       key: 'description',
       header: t('description', 'categories'),
       render: (row) => (
-        <div className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={getEntityDescription(row, currentLanguage)}>
-          {getEntityDescription(row, currentLanguage) || <span className="text-gray-400 italic">{t('no_description', 'categories')}</span>}
+        <div className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={row.description}>
+          {row.description || <span className="text-gray-400 italic">{t('no_description', 'categories')}</span>}
         </div>
       )
     },

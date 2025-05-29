@@ -4,18 +4,25 @@ import Button from '../../../components/ui/Button';
 import Breadcrumb from '../../../components/common/Breadcrumb';
 import Stepper from '../../../components/ui/Stepper';
 import TranslationFields from '../../../components/common/TranslationFields';
-import { TreeView, TreeViewWithCheckbox } from '../../../components/ui';
+import { UnifiedTreeView } from '../../../components/ui';
 import categoryService from '../../../services/api/categoryService';
 import attributeService from '../../../services/api/attributeService';
 import attributeGroupService from '../../../services/api/attributeGroupService';
 import familyService from '../../../services/api/familyService';
 import type { CreateCategoryDto } from '../../../types/category';
-import type { TreeNode } from '../../../components/ui/TreeView';
 import AttributeGroupSelector from '../../../components/attributes/AttributeGroupSelector';
 import PaginatedAttributeSelector from '../../../components/attributes/PaginatedAttributeSelector';
 import { useTranslation } from '../../../context/i18nContext';
 import { useTranslationForm } from '../../../hooks/useTranslationForm';
 import { getEntityName } from '../../../utils/translationUtils';
+
+interface TreeNode {
+  id: string;
+  name: string;
+  label?: string;
+  children?: TreeNode[];
+  data?: any;
+}
 
 interface CategoryOption {
   _id: string;
@@ -489,19 +496,24 @@ const CategoryCreatePage: React.FC = () => {
               rows={3}
             />
             
-            {/* Aktif/Pasif */}
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="isActive"
-                name="isActive"
-                checked={formData.isActive === undefined ? true : formData.isActive}
-                onChange={handleChange}
-                className="w-4 h-4 text-primary-light bg-gray-100 border-gray-300 rounded focus:ring-primary-light dark:focus:ring-primary-dark dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-              />
-              <label htmlFor="isActive" className="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300">
-                Aktif
-              </label>
+            {/* Aktif */}
+            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="isActive"
+                  name="isActive"
+                  checked={formData.isActive === undefined ? true : formData.isActive}
+                  onChange={handleChange}
+                  className="h-4 w-4 text-primary-light dark:text-primary-dark focus:ring-primary-light dark:focus:ring-primary-dark rounded border-gray-300 dark:border-gray-600"
+                />
+                <label htmlFor="isActive" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                  Kategori Aktif
+                </label>
+              </div>
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 ml-6">
+                Kategorinin aktif olup olmadığını belirler. Pasif kategoriler kullanıcı arayüzünde gösterilmez.
+              </p>
             </div>
           </div>
         );
@@ -522,18 +534,32 @@ const CategoryCreatePage: React.FC = () => {
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                   {categoryTree.length > 0 ? (
                     <div>
-                      <TreeViewWithCheckbox 
-                        data={categoryTree} 
-                        defaultSelectedIds={formData.parentCategory ? [formData.parentCategory] : []}
-                        expandAll={true}
-                        maxHeight="300px"
-                        showRelationLines={true}
-                        variant="spectrum"
+                      <UnifiedTreeView 
+                        data={categoryTree.map(cat => ({
+                          id: cat.id,
+                          name: getEntityName(cat.data, currentLanguage) || cat.name,
+                          label: getEntityName(cat.data, currentLanguage) || cat.name,
+                          children: cat.children?.map(child => ({
+                            id: child.id,
+                            name: getEntityName(child.data, currentLanguage) || child.name,
+                            label: getEntityName(child.data, currentLanguage) || child.name,
+                            children: child.children,
+                            data: child.data
+                          })),
+                          data: cat.data
+                        }))}
+                        mode="select"
+                        selectionMode="single"
                         onSelectionChange={(selectedIds) => {
                           // Sadece bir kategori seçilebilir, birden fazla seçilirse son seçileni al
                           const selectedId = selectedIds.length > 0 ? selectedIds[selectedIds.length - 1] : '';
                           setFormData(prev => ({ ...prev, parentCategory: selectedId }));
                         }}
+                        defaultSelectedIds={formData.parentCategory ? [formData.parentCategory] : []}
+                        expandAll={true}
+                        maxHeight="300px"
+                        showRelationLines={true}
+                        variant="spectrum"
                         className="shadow-sm"
                       />
                     </div>
@@ -579,18 +605,32 @@ const CategoryCreatePage: React.FC = () => {
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                   {familyTree.length > 0 ? (
                     <div>
-                      <TreeViewWithCheckbox 
-                        data={familyTree} 
-                        defaultSelectedIds={formData.family ? [formData.family] : []}
-                        expandAll={true}
-                        maxHeight="300px"
-                        showRelationLines={true}
-                        variant="spectrum"
+                      <UnifiedTreeView 
+                        data={familyTree.map(fam => ({
+                          id: fam.id,
+                          name: getEntityName(fam.data, currentLanguage) || fam.name,
+                          label: getEntityName(fam.data, currentLanguage) || fam.name,
+                          children: fam.children?.map(child => ({
+                            id: child.id,
+                            name: getEntityName(child.data, currentLanguage) || child.name,
+                            label: getEntityName(child.data, currentLanguage) || child.name,
+                            children: child.children,
+                            data: child.data
+                          })),
+                          data: fam.data
+                        }))}
+                        mode="select"
+                        selectionMode="single"
                         onSelectionChange={(selectedIds) => {
                           // Sadece bir aile seçilebilir, birden fazla seçilirse son seçileni al
                           const selectedId = selectedIds.length > 0 ? selectedIds[selectedIds.length - 1] : '';
                           setFormData(prev => ({ ...prev, family: selectedId }));
                         }}
+                        defaultSelectedIds={formData.family ? [formData.family] : []}
+                        expandAll={true}
+                        maxHeight="300px"
+                        showRelationLines={true}
+                        variant="spectrum"
                         className="shadow-sm"
                       />
                     </div>
@@ -620,7 +660,13 @@ const CategoryCreatePage: React.FC = () => {
                       <div>
                         <h4 className="text-sm font-medium text-green-700 dark:text-green-300">Seçili Aile</h4>
                         <p className="mt-1 text-sm text-green-600 dark:text-green-400">
-                          {familyOptions.find(family => family._id === formData.family)?.name || 'Seçili aile'}
+                          {formData.family 
+                            ? (() => {
+                                const family = familyOptions.find(family => family._id === formData.family);
+                                return family ? getEntityName(family, currentLanguage) || family.name || 'Bilinmiyor' : 'Bilinmiyor';
+                              })()
+                            : 'Seçilmedi'
+                          }
                         </p>
                       </div>
                     </div>
@@ -808,7 +854,10 @@ const CategoryCreatePage: React.FC = () => {
                   <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Üst Kategori</label>
                   <p className="text-sm text-gray-900 dark:text-white">
                     {formData.parentCategory 
-                      ? parentCategoryOptions.find(cat => cat._id === formData.parentCategory)?.name || 'Bilinmiyor'
+                      ? (() => {
+                          const cat = parentCategoryOptions.find(cat => cat._id === formData.parentCategory);
+                          return cat ? getEntityName(cat, currentLanguage) || cat.name || 'Bilinmiyor' : 'Bilinmiyor';
+                        })()
                       : 'Seçilmedi'
                     }
                   </p>
@@ -819,7 +868,10 @@ const CategoryCreatePage: React.FC = () => {
                   <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Aile</label>
                   <p className="text-sm text-gray-900 dark:text-white">
                     {formData.family 
-                      ? familyOptions.find(family => family._id === formData.family)?.name || 'Bilinmiyor'
+                      ? (() => {
+                          const family = familyOptions.find(family => family._id === formData.family);
+                          return family ? getEntityName(family, currentLanguage) || family.name || 'Bilinmiyor' : 'Bilinmiyor';
+                        })()
                       : 'Seçilmedi'
                     }
                   </p>
@@ -836,7 +888,7 @@ const CategoryCreatePage: React.FC = () => {
                     const group = attributeGroupOptions.find(g => g._id === groupId);
                     return (
                       <span key={groupId} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
-                        {group?.name || 'Bilinmiyor'}
+                        {group ? getEntityName(group, currentLanguage) || group.name || 'Bilinmiyor' : 'Bilinmiyor'}
                       </span>
                     );
                   })}
@@ -855,7 +907,7 @@ const CategoryCreatePage: React.FC = () => {
                     const attribute = attributeOptions.find(a => a._id === attrId);
                     return (
                       <span key={attrId} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400">
-                        {attribute?.name || 'Bilinmiyor'}
+                        {attribute ? getEntityName(attribute, currentLanguage) || attribute.name || 'Bilinmiyor' : 'Bilinmiyor'}
                       </span>
                     );
                   })}

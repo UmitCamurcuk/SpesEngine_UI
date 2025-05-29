@@ -1,5 +1,5 @@
-import React from 'react';
-import { AttributeValidation } from '../../../services/api/attributeService';
+import React, { useState, useEffect } from 'react';
+import { AttributeValidation } from '../../../types/attribute';
 
 interface DateValidationProps {
   validation: Partial<AttributeValidation>;
@@ -7,14 +7,40 @@ interface DateValidationProps {
 }
 
 const DateValidation: React.FC<DateValidationProps> = ({ validation, onChange }) => {
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     
-    onChange({
+    const newValidation = {
       ...validation,
       [name]: value || undefined
-    });
+    };
+    
+    // Cross-validation kontrolü
+    validateFields(newValidation);
+    
+    onChange(newValidation);
   };
+  
+  const validateFields = (currentValidation: Partial<AttributeValidation>) => {
+    const newErrors: Record<string, string> = {};
+    
+    // Min/Max date cross-validation
+    if (currentValidation.minDate && 
+        currentValidation.maxDate && 
+        new Date(currentValidation.minDate) > new Date(currentValidation.maxDate)) {
+      newErrors.minDate = 'Minimum tarih maksimum tarihten sonra olamaz';
+      newErrors.maxDate = 'Maksimum tarih minimum tarihten önce olamaz';
+    }
+    
+    setErrors(newErrors);
+  };
+  
+  // Component mount olduğunda mevcut validation'ı kontrol et
+  useEffect(() => {
+    validateFields(validation);
+  }, [validation]);
 
   return (
     <div className="space-y-4">
@@ -32,11 +58,15 @@ const DateValidation: React.FC<DateValidationProps> = ({ validation, onChange })
             name="minDate"
             value={validation.minDate || ''}
             onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white"
+            className={`w-full px-3 py-2 border ${errors.minDate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white`}
           />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            İzin verilen minimum tarih (doldurmayın: sınır yok)
-          </p>
+          {errors.minDate ? (
+            <p className="mt-1 text-xs text-red-500">{errors.minDate}</p>
+          ) : (
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              İzin verilen minimum tarih (doldurmayın: sınır yok)
+            </p>
+          )}
         </div>
         
         {/* Maximum Tarih */}
@@ -50,11 +80,15 @@ const DateValidation: React.FC<DateValidationProps> = ({ validation, onChange })
             name="maxDate"
             value={validation.maxDate || ''}
             onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white"
+            className={`w-full px-3 py-2 border ${errors.maxDate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white`}
           />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            İzin verilen maksimum tarih (doldurmayın: sınır yok)
-          </p>
+          {errors.maxDate ? (
+            <p className="mt-1 text-xs text-red-500">{errors.maxDate}</p>
+          ) : (
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              İzin verilen maksimum tarih (doldurmayın: sınır yok)
+            </p>
+          )}
         </div>
       </div>
       

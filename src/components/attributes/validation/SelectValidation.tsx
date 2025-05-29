@@ -1,5 +1,5 @@
-import React from 'react';
-import { AttributeValidation } from '../../../services/api/attributeService';
+import React, { useState, useEffect } from 'react';
+import { AttributeValidation } from '../../../types/attribute';
 
 interface SelectValidationProps {
   validation: Partial<AttributeValidation>;
@@ -8,15 +8,50 @@ interface SelectValidationProps {
 }
 
 const SelectValidation: React.FC<SelectValidationProps> = ({ validation, onChange, isMultiSelect }) => {
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const numValue = parseInt(value) || undefined;
     
-    onChange({
+    const newValidation = {
       ...validation,
       [name]: numValue
-    });
+    };
+    
+    // Cross-validation kontrolü
+    validateFields(newValidation);
+    
+    onChange(newValidation);
   };
+  
+  const validateFields = (currentValidation: Partial<AttributeValidation>) => {
+    const newErrors: Record<string, string> = {};
+    
+    // Min/Max selections cross-validation
+    if (currentValidation.minSelections !== undefined && 
+        currentValidation.maxSelections !== undefined && 
+        currentValidation.minSelections > currentValidation.maxSelections) {
+      newErrors.minSelections = 'Minimum seçim sayısı maksimum seçim sayısından büyük olamaz';
+      newErrors.maxSelections = 'Maksimum seçim sayısı minimum seçim sayısından küçük olamaz';
+    }
+    
+    // Negatif değer kontrolü
+    if (currentValidation.minSelections !== undefined && currentValidation.minSelections < 0) {
+      newErrors.minSelections = 'Minimum seçim sayısı negatif olamaz';
+    }
+    
+    if (currentValidation.maxSelections !== undefined && currentValidation.maxSelections < 0) {
+      newErrors.maxSelections = 'Maksimum seçim sayısı negatif olamaz';
+    }
+    
+    setErrors(newErrors);
+  };
+  
+  // Component mount olduğunda mevcut validation'ı kontrol et
+  useEffect(() => {
+    validateFields(validation);
+  }, [validation]);
 
   return (
     <div className="space-y-4">
@@ -38,12 +73,16 @@ const SelectValidation: React.FC<SelectValidationProps> = ({ validation, onChang
               min="0"
               value={validation.minSelections || ''}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white"
+              className={`w-full px-3 py-2 border ${errors.minSelections ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white`}
               placeholder="Örn: 1"
             />
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              En az kaç seçim yapılmalı (doldurmayın: sınır yok)
-            </p>
+            {errors.minSelections ? (
+              <p className="mt-1 text-xs text-red-500">{errors.minSelections}</p>
+            ) : (
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                En az kaç seçim yapılmalı (doldurmayın: sınır yok)
+              </p>
+            )}
           </div>
           
           {/* Maximum Seçim */}
@@ -58,12 +97,16 @@ const SelectValidation: React.FC<SelectValidationProps> = ({ validation, onChang
               min="0"
               value={validation.maxSelections || ''}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white"
+              className={`w-full px-3 py-2 border ${errors.maxSelections ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white`}
               placeholder="Örn: 3"
             />
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              En fazla kaç seçim yapılabilir (doldurmayın: sınır yok)
-            </p>
+            {errors.maxSelections ? (
+              <p className="mt-1 text-xs text-red-500">{errors.maxSelections}</p>
+            ) : (
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                En fazla kaç seçim yapılabilir (doldurmayın: sınır yok)
+              </p>
+            )}
           </div>
         </div>
       )}

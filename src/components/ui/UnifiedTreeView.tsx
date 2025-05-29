@@ -3,32 +3,45 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 export interface TreeNode {
   id: string;
   name: string;
+  label?: string; // Görüntülenecek etiket
   children?: TreeNode[];
   data?: any;
 }
 
-interface TreeViewWithCheckboxProps {
+interface UnifiedTreeViewProps {
   data: TreeNode[];
+  onNodeClick?: (node: TreeNode) => void;
   onSelectionChange?: (selectedIds: string[]) => void;
   defaultExpandedIds?: string[];
   defaultSelectedIds?: string[];
+  activeNodeId?: string;
   className?: string;
   expandAll?: boolean;
   maxHeight?: string;
   showRelationLines?: boolean;
   variant?: 'default' | 'spectrum';
+  mode?: 'select' | 'view'; // select mode checkbox'ları gösterir, view mode sadece görüntüler
+  selectionMode?: 'single' | 'multiple'; // single: tek seçim, multiple: çoklu seçim
+  showHeader?: boolean; // Başlık gösterilsin mi
+  headerTitle?: string; // Başlık metni
 }
 
-const TreeViewWithCheckbox: React.FC<TreeViewWithCheckboxProps> = ({
+const UnifiedTreeView: React.FC<UnifiedTreeViewProps> = ({
   data,
+  onNodeClick,
   onSelectionChange,
   defaultExpandedIds = [],
   defaultSelectedIds = [],
+  activeNodeId,
   className = '',
   expandAll = false,
   maxHeight,
   showRelationLines = false,
-  variant = 'default'
+  variant = 'default',
+  mode = 'view',
+  selectionMode = 'single',
+  showHeader = true,
+  headerTitle
 }) => {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(defaultExpandedIds));
   const [selectedNodes, setSelectedNodes] = useState<Set<string>>(new Set(defaultSelectedIds));
@@ -46,11 +59,7 @@ const TreeViewWithCheckbox: React.FC<TreeViewWithCheckboxProps> = ({
   // Belirli bir düğüme scroll yap ve ortala
   const scrollToNode = useCallback((nodeId: string) => {
     if (nodeRefs.current[nodeId] && treeContainerRef.current) {
-      // Düğümün pozisyonunu al
       const nodeElement = nodeRefs.current[nodeId];
-      const containerElement = treeContainerRef.current;
-      
-      // Scroll yap - davranışı smooth olarak ayarla ve block'u 'center' yaparak ortalama sağla
       nodeElement?.scrollIntoView({
         behavior: 'smooth',
         block: 'center'
@@ -58,24 +67,26 @@ const TreeViewWithCheckbox: React.FC<TreeViewWithCheckboxProps> = ({
     }
   }, []);
   
-  // İlk yüklendiğinde varsayılan seçilen düğüme scroll yap (sadece bir kere)
+  // İlk yüklendiğinde varsayılan seçilen düğüme scroll yap
   useEffect(() => {
-    // Sadece default bir seçim varsa scroll işlemi yap
     if (defaultSelectedIds.length > 0) {
-      // Ağaç yapısının yüklenmesi için biraz bekleyelim
       setTimeout(() => {
         scrollToNode(defaultSelectedIds[defaultSelectedIds.length - 1]);
       }, 300);
+    } else if (activeNodeId) {
+      setTimeout(() => {
+        scrollToNode(activeNodeId);
+      }, 300);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Sadece bileşen monte edildiğinde çalışacak
+  }, []);
 
   // Seçili düğümler değiştiğinde callback'i çağır
   useEffect(() => {
-    if (onSelectionChange) {
+    if (onSelectionChange && mode === 'select') {
       onSelectionChange(Array.from(selectedNodes));
     }
-  }, [selectedNodes, onSelectionChange]);
+  }, [selectedNodes, onSelectionChange, mode]);
 
   // Ağaçtaki tüm düğüm ID'lerini al
   const getAllNodeIds = (nodes: TreeNode[]): string[] => {
@@ -107,40 +118,6 @@ const TreeViewWithCheckbox: React.FC<TreeViewWithCheckboxProps> = ({
     return [];
   };
 
-  // Bir düğümün alt düğümlerini de dahil ederek tüm ID'leri al
-  const getNodeAndChildrenIds = (node: TreeNode): string[] => {
-    let ids: string[] = [node.id];
-    if (node.children && node.children.length > 0) {
-      node.children.forEach(childNode => {
-        ids = [...ids, ...getNodeAndChildrenIds(childNode)];
-      });
-    }
-    return ids;
-  };
-
-  // Bir düğümün tüm üst düğümlerini bul
-  const getAllParentIds = (nodeId: string): string[] => {
-    const result: string[] = [];
-    
-    const findParents = (nodes: TreeNode[], targetId: string, parentIds: string[] = []): string[] => {
-      for (const node of nodes) {
-        if (node.id === targetId) {
-          return parentIds;
-        }
-        
-        if (node.children && node.children.length > 0) {
-          const result = findParents(node.children, targetId, [...parentIds, node.id]);
-          if (result.length > 0) {
-            return result;
-          }
-        }
-      }
-      return [];
-    };
-    
-    return findParents(data, nodeId);
-  };
-
   const toggleNode = (nodeId: string, event: React.MouseEvent) => {
     event.stopPropagation();
     const newExpandedNodes = new Set(expandedNodes);
@@ -152,34 +129,46 @@ const TreeViewWithCheckbox: React.FC<TreeViewWithCheckboxProps> = ({
     setExpandedNodes(newExpandedNodes);
   };
 
-  const toggleCheckbox = (node: TreeNode, event: React.MouseEvent) => {
+  const handleSelection = (node: TreeNode, event: React.MouseEvent) => {
     event.stopPropagation();
     
-    // Sadece tek bir kategori seçilebilir, önceki seçimleri temizle
-    const newSelectedNodes = new Set<string>();
-    
-    if (selectedNodes.has(node.id)) {
-      // Eğer zaten seçiliyse, tüm seçimleri temizle
-    } else {
-      // Düğüm seçili değilse, sadece bu düğümü seç
-      newSelectedNodes.add(node.id);
+    if (mode === 'select') {
+      const newSelectedNodes = new Set(selectedNodes);
+      
+      if (selectionMode === 'single') {
+        // Tek seçim modu
+        if (selectedNodes.has(node.id)) {
+          newSelectedNodes.clear(); // Seçili ise kaldır
+        } else {
+          newSelectedNodes.clear(); // Önceki seçimleri temizle
+          newSelectedNodes.add(node.id); // Yeni seçimi ekle
+        }
+      } else {
+        // Çoklu seçim modu
+        if (selectedNodes.has(node.id)) {
+          newSelectedNodes.delete(node.id);
+        } else {
+          newSelectedNodes.add(node.id);
+        }
+      }
+      
+      setSelectedNodes(newSelectedNodes);
     }
     
-    setSelectedNodes(newSelectedNodes);
-  };
-
-  const handleNodeClick = (node: TreeNode, event: React.MouseEvent) => {
-    event.stopPropagation();
-    toggleCheckbox(node, event);
+    // View mode'da veya ek olarak onNodeClick callback'i çağır
+    if (onNodeClick) {
+      onNodeClick(node);
+    }
   };
 
   const renderNode = (node: TreeNode, level: number = 0, isLastChild: boolean = false, pathLineIndices: number[] = []) => {
     const hasChildren = node.children && node.children.length > 0;
     const isExpanded = expandedNodes.has(node.id);
     const isSelected = selectedNodes.has(node.id);
+    const isActive = activeNodeId === node.id;
     const isSpectrum = variant === 'spectrum';
     
-    // Daha belirgin girinti için değerleri artırıyoruz
+    // Style değişkenleri
     const baseIndent = isSpectrum ? 25 : 20;
     const lineColor = isSpectrum 
       ? 'border-blue-300 dark:border-blue-700' 
@@ -188,13 +177,17 @@ const TreeViewWithCheckbox: React.FC<TreeViewWithCheckboxProps> = ({
     const chevronSize = isSpectrum ? 'w-5 h-5' : 'w-4 h-4';
     const itemSpacing = isSpectrum ? 'mt-2' : 'mt-1.5';
     
+    // Highlight durumu - seçim veya aktif düğüm
+    const isHighlighted = mode === 'select' ? isSelected : isActive;
+    
     return (
       <div 
         key={node.id} 
         className={`select-none relative ${isSpectrum ? 'font-sans' : ''}`}
-        ref={(element) => { nodeRefs.current[node.id] = element; }}>
-        {/* İlişki çizgileri - her zaman gösteriyoruz */}
-        {level > 0 && (
+        ref={(element) => { nodeRefs.current[node.id] = element; }}
+      >
+        {/* İlişki çizgileri */}
+        {level > 0 && showRelationLines && (
           <div className="absolute left-0 top-0 bottom-0">
             {/* Dikey çizgiler */}
             {pathLineIndices.map((lineIndex, idx) => (
@@ -218,8 +211,8 @@ const TreeViewWithCheckbox: React.FC<TreeViewWithCheckboxProps> = ({
         
         {/* Düğüm içeriği */}
         <div 
-          className={`flex items-center ${nodeHeight} px-2 rounded-md transition-colors duration-150 ${
-            isSelected 
+          className={`flex items-center ${nodeHeight} px-2 rounded-md transition-colors duration-150 cursor-pointer ${
+            isHighlighted 
               ? isSpectrum
                 ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium'
                 : 'bg-primary-light/20 dark:bg-primary-dark/30 text-primary-light dark:text-primary-dark font-medium' 
@@ -228,10 +221,10 @@ const TreeViewWithCheckbox: React.FC<TreeViewWithCheckboxProps> = ({
                 : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
           }`}
           style={{ paddingLeft: `${(level * baseIndent) + 12}px` }}
-          onClick={(e) => handleNodeClick(node, e)}
+          onClick={(e) => handleSelection(node, e)}
         >
-          {/* Açılabilir düğme */}
-          {hasChildren && (
+          {/* Açılabilir düğme veya alt kategori belirteci */}
+          {hasChildren ? (
             <button
               onClick={(e) => toggleNode(node.id, e)}
               className={`p-1 mr-2 rounded-md ${
@@ -261,23 +254,33 @@ const TreeViewWithCheckbox: React.FC<TreeViewWithCheckboxProps> = ({
                 />
               </svg>
             </button>
+          ) : (
+            <span className="w-7 h-5 mr-2 flex justify-center items-center">
+              <span className={`h-1.5 w-1.5 rounded-full ${
+                isHighlighted 
+                  ? isSpectrum ? 'bg-blue-500' : 'bg-primary-light dark:bg-primary-dark' 
+                  : 'bg-gray-400 dark:bg-gray-500'
+              }`}></span>
+            </span>
           )}
           
-          {/* Checkbox */}
-          <div className="mr-2">
-            <input 
-              type="checkbox" 
-              checked={isSelected}
-              onChange={() => {}}
-              onClick={(e) => e.stopPropagation()}
-              className="w-4 h-4 text-primary-light bg-gray-100 border-gray-300 rounded focus:ring-primary-light dark:focus:ring-primary-dark dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-            />
-          </div>
+          {/* Checkbox (sadece select mode'da) */}
+          {mode === 'select' && (
+            <div className="mr-2">
+              <input 
+                type="checkbox" 
+                checked={isSelected}
+                onChange={() => {}}
+                onClick={(e) => e.stopPropagation()}
+                className="w-4 h-4 text-primary-light bg-gray-100 border-gray-300 rounded focus:ring-primary-light dark:focus:ring-primary-dark dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+              />
+            </div>
+          )}
           
           {/* İçerik ikonu ve metin */}
           <div className="flex items-center">
             <svg 
-              className={`w-5 h-5 mr-2 ${isSelected ? 'text-primary-light dark:text-primary-dark' : 'text-gray-500 dark:text-gray-400'}`} 
+              className={`w-5 h-5 mr-2 ${isHighlighted ? 'text-primary-light dark:text-primary-dark' : 'text-gray-500 dark:text-gray-400'}`} 
               fill="none" 
               stroke="currentColor" 
               viewBox="0 0 24 24" 
@@ -291,12 +294,12 @@ const TreeViewWithCheckbox: React.FC<TreeViewWithCheckboxProps> = ({
               />
             </svg>
             
-            <span className={`text-sm ${isSelected ? 'font-medium' : ''}`}>
+            <span className={`text-sm ${isHighlighted ? 'font-medium' : ''}`}>
               {/* Ana/Alt kategori belirteci */}
               {level === 0 && (
                 <span className={`mr-1.5 px-1.5 py-0.5 text-xs font-medium rounded ${
                   isSpectrum 
-                    ? isSelected 
+                    ? isHighlighted 
                       ? 'bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-200' 
                       : 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
                     : 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
@@ -307,7 +310,7 @@ const TreeViewWithCheckbox: React.FC<TreeViewWithCheckboxProps> = ({
               {level > 0 && (
                 <span className={`mr-1.5 px-1.5 py-0.5 text-xs font-medium rounded ${
                   isSpectrum 
-                    ? isSelected 
+                    ? isHighlighted 
                       ? 'bg-green-200 text-green-800 dark:bg-green-800 dark:text-green-200' 
                       : 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
                     : 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
@@ -315,14 +318,14 @@ const TreeViewWithCheckbox: React.FC<TreeViewWithCheckboxProps> = ({
                   Alt
                 </span>
               )}
-              {node.name}
+              {node.label || node.name}
             </span>
             
             {/* Alt kategori sayısı belirteci */}
             {hasChildren && (
               <span className={`ml-2 px-2 py-0.5 text-xs font-medium rounded-full ${
                 isSpectrum 
-                  ? isSelected 
+                  ? isHighlighted 
                     ? 'bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-200' 
                     : 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
                   : 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
@@ -355,6 +358,17 @@ const TreeViewWithCheckbox: React.FC<TreeViewWithCheckboxProps> = ({
     );
   };
 
+  // Başlık metnini belirle
+  const getHeaderTitle = () => {
+    if (headerTitle) return headerTitle;
+    
+    // Mode'a göre varsayılan başlık
+    if (mode === 'select') {
+      return selectionMode === 'single' ? 'Seçim Yapın' : 'Çoklu Seçim';
+    }
+    return 'Hiyerarşi';
+  };
+
   return (
     <div 
       className={`rounded-lg border border-gray-200 dark:border-gray-700 ${
@@ -364,29 +378,41 @@ const TreeViewWithCheckbox: React.FC<TreeViewWithCheckboxProps> = ({
       } ${className}`}
       style={{ maxHeight: maxHeight, overflow: maxHeight ? 'auto' : 'visible' }}
     >
-      <div 
-        className={`p-4 overflow-y-auto ${variant === 'spectrum' ? 'space-y-2' : ''}`}
-        ref={treeContainerRef}>
-        <div className="mb-2 px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-xs font-medium text-gray-500 dark:text-gray-400">
+      {/* Başlık */}
+      {showHeader && (
+        <div className="mb-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-t-lg text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
-            <span>Kategori Hiyerarşisi</span>
+            <span>{getHeaderTitle()}</span>
             <div className="flex space-x-2">
               <div className="flex items-center">
                 <span className="h-2 w-2 rounded-full bg-blue-500 mr-1"></span>
-                <span>Ana Kategori</span>
+                <span>Ana</span>
               </div>
               <div className="flex items-center">
                 <span className="h-2 w-2 rounded-full bg-green-500 mr-1"></span>
-                <span>Alt Kategori</span>
+                <span>Alt</span>
               </div>
+              {mode === 'select' && (
+                <div className="flex items-center">
+                  <span className="h-2 w-2 rounded-full bg-primary-light dark:bg-primary-dark mr-1"></span>
+                  <span>Seçili</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
+      )}
+      
+      {/* İçerik */}
+      <div 
+        className={`p-4 overflow-y-auto ${variant === 'spectrum' ? 'space-y-2' : ''}`}
+        ref={treeContainerRef}
+      >
         {data.length > 0 ? (
           data.map((node, index) => renderNode(node, 0, index === data.length - 1))
         ) : (
           <div className="py-3 px-4 text-gray-500 dark:text-gray-400 text-center">
-            Görüntülenecek kategori bulunamadı
+            Görüntülenecek öğe bulunamadı
           </div>
         )}
       </div>
@@ -394,4 +420,4 @@ const TreeViewWithCheckbox: React.FC<TreeViewWithCheckboxProps> = ({
   );
 };
 
-export default TreeViewWithCheckbox; 
+export default UnifiedTreeView; 

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import attributeService from '../../services/api/attributeService';
 import attributeGroupService from '../../services/api/attributeGroupService';
 import { useTranslation } from '../../context/i18nContext';
+import { getEntityName } from '../../utils/translationUtils';
 import AttributeBadge from './AttributeBadge';
 
 interface PaginatedAttributeSelectorProps {
@@ -50,7 +51,7 @@ const PaginatedAttributeSelector: React.FC<PaginatedAttributeSelectorProps> = Re
   onChange,
   excludeIds = [] // Varsayılan olarak boş dizi
 }) => {
-  const { t } = useTranslation();
+  const { t, currentLanguage } = useTranslation();
   const [attributes, setAttributes] = useState<AttributeOption[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -144,7 +145,7 @@ const PaginatedAttributeSelector: React.FC<PaginatedAttributeSelectorProps> = Re
           
           if (typeof attr.attributeGroup === 'object') {
             groupId = attr.attributeGroup._id;
-            groupName = attr.attributeGroup.name || '';
+            groupName = getEntityName(attr.attributeGroup, currentLanguage) || attr.attributeGroup.name || '';
             groupCode = attr.attributeGroup.code || '';
           } else if (attr.attributeGroup) {
             groupId = attr.attributeGroup;
@@ -152,14 +153,14 @@ const PaginatedAttributeSelector: React.FC<PaginatedAttributeSelectorProps> = Re
             // Grup ID'sine göre grup bilgisini bul
             const foundGroup = attributeGroups.find(g => g._id === attr.attributeGroup);
             if (foundGroup) {
-              groupName = foundGroup.name;
+              groupName = getEntityName(foundGroup, currentLanguage) || foundGroup.name;
               groupCode = foundGroup.code;
             }
           }
           
           return {
             _id: attr._id,
-            name: attr.name,
+            name: getEntityName(attr, currentLanguage) || attr.name,
             code: attr.code,
             type: attr.type,
             description: attr.description || '',
@@ -318,7 +319,7 @@ const PaginatedAttributeSelector: React.FC<PaginatedAttributeSelectorProps> = Re
             <option value="">Tüm Gruplar</option>
             {attributeGroups.map(group => (
               <option key={group._id} value={group._id}>
-                {group.name}
+                {getEntityName(group, currentLanguage) || group.name}
               </option>
             ))}
           </select>
@@ -426,8 +427,8 @@ const PaginatedAttributeSelector: React.FC<PaginatedAttributeSelectorProps> = Re
                     )}
                   </td>
                   <td className="hidden xl:table-cell px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                    <div className="truncate max-w-xs" title={attr.description}>
-                      {attr.description || '-'}
+                    <div className="truncate max-w-xs" title={getEntityName(attr, currentLanguage, 'description') || attr.description || '-'}>
+                      {getEntityName(attr, currentLanguage, 'description') || attr.description || '-'}
                     </div>
                   </td>
                 </tr>

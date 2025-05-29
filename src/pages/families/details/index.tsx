@@ -1,17 +1,48 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
-import { Card, TabView, TreeView, TreeViewWithCheckbox } from '../../../components/ui';
+import Breadcrumb from '../../../components/common/Breadcrumb';
+import EntityHistoryList from '../../../components/common/EntityHistoryList';
+import { TabView, UnifiedTreeView } from '../../../components/ui';
+import Modal from '../../../components/ui/Modal';
 import familyService from '../../../services/api/familyService';
 import categoryService from '../../../services/api/categoryService';
 import attributeService from '../../../services/api/attributeService';
 import attributeGroupService from '../../../services/api/attributeGroupService';
 import type { Family, CreateFamilyDto } from '../../../types/family';
 import type { Category } from '../../../types/category';
-import Modal from '../../../components/ui/Modal';
 import { toast } from 'react-hot-toast';
 import PaginatedAttributeSelector from '../../../components/attributes/PaginatedAttributeSelector';
 import AttributeGroupSelector from '../../../components/attributes/AttributeGroupSelector';
+import { useTranslation } from '../../../context/i18nContext';
+import { getEntityName } from '../../../utils/translationUtils';
+
+interface TreeNode {
+  id: string;
+  name: string;
+  label?: string;
+  children?: TreeNode[];
+  data?: any;
+}
+
+// UTILITY COMPONENTS
+const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <div className={`bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden ${className}`}>
+    {children}
+  </div>
+);
+
+const CardHeader: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <div className={`px-6 py-4 border-b border-gray-200 dark:border-gray-700 ${className}`}>
+    {children}
+  </div>
+);
+
+const CardBody: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <div className={`p-6 ${className}`}>
+    {children}
+  </div>
+);
 
 // Yardımcı fonksiyon: Family objelerinden ID'yi almak için
 const getEntityId = (entity: any): string | undefined => {
@@ -35,6 +66,7 @@ const getEntityId = (entity: any): string | undefined => {
 const FamilyDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { currentLanguage } = useTranslation();
   
   // State tanımlamaları
   const [family, setFamily] = useState<Family | null>(null);
@@ -71,7 +103,7 @@ const FamilyDetailsPage: React.FC = () => {
   const [success, setSuccess] = useState<boolean>(false);
   
   // Tab state için
-  const [activeTab, setActiveTab] = useState<string>('general');
+  const [activeTab, setActiveTab] = useState<string>('overview');
   const [tabRefreshCounter, setTabRefreshCounter] = useState<number>(0);
   
   // Öznitelik ve öznitelik grupları için state'ler
@@ -143,9 +175,12 @@ const FamilyDetailsPage: React.FC = () => {
         // Kategori bilgisini getir
         if (familyData.category) {
           try {
-            const categoryData = await categoryService.getCategoryById(familyData.category);
-            setCategoryName(categoryData.name);
-            setSelectedCategory(familyData.category);
+            const categoryId = getEntityId(familyData.category);
+            if (categoryId) {
+              const categoryData = await categoryService.getCategoryById(categoryId);
+              setCategoryName(categoryData.name);
+              setSelectedCategory(categoryId);
+            }
           } catch (err) {
             console.error('Kategori bilgisi getirilirken hata oluştu:', err);
           }
@@ -441,9 +476,12 @@ const FamilyDetailsPage: React.FC = () => {
       if (updatedFamily.category !== family?.category) {
         if (updatedFamily.category) {
           try {
-            const categoryData = await categoryService.getCategoryById(updatedFamily.category);
-            setCategoryName(categoryData.name);
-            setSelectedCategory(updatedFamily.category);
+            const categoryId = getEntityId(updatedFamily.category);
+            if (categoryId) {
+              const categoryData = await categoryService.getCategoryById(categoryId);
+              setCategoryName(categoryData.name);
+              setSelectedCategory(categoryId);
+            }
           } catch (err) {
             console.error('Kategori bilgisi getirilirken hata oluştu:', err);
           }
@@ -522,9 +560,9 @@ const FamilyDetailsPage: React.FC = () => {
     if (family) {
       setTabContents([
         {
-          id: 'general',
-          title: 'Genel Bilgiler',
-          content: renderGeneralInfo()
+          id: 'overview',
+          title: 'Genel Bakış',
+          content: renderOverview()
         },
         {
           id: 'hierarchy',
@@ -542,14 +580,34 @@ const FamilyDetailsPage: React.FC = () => {
           title: 'Öznitelikler',
           badge: attributes.length || undefined,
           content: renderAttributes()
+        },
+        {
+          id: 'usageStatistics',
+          title: 'Kullanım İstatistikleri',
+          content: renderUsageStatistics()
+        },
+        {
+          id: 'apiReference',
+          title: 'API Referansı',
+          content: renderApiReference()
+        },
+        {
+          id: 'json',
+          title: 'JSON Görünümü',
+          content: renderJsonView()
+        },
+        {
+          id: 'history',
+          title: 'Değişiklik Geçmişi',
+          content: renderHistory()
         }
       ]);
     }
   }, [family, isEditing, attributeGroups, attributes, activeTab, familyTree]);
   
   // Tab içeriklerini render et
-  const renderGeneralInfo = () => (
-    <div className="space-y-6" key="general-info-content">
+  const renderOverview = () => (
+    <div className="space-y-6" key="overview-content">
       {/* Bilgi görüntüleme */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Temel Bilgiler Başlığı */}
@@ -615,6 +673,172 @@ const FamilyDetailsPage: React.FC = () => {
           </p>
         </div>
       </div>
+      
+      {/* Özet Bilgiler */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <svg className="h-8 w-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <div className="text-sm font-medium text-blue-500 dark:text-blue-400">Öznitelik Grupları</div>
+              <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{attributeGroups.length}</div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <svg className="h-8 w-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v6a2 2 0 002 2h2m5 0h2a2 2 0 002-2V7a2 2 0 00-2-2H9m0 0V3m0 2v2" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <div className="text-sm font-medium text-green-500 dark:text-green-400">Öznitelikler</div>
+              <div className="text-2xl font-bold text-green-700 dark:text-green-300">{attributes.length}</div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-200 dark:border-purple-800">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <svg className="h-8 w-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <div className="text-sm font-medium text-purple-500 dark:text-purple-400">Durum</div>
+              <div className="text-sm font-bold text-purple-700 dark:text-purple-300">
+                {family?.isActive ? 'Aktif' : 'Pasif'}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+  
+  const renderUsageStatistics = () => (
+    <div className="space-y-6" key="usage-statistics-content">
+      <h3 className="text-lg font-medium text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">
+        Kullanım İstatistikleri
+      </h3>
+      
+      <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-4">
+        <div className="flex items-start">
+          <svg className="w-5 h-5 text-yellow-500 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <div>
+            <p className="text-sm font-medium text-yellow-700 dark:text-yellow-400">
+              Gelişim Aşamasında
+            </p>
+            <p className="mt-1 text-sm text-yellow-600 dark:text-yellow-500">
+              Kullanım istatistikleri özelliği şu anda geliştirme aşamasındadır. Bu bölümde ailenin kullanım verileri, grafikleri ve analizleri gösterilecektir.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+  
+  const renderApiReference = () => (
+    <div className="space-y-6" key="api-reference-content">
+      <h3 className="text-lg font-medium text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">
+        API Referansı
+      </h3>
+      
+      <div className="space-y-4">
+        {/* GET Endpoint */}
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+          <div className="flex items-center mb-2">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 mr-2">
+              GET
+            </span>
+            <code className="text-sm font-mono text-gray-800 dark:text-gray-200">
+              /api/families/{family?._id}
+            </code>
+          </div>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Bu aileyi detaylı bilgileriyle birlikte getirir
+          </p>
+        </div>
+        
+        {/* PUT Endpoint */}
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <div className="flex items-center mb-2">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 mr-2">
+              PUT
+            </span>
+            <code className="text-sm font-mono text-gray-800 dark:text-gray-200">
+              /api/families/{family?._id}
+            </code>
+          </div>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Bu aileyi günceller
+          </p>
+        </div>
+        
+        {/* DELETE Endpoint */}
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div className="flex items-center mb-2">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 mr-2">
+              DELETE
+            </span>
+            <code className="text-sm font-mono text-gray-800 dark:text-gray-200">
+              /api/families/{family?._id}
+            </code>
+          </div>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Bu aileyi siler
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+  
+  const renderHistory = () => (
+    <div className="space-y-6" key="history-content">
+      <h3 className="text-lg font-medium text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">
+        Değişiklik Geçmişi
+      </h3>
+      
+      <EntityHistoryList entityId={id!} entityType="family" title="Aile Geçmişi" />
+    </div>
+  );
+  
+  const renderJsonView = () => (
+    <div className="space-y-6" key="json-content">
+      <h3 className="text-lg font-medium text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">
+        JSON Görünümü
+      </h3>
+      
+      <div className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto max-h-96">
+        <pre className="text-sm whitespace-pre-wrap">
+          {JSON.stringify(family, null, 2)}
+        </pre>
+      </div>
+      
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-4">
+        <div className="flex items-start">
+          <svg className="w-5 h-5 text-blue-500 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <div>
+            <p className="text-sm font-medium text-blue-700 dark:text-blue-400">
+              Raw Data
+            </p>
+            <p className="mt-1 text-sm text-blue-600 dark:text-blue-500">
+              Bu bölümde ailenin ham JSON verileri gösterilmektedir. Geliştirme ve debug amaçlı kullanılabilir.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
   
@@ -634,14 +858,23 @@ const FamilyDetailsPage: React.FC = () => {
             {familyTree.length > 0 ? (
               <div>
                 {isEditing ? (
-                  <TreeViewWithCheckbox 
+                  <UnifiedTreeView 
                     key={`hierarchy-family-tree-${tabRefreshCounter}-${formData.parentFamily || 'none'}`}
-                    data={familyTree} 
-                    defaultSelectedIds={formData.parentFamily ? [formData.parentFamily] : []}
-                    expandAll={true}
-                    maxHeight="300px"
-                    showRelationLines={true}
-                    variant="spectrum"
+                    data={familyTree.map(fam => ({
+                      id: fam.id,
+                      name: getEntityName(fam.data, currentLanguage) || fam.name,
+                      label: getEntityName(fam.data, currentLanguage) || fam.name,
+                      children: fam.children?.map(child => ({
+                        id: child.id,
+                        name: getEntityName(child.data, currentLanguage) || child.name,
+                        label: getEntityName(child.data, currentLanguage) || child.name,
+                        children: child.children,
+                        data: child.data
+                      })),
+                      data: fam.data
+                    }))}
+                    mode="select"
+                    selectionMode="single"
                     onSelectionChange={(selectedIds) => {
                       if (selectedIds.length > 0 && selectedIds[0] !== id) {
                         // Düzenleme modunda seçilen aileyi üst aile olarak ayarla
@@ -656,11 +889,29 @@ const FamilyDetailsPage: React.FC = () => {
                         setFormData(prev => ({ ...prev, parentFamily: undefined }));
                       }
                     }}
+                    defaultSelectedIds={formData.parentFamily ? [formData.parentFamily] : []}
+                    expandAll={true}
+                    maxHeight="300px"
+                    showRelationLines={true}
+                    variant="spectrum"
                     className="shadow-sm"
                   />
                 ) : (
-                  <TreeView 
-                    data={familyTree} 
+                  <UnifiedTreeView 
+                    data={familyTree.map(fam => ({
+                      id: fam.id,
+                      name: getEntityName(fam.data, currentLanguage) || fam.name,
+                      label: getEntityName(fam.data, currentLanguage) || fam.name,
+                      children: fam.children?.map(child => ({
+                        id: child.id,
+                        name: getEntityName(child.data, currentLanguage) || child.name,
+                        label: getEntityName(child.data, currentLanguage) || child.name,
+                        children: child.children,
+                        data: child.data
+                      })),
+                      data: fam.data
+                    }))}
+                    mode="view"
                     activeNodeId={id}
                     expandAll={true}
                     maxHeight="300px"
@@ -688,9 +939,9 @@ const FamilyDetailsPage: React.FC = () => {
                 >
                   Tekrar Dene
                 </button>
-                  </div>
+              </div>
             )}
-                </div>
+          </div>
           
           {/* Seçili Üst Aile Bilgisi */}
           {parentFamily && (
@@ -719,47 +970,63 @@ const FamilyDetailsPage: React.FC = () => {
             {categoryTree.length > 0 ? (
               <div>
                 {isEditing ? (
-                  <TreeViewWithCheckbox 
+                  <UnifiedTreeView 
                     key={`category-tree-${tabRefreshCounter}-${formData.category || 'none'}`}
-                    data={categoryTree} 
-                    defaultSelectedIds={formData.category ? [formData.category] : []}
-                    expandAll={true}
-                    maxHeight="300px"
-                    showRelationLines={true}
-                    variant="spectrum"
+                    data={categoryTree.map(cat => ({
+                      id: cat.id,
+                      name: getEntityName(cat.data, currentLanguage) || cat.name,
+                      label: getEntityName(cat.data, currentLanguage) || cat.name,
+                      children: cat.children?.map(child => ({
+                        id: child.id,
+                        name: getEntityName(child.data, currentLanguage) || child.name,
+                        label: getEntityName(child.data, currentLanguage) || child.name,
+                        children: child.children,
+                        data: child.data
+                      })),
+                      data: cat.data
+                    }))}
+                    mode="select"
+                    selectionMode="single"
                     onSelectionChange={(selectedIds) => {
                       if (selectedIds.length > 0) {
                         // Düzenleme modunda seçilen kategoriyi ayarla
                         const newCategoryId = selectedIds[0] || undefined;
                         console.log("Kategori seçildi:", newCategoryId);
                         setSelectedCategory(newCategoryId);
-                        setFormData(prev => {
-                          const updated = { ...prev, category: newCategoryId };
-                          return updated;
-                        });
+                        setFormData(prev => ({ ...prev, category: newCategoryId }));
                       } else {
                         setSelectedCategory(undefined);
-                        setFormData(prev => {
-                          const updated = { ...prev, category: undefined };
-                          return updated;
-                        });
+                        setFormData(prev => ({ ...prev, category: undefined }));
                       }
                     }}
+                    defaultSelectedIds={formData.category ? [formData.category] : []}
+                    expandAll={true}
+                    maxHeight="300px"
+                    showRelationLines={true}
+                    variant="spectrum"
                     className="shadow-sm"
                   />
                 ) : (
-                  <TreeView 
-                    data={categoryTree} 
+                  <UnifiedTreeView 
+                    data={categoryTree.map(cat => ({
+                      id: cat.id,
+                      name: getEntityName(cat.data, currentLanguage) || cat.name,
+                      label: getEntityName(cat.data, currentLanguage) || cat.name,
+                      children: cat.children?.map(child => ({
+                        id: child.id,
+                        name: getEntityName(child.data, currentLanguage) || child.name,
+                        label: getEntityName(child.data, currentLanguage) || child.name,
+                        children: child.children,
+                        data: child.data
+                      })),
+                      data: cat.data
+                    }))}
+                    mode="view"
                     activeNodeId={selectedCategory}
                     expandAll={true}
                     maxHeight="300px"
                     showRelationLines={true}
                     variant="spectrum"
-                    onNodeClick={(node) => {
-                      if (node.id !== id) {
-                        // Sadece görüntüleme için
-                      }
-                    }}
                     className="shadow-sm"
                     key={`category-tree-view-${selectedCategory || 'none'}`}
                   />
@@ -829,7 +1096,7 @@ const FamilyDetailsPage: React.FC = () => {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="font-medium text-gray-900 dark:text-white">{group.name}</h4>
+                    <h4 className="font-medium text-gray-900 dark:text-white">{getGroupDisplayName(group)}</h4>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{group.code}</p>
                   </div>
                   <Button
@@ -864,7 +1131,12 @@ const FamilyDetailsPage: React.FC = () => {
                         <li key={attr._id} className="flex items-center justify-between">
                           <div className="flex items-center">
                             <span className="h-1.5 w-1.5 rounded-full bg-primary-light dark:bg-primary-dark mr-2"></span>
-                            <span className="text-sm text-gray-700 dark:text-gray-300">{attr.name}</span>
+                            <span className="text-sm text-gray-700 dark:text-gray-300">
+                              {typeof attr.name === 'object' && attr.name !== null 
+                                ? getEntityName(attr.name, currentLanguage) || attr.code || 'Bilinmeyen Öznitelik'
+                                : attr.name || attr.code || 'Bilinmeyen Öznitelik'
+                              }
+                            </span>
                             <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">({attr.type})</span>
                           </div>
                           <Button
@@ -1239,6 +1511,23 @@ const FamilyDetailsPage: React.FC = () => {
     }
   }, [isEditing, family]);
   
+  // Helper fonksiyon: Group name'ini güvenli şekilde alma
+  const getGroupDisplayName = (group: any): string => {
+    if (!group) return 'Bilinmeyen Grup';
+    
+    // Eğer name bir translation objesi ise
+    if (typeof group.name === 'object' && group.name !== null) {
+      return getEntityName(group.name, currentLanguage) || group.code || 'Bilinmeyen Grup';
+    }
+    
+    // Eğer name bir string ise
+    if (typeof group.name === 'string') {
+      return group.name;
+    }
+    
+    return group.code || 'Bilinmeyen Grup';
+  };
+  
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-96">
@@ -1270,41 +1559,49 @@ const FamilyDetailsPage: React.FC = () => {
   }
   
   return (
-    <>
-      <div className="space-y-6">
-        {/* Başlık */}
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-          <div className="flex justify-between items-center mb-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
-              <svg className="w-7 h-7 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
-              </svg>
-              {isEditing ? 'Aile Düzenle' : 'Aile Detayları'}
-            </h1>
+    <div className="space-y-6">
+      {/* BREADCRUMB */}
+      <Breadcrumb 
+        items={[
+          { label: 'Aileler', path: '/families/list' },
+          { label: family ? getEntityName(family, currentLanguage) || family.name : 'Aile Detayları' }
+        ]} 
+      />
+
+      {/* HEADER CARD */}
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
+                <svg className="w-7 h-7 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+                </svg>
+                {isEditing ? 'Aile Düzenle' : 'Aile Detayları'}
+              </h1>
               <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                {family.name} ailesinin detaylı bilgileri
+                {family ? `${getEntityName(family, currentLanguage) || family.name} ailesinin detaylı bilgileri` : 'Aile detayları yükleniyor...'}
               </p>
-          </div>
-          
-            <div className="flex space-x-2">
-            <Button
-              variant="outline"
-              onClick={() => navigate('/families/list')}
-                className="flex items-center"
-            >
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-                Listeye Dön
-            </Button>
+            </div>
             
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => navigate('/families/list')}
+                className="flex items-center"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Listeye Dön
+              </Button>
+              
               {isEditing ? (
-              <>
-                <Button
-                  variant="outline"
+                <>
+                  <Button
+                    variant="outline"
                     onClick={handleCancel}
-                  className="flex items-center"
+                    className="flex items-center"
                     disabled={isSubmitting}
                   >
                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -1342,58 +1639,63 @@ const FamilyDetailsPage: React.FC = () => {
                     variant="primary"
                     onClick={handleEdit}
                     className="flex items-center"
-                >
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                  </svg>
+                  >
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
                     Düzenle
-                </Button>
-                <Button
-                  variant="danger"
-                  className="flex items-center"
-                  onClick={handleDelete}
-                >
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
+                  </Button>
+                  <Button
+                    variant="danger"
+                    className="flex items-center"
+                    onClick={handleDelete}
+                  >
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
                     Sil
-                </Button>
-              </>
-            )}
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      </div>
-      
-        {/* Ana İçerik */}
-        <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+        </CardHeader>
+      </Card>
+
+      {/* MAIN CONTENT CARD */}
+      <Card>
+        <CardBody>
           {error && (
-            <div className="mb-4 bg-red-50 dark:bg-red-900/20 p-4 rounded-md border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 flex items-start">
+            <div className="mb-6 bg-red-50 dark:bg-red-900/20 p-4 rounded-md border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 flex items-start">
               <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <span>{error}</span>
-      </div>
+            </div>
           )}
-      
-      {success && (
-            <div className="mb-4 bg-green-50 dark:bg-green-900/20 p-4 rounded-md border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 flex items-start">
+          
+          {success && (
+            <div className="mb-6 bg-green-50 dark:bg-green-900/20 p-4 rounded-md border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 flex items-start">
               <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
               <span>Aile başarıyla güncellendi!</span>
-        </div>
-      )}
-      
+            </div>
+          )}
+          
           {isEditing ? (
             <div className="space-y-6">
-              <TabView 
-                tabs={[
-                  {
-                    id: 'general',
-                    title: 'Genel Bilgiler',
-                    content: (
-                      <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <form onSubmit={(e) => { e.preventDefault(); handleUpdate(); }}>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Sol Taraf - Form Alanları */}
+                  <div className="lg:col-span-2 space-y-6">
+                    {/* Temel Bilgiler */}
+                    <Card>
+                      <CardHeader>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Temel Bilgiler</h3>
+                      </CardHeader>
+                      <CardBody>
+                        <div className="space-y-4">
                           {/* İsim */}
                           <div>
                             <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -1406,12 +1708,12 @@ const FamilyDetailsPage: React.FC = () => {
                               value={formData.name || ''}
                               onChange={handleChange}
                               required
-                              className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
+                              className={`bg-gray-50 border ${formErrors.name ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
                             />
                             {formErrors.name && (
-                              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.name}</p>
+                              <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>
                             )}
-        </div>
+                          </div>
                           
                           {/* Kod */}
                           <div>
@@ -1425,15 +1727,15 @@ const FamilyDetailsPage: React.FC = () => {
                               value={formData.code || ''}
                               onChange={handleChange}
                               required
-                              className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
+                              className={`bg-gray-50 border ${formErrors.code ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
                             />
                             {formErrors.code && (
-                              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.code}</p>
-      )}
-    </div>
+                              <p className="mt-1 text-sm text-red-500">{formErrors.code}</p>
+                            )}
+                          </div>
                           
                           {/* Açıklama */}
-                          <div className="col-span-1 md:col-span-2">
+                          <div>
                             <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                               Açıklama
                             </label>
@@ -1443,61 +1745,224 @@ const FamilyDetailsPage: React.FC = () => {
                               value={formData.description || ''}
                               onChange={handleChange}
                               rows={3}
-                              className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
+                              className={`bg-gray-50 border ${formErrors.description ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
                             />
                             {formErrors.description && (
-                              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.description}</p>
+                              <p className="mt-1 text-sm text-red-500">{formErrors.description}</p>
                             )}
                           </div>
                           
                           {/* Aktif/Pasif durumu */}
-                          <div className="col-span-1 md:col-span-2">
-                            <div className="flex items-start">
-                              <div className="flex items-center h-5">
-                                <input
-                                  id="isActive"
-                                  name="isActive"
-                                  type="checkbox"
-                                  checked={formData.isActive === undefined ? true : formData.isActive}
-                                  onChange={e => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-                                  className="w-4 h-4 text-primary-light bg-gray-100 border-gray-300 rounded focus:ring-primary-light dark:focus:ring-primary-dark dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                />
-                              </div>
-                              <label htmlFor="isActive" className="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300">
-                                Aktif
-                              </label>
+                          <div className="flex items-start">
+                            <div className="flex items-center h-5">
+                              <input
+                                id="isActive"
+                                name="isActive"
+                                type="checkbox"
+                                checked={formData.isActive === undefined ? true : formData.isActive}
+                                onChange={e => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                                className="w-4 h-4 text-primary-light bg-gray-100 border-gray-300 rounded focus:ring-primary-light dark:focus:ring-primary-dark dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                              />
                             </div>
-                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                              Ailenin aktif olup olmadığını belirler. Pasif aileler kullanıcı arayüzünde gösterilmez.
-                            </p>
+                            <label htmlFor="isActive" className="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300">
+                              Aktif
+                            </label>
                           </div>
                         </div>
-                      </div>
-                    )
-                  },
-                  {
-                    id: 'hierarchy',
-                    title: 'Hiyerarşi',
-                    content: renderHierarchy()
-                  },
-                  {
-                    id: 'attributeGroups',
-                    title: 'Öznitelik Grupları',
-                    badge: attributeGroups.length || undefined,
-                    content: renderAttributeGroups()
-                  },
-                  {
-                    id: 'attributes',
-                    title: 'Öznitelikler',
-                    badge: attributes.length || undefined,
-                    content: renderAttributes()
-                  }
-                ]}
-                defaultActiveTab="general"
-                onTabChange={(tabId) => {
-                  setActiveTab(tabId);
-                }}
-              />
+                      </CardBody>
+                    </Card>
+
+                    {/* Hiyerarşi */}
+                    <Card>
+                      <CardHeader>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Hiyerarşi</h3>
+                      </CardHeader>
+                      <CardBody>
+                        <div className="space-y-6">
+                          {/* Üst Aile Seçimi */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              Üst Aile
+                            </label>
+                            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 max-h-64 overflow-y-auto">
+                              <UnifiedTreeView 
+                                key={`hierarchy-family-tree-${tabRefreshCounter}-${formData.parentFamily || 'none'}`}
+                                data={familyTree.map(fam => ({
+                                  id: fam.id,
+                                  name: getEntityName(fam.data, currentLanguage) || fam.name,
+                                  label: getEntityName(fam.data, currentLanguage) || fam.name,
+                                  children: fam.children?.map(child => ({
+                                    id: child.id,
+                                    name: getEntityName(child.data, currentLanguage) || child.name,
+                                    label: getEntityName(child.data, currentLanguage) || child.name,
+                                    children: child.children,
+                                    data: child.data
+                                  })),
+                                  data: fam.data
+                                }))}
+                                mode="select"
+                                selectionMode="single"
+                                onSelectionChange={(selectedIds) => {
+                                  if (selectedIds.length > 0 && selectedIds[0] !== id) {
+                                    const newParentId = selectedIds[0] || undefined;
+                                    setFormData(prev => ({ ...prev, parentFamily: newParentId }));
+                                  } else if (selectedIds.length === 0) {
+                                    setFormData(prev => ({ ...prev, parentFamily: undefined }));
+                                  }
+                                }}
+                                defaultSelectedIds={formData.parentFamily ? [formData.parentFamily] : []}
+                                expandAll={true}
+                                variant="spectrum"
+                                className="shadow-sm"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Kategori Seçimi */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              Kategori
+                            </label>
+                            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 max-h-64 overflow-y-auto">
+                              <UnifiedTreeView 
+                                key={`category-tree-${tabRefreshCounter}-${formData.category || 'none'}`}
+                                data={categoryTree.map(cat => ({
+                                  id: cat.id,
+                                  name: getEntityName(cat.data, currentLanguage) || cat.name,
+                                  label: getEntityName(cat.data, currentLanguage) || cat.name,
+                                  children: cat.children?.map(child => ({
+                                    id: child.id,
+                                    name: getEntityName(child.data, currentLanguage) || child.name,
+                                    label: getEntityName(child.data, currentLanguage) || child.name,
+                                    children: child.children,
+                                    data: child.data
+                                  })),
+                                  data: cat.data
+                                }))}
+                                mode="select"
+                                selectionMode="single"
+                                onSelectionChange={(selectedIds) => {
+                                  if (selectedIds.length > 0) {
+                                    const newCategoryId = selectedIds[0] || undefined;
+                                    setSelectedCategory(newCategoryId);
+                                    setFormData(prev => ({ ...prev, category: newCategoryId }));
+                                  } else {
+                                    setSelectedCategory(undefined);
+                                    setFormData(prev => ({ ...prev, category: undefined }));
+                                  }
+                                }}
+                                defaultSelectedIds={formData.category ? [formData.category] : []}
+                                expandAll={true}
+                                variant="spectrum"
+                                className="shadow-sm"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </CardBody>
+                    </Card>
+                  </div>
+                  
+                  {/* Sağ Taraf - Eylemler */}
+                  <div className="space-y-6">
+                    {/* Kaydet/İptal Butonları */}
+                    <Card>
+                      <CardHeader>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Düzenleme İşlemleri</h3>
+                      </CardHeader>
+                      <CardBody>
+                        <div className="space-y-3">
+                          <Button
+                            type="submit"
+                            variant="primary"
+                            className="w-full flex items-center justify-center"
+                            disabled={isSubmitting}
+                          >
+                            {isSubmitting ? (
+                              <>
+                                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Kaydediliyor...
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Değişiklikleri Kaydet
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full flex items-center justify-center"
+                            onClick={handleCancel}
+                            disabled={isSubmitting}
+                          >
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            İptal
+                          </Button>
+                        </div>
+                      </CardBody>
+                    </Card>
+
+                    {/* Öznitelik Grupları */}
+                    <Card>
+                      <CardHeader>
+                        <div className="flex justify-between items-center">
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Öznitelik Grupları</h3>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowAttributeGroupModal(true)}
+                            className="flex items-center"
+                          >
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                            Ekle
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardBody>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                          Toplam {attributeGroups.length} grup
+                        </div>
+                      </CardBody>
+                    </Card>
+
+                    {/* Öznitelikler */}
+                    <Card>
+                      <CardHeader>
+                        <div className="flex justify-between items-center">
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Öznitelikler</h3>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowAttributeModal(true)}
+                            className="flex items-center"
+                          >
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                            Ekle
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardBody>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                          Toplam {attributes.length} öznitelik
+                        </div>
+                      </CardBody>
+                    </Card>
+                  </div>
+                </div>
+              </form>
             </div>
           ) : (
             <TabView 
@@ -1510,13 +1975,13 @@ const FamilyDetailsPage: React.FC = () => {
               }}
             />
           )}
-        </div>
-      </div>
-      
+        </CardBody>
+      </Card>
+
       {/* Modallar */}
       {renderAttributeModal()}
       {renderAttributeGroupModal()}
-    </>
+    </div>
   );
 };
 

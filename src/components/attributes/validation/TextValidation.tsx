@@ -1,6 +1,6 @@
-import React from 'react';
-import { AttributeValidation } from '../../../services/api/attributeService';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from '../../../context/i18nContext';
+import { AttributeValidation } from '../../../types/attribute';
 
 interface TextValidationProps {
   validation: Partial<AttributeValidation>;
@@ -9,16 +9,50 @@ interface TextValidationProps {
 
 const TextValidation: React.FC<TextValidationProps> = ({ validation, onChange }) => {
   const { t, currentLanguage } = useTranslation();
+  const [errors, setErrors] = useState<Record<string, string>>({});
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const numValue = name !== 'pattern' ? parseInt(value) || undefined : undefined;
     
-    onChange({
+    const newValidation = {
       ...validation,
       [name]: name === 'pattern' ? value : numValue
-    });
+    };
+    
+    // Cross-validation kontrolü
+    validateFields(newValidation);
+    
+    onChange(newValidation);
   };
+  
+  const validateFields = (currentValidation: Partial<AttributeValidation>) => {
+    const newErrors: Record<string, string> = {};
+    
+    // Min/Max length cross-validation
+    if (currentValidation.minLength !== undefined && 
+        currentValidation.maxLength !== undefined && 
+        currentValidation.minLength > currentValidation.maxLength) {
+      newErrors.minLength = 'Minimum uzunluk maksimum uzunluktan büyük olamaz';
+      newErrors.maxLength = 'Maksimum uzunluk minimum uzunluktan küçük olamaz';
+    }
+    
+    // Negatif değer kontrolü
+    if (currentValidation.minLength !== undefined && currentValidation.minLength < 0) {
+      newErrors.minLength = 'Minimum uzunluk negatif olamaz';
+    }
+    
+    if (currentValidation.maxLength !== undefined && currentValidation.maxLength < 0) {
+      newErrors.maxLength = 'Maksimum uzunluk negatif olamaz';
+    }
+    
+    setErrors(newErrors);
+  };
+  
+  // Component mount olduğunda mevcut validation'ı kontrol et
+  useEffect(() => {
+    validateFields(validation);
+  }, [validation]);
 
   return (
     <div className="space-y-4">
@@ -37,12 +71,16 @@ const TextValidation: React.FC<TextValidationProps> = ({ validation, onChange })
             min="0"
             value={validation.minLength || ''}
             onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white"
+            className={`w-full px-3 py-2 border ${errors.minLength ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white`}
             placeholder={t('min_length_placeholder', 'validation')}
           />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            {t('min_length_help', 'validation')}
-          </p>
+          {errors.minLength ? (
+            <p className="mt-1 text-xs text-red-500">{errors.minLength}</p>
+          ) : (
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {t('min_length_help', 'validation')}
+            </p>
+          )}
         </div>
         
         {/* Maximum Uzunluk */}
@@ -57,12 +95,16 @@ const TextValidation: React.FC<TextValidationProps> = ({ validation, onChange })
             min="0"
             value={validation.maxLength || ''}
             onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white"
+            className={`w-full px-3 py-2 border ${errors.maxLength ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white`}
             placeholder={t('max_length_placeholder', 'validation')}
           />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            {t('max_length_help', 'validation')}
-          </p>
+          {errors.maxLength ? (
+            <p className="mt-1 text-xs text-red-500">{errors.maxLength}</p>
+          ) : (
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {t('max_length_help', 'validation')}
+            </p>
+          )}
         </div>
       </div>
       

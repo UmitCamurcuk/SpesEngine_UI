@@ -17,6 +17,7 @@ interface CreateAttributeGroupDto {
   code: string;
   description: string;
   attributes?: string[];
+  isActive?: boolean;
 }
 
 // MAIN COMPONENT
@@ -40,7 +41,8 @@ const AttributeGroupCreatePage: React.FC = () => {
     name: '',
     code: '',
     description: '',
-    attributes: []
+    attributes: [],
+    isActive: true
   });
 
   const [availableAttributes, setAvailableAttributes] = useState<Attribute[]>([]);
@@ -180,7 +182,8 @@ const AttributeGroupCreatePage: React.FC = () => {
         name: nameId,
         code: formData.code.trim(),
         description: descriptionId || '',
-        attributes: selectedAttributes
+        attributes: selectedAttributes,
+        isActive: formData.isActive
       };
       
       await attributeGroupService.createAttributeGroup(attributeGroupData);
@@ -238,35 +241,49 @@ const AttributeGroupCreatePage: React.FC = () => {
                 id="code"
                 name="code"
                 value={formData.code}
-                onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 font-mono ${
-                  formErrors.code
-                    ? 'border-red-300 focus:ring-red-500 dark:border-red-700'
-                    : 'border-gray-300 focus:ring-blue-500 dark:border-gray-600'
-                } dark:bg-gray-700 dark:text-white`}
+                onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value }))}
+                className={`w-full px-3 py-2 border ${formErrors.code ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white`}
                 placeholder={t('enter_group_code', 'attribute_groups')}
+                required
               />
               {formErrors.code && (
                 <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.code}</p>
               )}
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                {t('code_format_info', 'common')}
-              </p>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{t('code_help', 'attribute_groups')}</p>
             </div>
 
             {/* DESCRIPTION TRANSLATIONS */}
             <TranslationFields
-              label={t('description_label', 'common')}
+              label={t('description', 'attribute_groups')}
               fieldType="textarea"
               translations={translationData.descriptionTranslations}
               supportedLanguages={supportedLanguages}
               currentLanguage={currentLanguage}
               onChange={(language, value) => handleTranslationChange('descriptionTranslations', language, value)}
               error={formErrors.descriptionTranslations}
-              placeholder={t('enter_description', 'common')}
+              placeholder={t('enter_description', 'attribute_groups')}
               required
-              rows={3}
             />
+            
+            {/* Aktif */}
+            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="isActive"
+                  name="isActive"
+                  checked={formData.isActive}
+                  onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                  className="h-4 w-4 text-primary-light dark:text-primary-dark focus:ring-primary-light dark:focus:ring-primary-dark rounded border-gray-300 dark:border-gray-600"
+                />
+                <label htmlFor="isActive" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                  Öznitelik Grubu Aktif
+                </label>
+              </div>
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 ml-6">
+                Öznitelik grubunun aktif olup olmadığını belirler. Pasif gruplar kullanıcı arayüzünde gösterilmez.
+              </p>
+            </div>
           </div>
         );
 

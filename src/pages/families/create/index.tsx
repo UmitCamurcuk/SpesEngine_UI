@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
+import Breadcrumb from '../../../components/common/Breadcrumb';
 import Stepper from '../../../components/ui/Stepper';
+import TranslationFields from '../../../components/common/TranslationFields';
 import familyService from '../../../services/api/familyService';
 import itemTypeService from '../../../services/api/itemTypeService';
 import categoryService from '../../../services/api/categoryService';
@@ -10,6 +12,9 @@ import attributeService from '../../../services/api/attributeService';
 import type { CreateFamilyDto } from '../../../types/family';
 import AttributeSelector from '../../../components/attributes/AttributeSelector';
 import AttributeGroupSelector from '../../../components/attributes/AttributeGroupSelector';
+import { useTranslation } from '../../../context/i18nContext';
+import { useTranslationForm } from '../../../hooks/useTranslationForm';
+import { getEntityName } from '../../../utils/translationUtils';
 
 interface ItemTypeOption {
   _id: string;
@@ -35,8 +40,36 @@ interface FamilyOption {
   code: string;
 }
 
+// Card bileşenleri
+const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <div className={`bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden ${className}`}>
+    {children}
+  </div>
+);
+
+const CardHeader: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <div className={`px-6 py-4 border-b border-gray-200 dark:border-gray-700 ${className}`}>
+    {children}
+  </div>
+);
+
+const CardBody: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <div className={`p-6 ${className}`}>
+    {children}
+  </div>
+);
+
 const FamilyCreatePage: React.FC = () => {
   const navigate = useNavigate();
+  const { t, currentLanguage } = useTranslation();
+  
+  // Translation hook'unu kullan
+  const {
+    supportedLanguages,
+    translationData,
+    handleTranslationChange,
+    createTranslations
+  } = useTranslationForm();
   
   // Form state
   const [formData, setFormData] = useState<CreateFamilyDto>({
@@ -76,6 +109,7 @@ const FamilyCreatePage: React.FC = () => {
     { title: 'Hiyerarşi', description: 'Kategori ve ItemType seçimi' },
     { title: 'Öznitelik Grupları', description: 'Aileye öznitelik grupları atama' },
     { title: 'Öznitelikler', description: 'Aileye öznitelik atama' },
+    { title: 'Gözden Geçir', description: 'Tüm bilgileri gözden geçir ve oluştur' },
   ], []);
   
   // Öznitelik grupları, ürün tipleri ve kategorileri yükle
@@ -121,6 +155,28 @@ const FamilyCreatePage: React.FC = () => {
     fetchOptions();
   }, []);
   
+  // Helper fonksiyon: Translation objesinden string değer alma
+  const getTranslationValue = (translations: Record<string, string>): string => {
+    return Object.values(translations).find(value => value && value.trim()) || 'Belirtilmemiş';
+  };
+
+  // Helper fonksiyon: Group name'ini güvenli şekilde alma
+  const getGroupName = (group: any): string => {
+    if (!group) return 'Bilinmeyen Grup';
+    
+    // Eğer name bir translation objesi ise
+    if (typeof group.name === 'object' && group.name !== null) {
+      return getEntityName(group.name, currentLanguage) || 'Bilinmeyen Grup';
+    }
+    
+    // Eğer name bir string ise
+    if (typeof group.name === 'string') {
+      return group.name;
+    }
+    
+    return 'Bilinmeyen Grup';
+  };
+
   // Form input değişiklik handler
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -163,9 +219,14 @@ const FamilyCreatePage: React.FC = () => {
     setSuccess(false);
     
     try {
+      // Çevirileri oluştur
+      const { nameId, descriptionId } = await createTranslations(formData.code, 'families');
+
       // Form verisini hazırla - tüm seçili öznitelik gruplarını ve öznitelikleri ekle
       const payload: CreateFamilyDto = {
         ...formData,
+        name: nameId,
+        description: descriptionId || '',
         parent: formData.parent || undefined,
         attributeGroups: selectedAttributeGroups,
         attributes: selectedAttributes
@@ -202,16 +263,20 @@ const FamilyCreatePage: React.FC = () => {
   const validateStep1 = (): boolean => {
     const errors: Record<string, string> = {};
     
-    if (!formData.name.trim()) {
-      errors.name = 'Aile adı zorunludur';
+    // Name translation kontrolü - en az bir dilde dolu olmalı
+    const hasNameTranslation = Object.values(translationData.nameTranslations).some(name => name.trim());
+    if (!hasNameTranslation) {
+      errors.name = 'Aile adı zorunludur (en az bir dilde)';
     }
     
     if (!formData.code.trim()) {
       errors.code = 'Kod zorunludur';
     }
     
-    if (!formData.description.trim()) {
-      errors.description = 'Açıklama zorunludur';
+    // Description translation kontrolü - en az bir dilde dolu olmalı
+    const hasDescriptionTranslation = Object.values(translationData.descriptionTranslations).some(desc => desc.trim());
+    if (!hasDescriptionTranslation) {
+      errors.description = 'Açıklama zorunludur (en az bir dilde)';
     }
     
     setFormErrors(errors);
@@ -236,6 +301,11 @@ const FamilyCreatePage: React.FC = () => {
     return true;
   };
   
+  const validateStep4 = (): boolean => {
+    // Son adımda sadece final kontroller yapılır
+    return true;
+  };
+  
   const handleNextStep = () => {
     let isValid = false;
     
@@ -246,6 +316,8 @@ const FamilyCreatePage: React.FC = () => {
       isValid = validateStep2();
     } else if (currentStep === 2) {
       isValid = validateStep3();
+    } else if (currentStep === 3) {
+      isValid = validateStep4();
     }
     
     if (isValid) {
@@ -277,20 +349,21 @@ const FamilyCreatePage: React.FC = () => {
       case 0:
         return (
           <div className="space-y-4">
-            {/* İsim */}
+            {/* Name Translations */}
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Aile Adı <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {t('name')} <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
+              <TranslationFields
+                label=""
+                fieldType="input"
+                translations={translationData.nameTranslations}
+                supportedLanguages={supportedLanguages}
+                currentLanguage={currentLanguage}
+                onChange={(language, value) => handleTranslationChange('nameTranslations', language, value)}
+                error={formErrors.name}
+                placeholder={t('family_name_placeholder')}
                 required
-                className={`bg-gray-50 border ${formErrors.name ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
-                placeholder="Aile adını girin"
               />
               {formErrors.name && (
                 <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>
@@ -300,7 +373,7 @@ const FamilyCreatePage: React.FC = () => {
             {/* Kod */}
             <div>
               <label htmlFor="code" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Kod <span className="text-red-500">*</span>
+                {t('code')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -310,27 +383,29 @@ const FamilyCreatePage: React.FC = () => {
                 onChange={handleChange}
                 required
                 className={`bg-gray-50 border ${formErrors.code ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
-                placeholder="Benzersiz kod girin (BÜYÜK_HARF)"
+                placeholder={t('unique_code_placeholder')}
               />
               {formErrors.code && (
                 <p className="mt-1 text-sm text-red-500">{formErrors.code}</p>
               )}
             </div>
             
-            {/* Açıklama */}
+            {/* Description Translations */}
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Açıklama <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {t('description')} <span className="text-red-500">*</span>
               </label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
+              <TranslationFields
+                label=""
+                fieldType="textarea"
+                translations={translationData.descriptionTranslations}
+                supportedLanguages={supportedLanguages}
+                currentLanguage={currentLanguage}
+                onChange={(language, value) => handleTranslationChange('descriptionTranslations', language, value)}
+                error={formErrors.description}
+                placeholder={t('family_description_placeholder')}
                 required
                 rows={3}
-                className={`bg-gray-50 border ${formErrors.description ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
-                placeholder="Aile hakkında açıklama girin"
               />
               {formErrors.description && (
                 <p className="mt-1 text-sm text-red-500">{formErrors.description}</p>
@@ -340,7 +415,7 @@ const FamilyCreatePage: React.FC = () => {
             {/* Üst Aile Seçimi */}
             <div>
               <label htmlFor="parent" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Üst Aile
+                {t('parent_family')}
               </label>
               <select
                 id="parent"
@@ -349,7 +424,7 @@ const FamilyCreatePage: React.FC = () => {
                 onChange={handleChange}
                 className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
               >
-                <option value="">Üst aile seçin (opsiyonel)</option>
+                <option value="">{t('select_parent_family_optional')}</option>
                 {parentOptions.map((parent) => (
                   <option key={parent._id} value={parent._id}>
                     {parent.name} ({parent.code})
@@ -357,23 +432,28 @@ const FamilyCreatePage: React.FC = () => {
                 ))}
               </select>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Eğer bu aile başka bir ailenin alt ailesi ise, üst aileyi seçin
+                {t('parent_family_description')}
               </p>
             </div>
             
-            {/* Aktif/Pasif */}
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="isActive"
-                name="isActive"
-                checked={formData.isActive}
-                onChange={handleChange}
-                className="w-4 h-4 text-primary-light bg-gray-100 border-gray-300 rounded focus:ring-primary-light dark:focus:ring-primary-dark dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-              />
-              <label htmlFor="isActive" className="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300">
-                Aktif
-              </label>
+            {/* Aktif */}
+            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="isActive"
+                  name="isActive"
+                  checked={formData.isActive}
+                  onChange={handleChange}
+                  className="h-4 w-4 text-primary-light dark:text-primary-dark focus:ring-primary-light dark:focus:ring-primary-dark rounded border-gray-300 dark:border-gray-600"
+                />
+                <label htmlFor="isActive" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                  Aile Aktif
+                </label>
+              </div>
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 ml-6">
+                Ailenin aktif olup olmadığını belirler. Pasif aileler kullanıcı arayüzünde gösterilmez.
+              </p>
             </div>
           </div>
         );
@@ -487,6 +567,122 @@ const FamilyCreatePage: React.FC = () => {
                   </p>
                 </div>
               </div>
+            </div>
+          </div>
+        );
+      
+      case 4:
+        return (
+          <div className="space-y-6">
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="flex items-start">
+                <svg className="w-5 h-5 mr-2 mt-0.5 text-blue-500 dark:text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <h4 className="text-sm font-medium text-blue-700 dark:text-blue-300">Gözden Geçirme</h4>
+                  <p className="mt-1 text-sm text-blue-600 dark:text-blue-400">
+                    Lütfen girdiğiniz tüm bilgileri kontrol edin. Onayladığınızda aile oluşturulacaktır.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Temel Bilgiler Özeti */}
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Temel Bilgiler</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Aile Adı:</span>
+                  <p className="text-gray-900 dark:text-white">
+                    {getTranslationValue(translationData.nameTranslations)}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Kod:</span>
+                  <p className="text-gray-900 dark:text-white">{formData.code || 'Belirtilmemiş'}</p>
+                </div>
+                <div className="md:col-span-2">
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Açıklama:</span>
+                  <p className="text-gray-900 dark:text-white">
+                    {getTranslationValue(translationData.descriptionTranslations)}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Durum:</span>
+                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                    formData.isActive 
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500'
+                      : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-500'
+                  }`}>
+                    {formData.isActive ? 'Aktif' : 'Pasif'}
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Hiyerarşi Özeti */}
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Hiyerarşi</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Kategori:</span>
+                  <p className="text-gray-900 dark:text-white">
+                    {getGroupName(categoryOptions.find(cat => cat._id === formData.category))}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Üst Aile:</span>
+                  <p className="text-gray-900 dark:text-white">
+                    {getGroupName(parentOptions.find(parent => parent._id === formData.parent))}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Öznitelik Grupları Özeti */}
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Öznitelik Grupları ({selectedAttributeGroups.length})
+              </h3>
+              {selectedAttributeGroups.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {selectedAttributeGroups.map(groupId => {
+                    const group = attributeGroupOptions.find(g => g._id === groupId);
+                    return (
+                      <div key={groupId} className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+                        <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                          {getGroupName(group)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-gray-500 dark:text-gray-400">Öznitelik grubu seçilmemiş</p>
+              )}
+            </div>
+            
+            {/* Öznitelikler Özeti */}
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Seçili Öznitelikler ({selectedAttributes.length})
+              </h3>
+              {selectedAttributes.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  {selectedAttributes.map(attrId => (
+                    <div key={attrId} className="bg-green-50 dark:bg-green-900/20 p-2 rounded">
+                      <span className="text-sm text-green-700 dark:text-green-300">
+                        Öznitelik ID: {attrId}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 dark:text-gray-400">
+                  Özel öznitelik seçilmemiş (Tüm grup öznitelikleri dahil edilecek)
+                </p>
+              )}
             </div>
           </div>
         );

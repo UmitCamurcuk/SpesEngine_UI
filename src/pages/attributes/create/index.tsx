@@ -335,11 +335,26 @@ const AttributeCreatePage: React.FC = () => {
       // Öznitelik grubu varsa ekle
       if (formData.attributeGroup) {
         attributeData.attributeGroup = formData.attributeGroup;
+        console.log('[FRONTEND DEBUG] AttributeGroup seçildi:', formData.attributeGroup);
+      } else {
+        console.log('[FRONTEND DEBUG] AttributeGroup seçilmedi');
       }
       
-      await attributeService.createAttribute(attributeData);
-      navigate('/attributes/list');
+      console.log('[FRONTEND DEBUG] Final attributeData:', JSON.stringify(attributeData, null, 2));
+      
+      const createdAttribute = await attributeService.createAttribute(attributeData);
+      
+      console.log('[FRONTEND DEBUG] Oluşturulan attribute:', createdAttribute);
+      
+      // Oluşturulan attribute'un ID'sini al ve details sayfasına yönlendir
+      if (createdAttribute && createdAttribute._id) {
+        navigate(`/attributes/${createdAttribute._id}`);
+      } else {
+        // Fallback olarak liste sayfasına yönlendir
+        navigate('/attributes/list');
+      }
     } catch (err: any) {
+      console.error('[FRONTEND DEBUG] Attribute create hatası:', err);
       setError(err.message || t('attribute_create_error', 'attributes'));
     } finally {
       setIsSubmitting(false);
@@ -405,29 +420,132 @@ const AttributeCreatePage: React.FC = () => {
             
             {/* Öznitelik Grubu */}
             <div>
-              <label htmlFor="attributeGroup" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                 {t('attribute_group', 'attributes')}
               </label>
-              <select
-                id="attributeGroup"
-                name="attributeGroup"
-                value={formData.attributeGroup}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white"
-              >
-                <option value="">{t('select_optional', 'attributes')}</option>
-                {attributeGroups.map((group) => (
-                  <option key={group._id} value={group._id}>
-                    {getEntityName(group, currentLanguage)}
-                  </option>
-                ))}
-              </select>
-              {attributeGroups.length === 0 && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {t('no_groups', 'attributes')}
-                </p>
+              
+              {attributeGroups.length === 0 ? (
+                <div className="text-center py-8 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                    {t('no_groups', 'attributes')}
+                  </p>
+                </div>
+              ) : (
+                <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto max-h-64">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                      <thead className="bg-gray-50 dark:bg-gray-800/50 sticky top-0">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Seçim
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Grup Adı
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Kod
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Açıklama
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {attributeGroups.map((group) => (
+                          <tr 
+                            key={group._id} 
+                            className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer ${
+                              formData.attributeGroup === group._id ? 'bg-primary-50 dark:bg-primary-900/20' : ''
+                            }`}
+                            onClick={() => {
+                              setFormData(prev => ({
+                                ...prev,
+                                attributeGroup: prev.attributeGroup === group._id ? undefined : group._id
+                              }));
+                            }}
+                          >
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <input
+                                type="radio"
+                                name="attributeGroup"
+                                value={group._id}
+                                checked={formData.attributeGroup === group._id}
+                                onChange={() => {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    attributeGroup: group._id
+                                  }));
+                                }}
+                                className="h-4 w-4 text-primary-light focus:ring-primary-light border-gray-300"
+                              />
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                {getEntityName(group, currentLanguage)}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="text-xs font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-gray-700 dark:text-gray-300">
+                                {group.code}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="text-sm text-gray-600 dark:text-gray-300">
+                                {getEntityName(group, currentLanguage, 'description') || '-'}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                        <tr 
+                          className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer ${
+                            !formData.attributeGroup ? 'bg-primary-50 dark:bg-primary-900/20' : ''
+                          }`}
+                          onClick={() => {
+                            setFormData(prev => ({
+                              ...prev,
+                              attributeGroup: undefined
+                            }));
+                          }}
+                        >
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <input
+                              type="radio"
+                              name="attributeGroup"
+                              value=""
+                              checked={!formData.attributeGroup}
+                              onChange={() => {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  attributeGroup: undefined
+                                }));
+                              }}
+                              className="h-4 w-4 text-primary-light focus:ring-primary-light border-gray-300"
+                            />
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-500 dark:text-gray-400 italic">
+                              Grup seçilmedi
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className="text-xs text-gray-400">-</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="text-sm text-gray-400">
+                              Bu attribute hiçbir gruba bağlı olmayacak
+                            </div>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               )}
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                 {t('group_help', 'attributes')}
               </p>
             </div>
@@ -635,8 +753,8 @@ const AttributeCreatePage: React.FC = () => {
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('attribute_group', 'attributes')}</label>
                 <p className="text-sm text-gray-900 dark:text-white">
                   {formData.attributeGroup 
-                    ? attributeGroups.find(group => group._id === formData.attributeGroup)?.name || 'Bilinmiyor'
-                    : t('not_selected', 'attributes')
+                    ? getEntityName(attributeGroups.find(group => group._id === formData.attributeGroup), currentLanguage) || 'Bilinmiyor'
+                    : 'Grup seçilmedi'
                   }
                 </p>
               </div>

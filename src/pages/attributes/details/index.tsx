@@ -49,6 +49,14 @@ const AttributeDetailsPage: React.FC = () => {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   
+  // Attribute Groups state'leri
+  const [attributeGroups, setAttributeGroups] = useState<any[]>([]);
+  const [allAttributeGroups, setAllAttributeGroups] = useState<any[]>([]);
+  const [isLoadingGroups, setIsLoadingGroups] = useState<boolean>(false);
+  const [isEditingGroups, setIsEditingGroups] = useState<boolean>(false);
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+  const [isSavingGroups, setIsSavingGroups] = useState<boolean>(false);
+  
   // Edit form data
   const [editableFields, setEditableFields] = useState({
     name: '',
@@ -57,6 +65,32 @@ const AttributeDetailsPage: React.FC = () => {
     isRequired: false,
     isActive: true
   });
+  
+  // Attribute Groups fonksiyonları - useEffect'ten önce tanımla
+  const fetchAttributeGroups = async () => {
+    if (!id) return;
+    
+    setIsLoadingGroups(true);
+    try {
+      const groups = await attributeService.getAttributeGroups(id);
+      setAttributeGroups(groups);
+      setSelectedGroupIds(groups.map((g: any) => g._id));
+    } catch (err: any) {
+      console.error('Attribute groups yüklenirken hata:', err);
+    } finally {
+      setIsLoadingGroups(false);
+    }
+  };
+
+  const fetchAllAttributeGroups = async () => {
+    try {
+      const attributeGroupService = await import('../../../services/api/attributeGroupService');
+      const response = await attributeGroupService.default.getAttributeGroups({ isActive: true });
+      setAllAttributeGroups(response.attributeGroups);
+    } catch (err: any) {
+      console.error('Tüm attribute groups yüklenirken hata:', err);
+    }
+  };
   
   // HELPER FUNCTIONS
   const formatDate = (dateString?: string) => {
@@ -119,6 +153,9 @@ const AttributeDetailsPage: React.FC = () => {
             isRequired: data.isRequired,
             isActive: data.isActive
           });
+          
+          // Attribute groups'ları da yükle
+          fetchAttributeGroups();
         }
       } catch (err: any) {
         if (isMounted) {
@@ -330,6 +367,39 @@ const AttributeDetailsPage: React.FC = () => {
     }
   };
 
+  const handleEditGroups = () => {
+    setIsEditingGroups(true);
+    fetchAllAttributeGroups();
+  };
+
+  const handleCancelEditGroups = () => {
+    setIsEditingGroups(false);
+    setSelectedGroupIds(attributeGroups.map((g: any) => g._id));
+  };
+
+  const handleSaveGroups = async () => {
+    if (!id) return;
+    
+    setIsSavingGroups(true);
+    try {
+      const updatedGroups = await attributeService.updateAttributeGroups(id, selectedGroupIds);
+      setAttributeGroups(updatedGroups);
+      setIsEditingGroups(false);
+    } catch (err: any) {
+      console.error('Attribute groups güncellenirken hata:', err);
+    } finally {
+      setIsSavingGroups(false);
+    }
+  };
+
+  const handleGroupSelection = (groupId: string, isSelected: boolean) => {
+    if (isSelected) {
+      setSelectedGroupIds(prev => [...prev, groupId]);
+    } else {
+      setSelectedGroupIds(prev => prev.filter(id => id !== groupId));
+    }
+  };
+
   // MAIN RENDER
   return (
     <div className="space-y-6">
@@ -509,6 +579,21 @@ const AttributeDetailsPage: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
               </svg>
               {t('details_tab', 'attributes')}
+            </div>
+          </button>
+          <button
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'attribute-groups'
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+            }`}
+            onClick={() => setActiveTab('attribute-groups')}
+          >
+            <div className="flex items-center">
+              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              Attribute Groups
             </div>
           </button>
           <button
@@ -892,6 +977,177 @@ const AttributeDetailsPage: React.FC = () => {
               </CardBody>
             </Card>
           </div>
+        </div>
+      )}
+
+      {/* TAB CONTENT - ATTRIBUTE GROUPS */}
+      {activeTab === 'attribute-groups' && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-medium text-gray-900 dark:text-white">Attribute Groups</h2>
+                {!isEditingGroups && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="flex items-center"
+                    onClick={handleEditGroups}
+                  >
+                    <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                    Düzenle
+                  </Button>
+                )}
+                {isEditingGroups && (
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="flex items-center"
+                      onClick={handleSaveGroups}
+                      loading={isSavingGroups}
+                      disabled={isSavingGroups}
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Kaydet
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center"
+                      onClick={handleCancelEditGroups}
+                      disabled={isSavingGroups}
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      İptal
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+            <CardBody>
+              {isLoadingGroups ? (
+                <div className="flex justify-center items-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary-light border-t-transparent dark:border-primary-dark dark:border-t-transparent"></div>
+                </div>
+              ) : isEditingGroups ? (
+                // Edit Mode - Table View
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-800/50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 text-primary-light focus:ring-primary-light border-gray-300 rounded"
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedGroupIds(allAttributeGroups.map(g => g._id));
+                              } else {
+                                setSelectedGroupIds([]);
+                              }
+                            }}
+                            checked={selectedGroupIds.length === allAttributeGroups.length && allAttributeGroups.length > 0}
+                          />
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Grup Adı
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Kod
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Açıklama
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                      {allAttributeGroups.map((group) => (
+                        <tr key={group._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 text-primary-light focus:ring-primary-light border-gray-300 rounded"
+                              checked={selectedGroupIds.includes(group._id)}
+                              onChange={(e) => handleGroupSelection(group._id, e.target.checked)}
+                            />
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                              {getEntityName(group, currentLanguage)}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-sm font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-gray-700 dark:text-gray-300">
+                              {group.code}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-900 dark:text-gray-100">
+                              {getEntityDescription(group, currentLanguage) || '-'}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                // View Mode - Card View
+                <div className="space-y-4">
+                  {attributeGroups.length === 0 ? (
+                    <div className="text-center py-8">
+                      <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                      </svg>
+                      <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">Attribute Group Yok</h3>
+                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        Bu attribute henüz hiçbir attribute group'a bağlı değil.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {attributeGroups.map((group) => (
+                        <div key={group._id} className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                {getEntityName(group, currentLanguage)}
+                              </h3>
+                              <p className="text-xs font-mono text-gray-500 dark:text-gray-400 mt-1">
+                                {group.code}
+                              </p>
+                              {getEntityDescription(group, currentLanguage) && (
+                                <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
+                                  {getEntityDescription(group, currentLanguage)}
+                                </p>
+                              )}
+                            </div>
+                            <div className="ml-4">
+                              <Link
+                                to={`/attribute-groups/${group._id}`}
+                                className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
+                              >
+                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                </svg>
+                              </Link>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardBody>
+          </Card>
         </div>
       )}
 

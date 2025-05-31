@@ -93,6 +93,13 @@ const attributeService = {
         console.log('[AttributeService] Validasyon verisi yok!');
       }
       
+      // AttributeGroup kontrolü
+      if (attributeData.attributeGroup) {
+        console.log('[AttributeService] AttributeGroup gönderiliyor:', attributeData.attributeGroup);
+      } else {
+        console.log('[AttributeService] AttributeGroup gönderilmiyor');
+      }
+      
       const response = await api.post<ApiResponse<Attribute>>('/attributes', attributeData);
       
       console.log('[AttributeService] API yanıtı:', response.status, response.statusText);
@@ -100,7 +107,7 @@ const attributeService = {
       
       return response.data.data;
     } catch (error) {
-      console.error('Öznitelik oluşturulurken hata oluştu:', error);
+      console.error('[AttributeService] Öznitelik oluşturulurken hata oluştu:', error);
       throw error;
     }
   },
@@ -127,6 +134,28 @@ const attributeService = {
       await api.delete(`/attributes/${id}`);
     } catch (error) {
       console.error(`${id} ID'li öznitelik silinirken hata oluştu:`, error);
+      throw error;
+    }
+  },
+
+  // Özniteliğin bağlı olduğu grupları getir
+  getAttributeGroups: async (id: string): Promise<any[]> => {
+    try {
+      const response = await api.get<ApiResponse<any[]>>(`/attributes/${id}/groups`);
+      return response.data.data;
+    } catch (error) {
+      console.error(`${id} ID'li özniteliğin grupları getirilirken hata oluştu:`, error);
+      throw error;
+    }
+  },
+
+  // Özniteliğin bağlı olduğu grupları güncelle
+  updateAttributeGroups: async (id: string, attributeGroups: string[]): Promise<any[]> => {
+    try {
+      const response = await api.put<ApiResponse<any[]>>(`/attributes/${id}/groups`, { attributeGroups });
+      return response.data.data;
+    } catch (error) {
+      console.error(`${id} ID'li özniteliğin grupları güncellenirken hata oluştu:`, error);
       throw error;
     }
   }

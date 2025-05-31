@@ -108,7 +108,7 @@ const FamilyDetailsPage: React.FC = () => {
         }
       } finally {
         if (isMounted) {
-          setIsLoading(false);
+        setIsLoading(false);
         }
       }
     };
@@ -198,7 +198,7 @@ const FamilyDetailsPage: React.FC = () => {
       });
     }
   };
-
+  
   // Form validation
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
@@ -214,7 +214,7 @@ const FamilyDetailsPage: React.FC = () => {
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
-
+  
   // Save changes
   const handleSave = async () => {
     if (!id || !validateForm()) return;
@@ -286,7 +286,7 @@ const FamilyDetailsPage: React.FC = () => {
       }
     }
   };
-
+  
   // MAIN RENDER
   return (
     <div className="space-y-6">
@@ -298,8 +298,8 @@ const FamilyDetailsPage: React.FC = () => {
             { label: getEntityName(family, currentLanguage) }
           ]} 
         />
-      </div>
-
+        </div>
+        
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center">
@@ -316,10 +316,10 @@ const FamilyDetailsPage: React.FC = () => {
             <svg className="h-5 w-5 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
             </svg>
-          </div>
-          <div>
+        </div>
+        <div>
             {isEditing ? (
-              <div>
+        <div>
                 <input
                   type="text"
                   name="name"
@@ -333,7 +333,7 @@ const FamilyDetailsPage: React.FC = () => {
                 {formErrors.name && (
                   <p className="mt-1 text-sm text-red-500 dark:text-red-400">{formErrors.name}</p>
                 )}
-              </div>
+        </div>
             ) : (
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{getEntityName(family, currentLanguage)}</h1>
             )}
@@ -352,8 +352,8 @@ const FamilyDetailsPage: React.FC = () => {
               ) : (
                 <span className="text-sm font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-gray-700 dark:text-gray-300">
                   {family.code}
-                </span>
-              )}
+              </span>
+            )}
               {formErrors.code && (
                 <p className="ml-2 text-sm text-red-500 dark:text-red-400">{formErrors.code}</p>
               )}
@@ -376,17 +376,17 @@ const FamilyDetailsPage: React.FC = () => {
                     <label htmlFor="isActive" className="ml-1 text-xs">
                       {editableFields.isActive ? 'Aktif' : 'Pasif'}
                     </label>
-                  </div>
+          </div>
                 ) : (
                   family.isActive ? 'Aktif' : 'Pasif'
                 )}
-              </div>
-            </div>
-          </div>
+        </div>
+        </div>
+        </div>
         </div>
         
         <div className="flex items-center space-x-2">
-          {isEditing ? (
+                {isEditing ? (
             <>
               <Button
                 variant="primary"
@@ -445,8 +445,8 @@ const FamilyDetailsPage: React.FC = () => {
                 Sil
               </Button>
             </>
-          )}
-        </div>
+                )}
+              </div>
       </div>
 
       {/* REST OF THE COMPONENT */}
@@ -466,11 +466,11 @@ const FamilyDetailsPage: React.FC = () => {
               <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
+                </svg>
               Detaylar
             </div>
           </button>
-          <button
+                <button 
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'documentation'
                 ? 'border-primary-500 text-primary-600 dark:text-primary-400'
@@ -484,7 +484,7 @@ const FamilyDetailsPage: React.FC = () => {
               </svg>
               Dokümantasyon
             </div>
-          </button>
+                </button>
           <button
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'relationships'
@@ -498,7 +498,7 @@ const FamilyDetailsPage: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
               </svg>
               İlişkiler
-            </div>
+                  </div>
           </button>
           <button
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
@@ -513,7 +513,7 @@ const FamilyDetailsPage: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
               İzinler
-            </div>
+                </div>
           </button>
           <button
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
@@ -526,12 +526,12 @@ const FamilyDetailsPage: React.FC = () => {
             <div className="flex items-center">
               <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+                </svg>
               Geçmiş
-            </div>
+              </div>
           </button>
         </nav>
-      </div>
+              </div>
 
       {/* JSON PREVIEW */}
       {showJsonPreview && (
@@ -568,9 +568,9 @@ const FamilyDetailsPage: React.FC = () => {
               </CardHeader>
               <CardBody>
                 <div className="space-y-6">
-                  <div>
+              <div>
                     <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Açıklama</h3>
-                    {isEditing ? (
+                {isEditing ? (
                       <div className="mt-2">
                         <textarea
                           name="description"
@@ -584,41 +584,41 @@ const FamilyDetailsPage: React.FC = () => {
                         />
                         {formErrors.description && (
                           <p className="mt-1 text-sm text-red-500 dark:text-red-400">{formErrors.description}</p>
-                        )}
-                      </div>
-                    ) : (
+                )}
+              </div>
+            ) : (
                       <p className="mt-2 text-gray-900 dark:text-gray-100">
                         {getEntityDescription(family, currentLanguage) || 'Açıklama bulunmamaktadır.'}
                       </p>
-                    )}
-                  </div>
-                  
+            )}
+          </div>
+          
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
+                <div>
                       <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Durum</h3>
                       <div className="mt-2 flex items-center">
                         {getStatusIcon(family.isActive)}
                         <span className="ml-2 text-gray-900 dark:text-gray-100">
                           {family.isActive ? 'Aktif' : 'Pasif'}
                         </span>
-                      </div>
-                    </div>
+                </div>
+              </div>
                     <div>
                       <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Aile Türü</h3>
                       <div className="mt-2">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                           Ürün Ailesi
                         </span>
-                      </div>
-                    </div>
+            </div>
+        </div>
                     <div>
                       <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Oluşturulma Tarihi</h3>
                       <p className="mt-2 text-gray-900 dark:text-gray-100">{formatDate(family.createdAt)}</p>
-                    </div>
+      </div>
                     <div>
                       <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Son Güncelleme</h3>
                       <p className="mt-2 text-gray-900 dark:text-gray-100">{formatDate(family.updatedAt)}</p>
-                    </div>
+    </div>
                   </div>
 
                   <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -627,11 +627,11 @@ const FamilyDetailsPage: React.FC = () => {
                       <div className="flex items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                         <svg className="h-4 w-4 text-primary-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                        </svg>
+          </svg>
                         <span className="text-sm text-gray-900 dark:text-gray-100">
                           Öznitelik Grubu
                         </span>
-                      </div>
+      </div>
                       <div className="flex items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                         <svg className="h-4 w-4 text-primary-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -639,15 +639,15 @@ const FamilyDetailsPage: React.FC = () => {
                         <span className="text-sm text-gray-900 dark:text-gray-100">
                           Öznitelik Koleksiyonu
                         </span>
-                      </div>
+                  </div>
                       <div className="flex items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                         <svg className="h-4 w-4 text-primary-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                        </svg>
+                    </svg>
                         <span className="text-sm text-gray-900 dark:text-gray-100">
                           Kategori Bağlantısı
                         </span>
-                      </div>
+                </div>
                       <div className="flex items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                         <svg className="h-4 w-4 text-primary-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -694,7 +694,7 @@ const FamilyDetailsPage: React.FC = () => {
                       <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                         1,245
                       </span>
-                    </div>
+                          </div>
                     <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                       <div 
                         className="bg-primary-600 dark:bg-primary-500 h-2 rounded-full" 
@@ -746,9 +746,9 @@ const FamilyDetailsPage: React.FC = () => {
                       >
                         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                        </svg>
+                            </svg>
                       </button>
-                    </div>
+                  </div>
                   </div>
                   
                   <div>
@@ -761,7 +761,7 @@ const FamilyDetailsPage: React.FC = () => {
                         <code className="text-sm font-mono text-gray-800 dark:text-gray-200">
                           /api/families/{family._id}
                         </code>
-                      </div>
+              </div>
                       <div className="flex items-center space-x-2">
                         <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                           PUT
@@ -769,7 +769,7 @@ const FamilyDetailsPage: React.FC = () => {
                         <code className="text-sm font-mono text-gray-800 dark:text-gray-200">
                           /api/families/{family._id}
                         </code>
-                      </div>
+          </div>
                       <div className="flex items-center space-x-2">
                         <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
                           DELETE
@@ -777,23 +777,23 @@ const FamilyDetailsPage: React.FC = () => {
                         <code className="text-sm font-mono text-gray-800 dark:text-gray-200">
                           /api/families/{family._id}
                         </code>
-                      </div>
+        </div>
                     </div>
                   </div>
                   
                   <div className="pt-2">
-                    <Button 
-                      variant="outline" 
+          <Button
+            variant="outline"
                       size="sm"
                       className="flex items-center"
-                    >
+          >
                       <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
+            </svg>
                       API Dokümantasyonunu Görüntüle
-                    </Button>
-                  </div>
-                </div>
+          </Button>
+        </div>
+    </div>
               </CardBody>
             </Card>
           </div>
@@ -830,16 +830,16 @@ const FamilyDetailsPage: React.FC = () => {
               </ul>
 
               <div className="not-prose mt-6">
-                <Button 
-                  variant="outline"
+        <Button
+          variant="outline"
                   className="flex items-center"
-                >
+        >
                   <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                  </svg>
+          </svg>
                   Tam Dokümantasyonu Görüntüle
-                </Button>
-              </div>
+        </Button>
+      </div>
             </div>
           </CardBody>
         </Card>
@@ -854,23 +854,23 @@ const FamilyDetailsPage: React.FC = () => {
             </CardHeader>
             <CardBody className="p-0">
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-800/50">
-                    <tr>
+              <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Varlık Türü
-                      </th>
+                </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         İlişki
-                      </th>
+                </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Sayı
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        İşlemler
-                      </th>
-                    </tr>
-                  </thead>
+                  İşlemler
+                </th>
+              </tr>
+            </thead>
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     <tr>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -890,20 +890,20 @@ const FamilyDetailsPage: React.FC = () => {
                             </div>
                           </div>
                         </div>
-                      </td>
+                  </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200">
                           Aile İlişkisi
                         </span>
-                      </td>
+                  </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900 dark:text-gray-100">856</div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">ürün</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <Button variant="outline" size="sm">Görüntüle</Button>
-                      </td>
-                    </tr>
+                  </td>
+                </tr>
                     
                     <tr>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -912,17 +912,17 @@ const FamilyDetailsPage: React.FC = () => {
                                         flex items-center justify-center mr-3">
                             <svg className="h-4 w-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                            </svg>
-                          </div>
+          </svg>
+        </div>
                           <div>
                             <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                               Alt Aileler
-                            </div>
+    </div>
                             <div className="text-sm text-gray-500 dark:text-gray-400">
                               Çocuk aile kategorileri
-                            </div>
-                          </div>
-                        </div>
+        </div>
+      </div>
+        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
@@ -945,15 +945,15 @@ const FamilyDetailsPage: React.FC = () => {
                                         flex items-center justify-center mr-3">
                             <svg className="h-4 w-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                            </svg>
-                          </div>
+          </svg>
+        </div>
                           <div>
                             <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                               Öznitelik Grupları
-                            </div>
+      </div>
                             <div className="text-sm text-gray-500 dark:text-gray-400">
                               İlişkili öznitelik koleksiyonları
-                            </div>
+      </div>
                           </div>
                         </div>
                       </td>
@@ -980,7 +980,7 @@ const FamilyDetailsPage: React.FC = () => {
 
       {/* TAB CONTENT - PERMISSIONS */}
       {activeTab === 'permissions' && (
-        <div className="space-y-6">
+      <div className="space-y-6">
           <Card>
             <CardHeader>
               <h2 className="text-lg font-medium text-gray-900 dark:text-white">Erişim İzinleri</h2>
@@ -1015,17 +1015,17 @@ const FamilyDetailsPage: React.FC = () => {
                                         flex items-center justify-center mr-3">
                             <svg className="h-4 w-4 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                            </svg>
-                          </div>
+              </svg>
+          </div>
                           <div>
                             <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                               Yönetici
-                            </div>
+          </div>
                             <div className="text-sm text-gray-500 dark:text-gray-400">
                               Tam yetki
-                            </div>
-                          </div>
-                        </div>
+        </div>
+      </div>
+      </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
@@ -1054,15 +1054,15 @@ const FamilyDetailsPage: React.FC = () => {
                                         flex items-center justify-center mr-3">
                             <svg className="h-4 w-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                            </svg>
-                          </div>
+          </svg>
+        </div>
                           <div>
                             <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                               Editör
-                            </div>
+        </div>
                             <div className="text-sm text-gray-500 dark:text-gray-400">
                               Düzenleme yetkisi
-                            </div>
+    </div>
                           </div>
                         </div>
                       </td>
@@ -1095,16 +1095,16 @@ const FamilyDetailsPage: React.FC = () => {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                             </svg>
-                          </div>
+                              </div>
                           <div>
                             <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                               Görüntüleyici
                             </div>
                             <div className="text-sm text-gray-500 dark:text-gray-400">
                               Sadece okuma
-                            </div>
                           </div>
                         </div>
+                      </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
@@ -1127,7 +1127,7 @@ const FamilyDetailsPage: React.FC = () => {
                     </tr>
                   </tbody>
                 </table>
-              </div>
+            </div>
             </CardBody>
           </Card>
         </div>

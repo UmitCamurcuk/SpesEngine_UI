@@ -96,7 +96,7 @@ const AttributeGroupCreatePage: React.FC = () => {
     // Code kontrolü
     if (!formData.code.trim()) {
       errors.code = t('code_required', 'attribute_groups');
-    } else if (!/^[a-z0-9_]+$/.test(formData.code)) {
+    } else if (!/^[a-zA-Z0-9_]+$/.test(formData.code)) {
       errors.code = t('code_invalid_format', 'attribute_groups');
     }
     

@@ -81,16 +81,6 @@ const AttributeCreatePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  // Seçilen tip için gösterilecek açıklama
-  const typeDescriptions = useMemo(() => ({
-    [AttributeType.TEXT]: t('text_type_description', 'attribute_types'),
-    [AttributeType.NUMBER]: t('number_type_description', 'attribute_types'),
-    [AttributeType.DATE]: t('date_type_description', 'attribute_types'),
-    [AttributeType.BOOLEAN]: t('boolean_type_description', 'attribute_types'),
-    [AttributeType.SELECT]: t('select_type_description', 'attribute_types'),
-    [AttributeType.MULTISELECT]: t('multiselect_type_description', 'attribute_types')
-  }), [t, currentLanguage]);
-  
   // Stepper adımları
   const steps = useMemo(() => [
     { title: t('general_info', 'attributes'), description: t('name_code_description', 'attributes') },
@@ -363,6 +353,43 @@ const AttributeCreatePage: React.FC = () => {
   
   // Adım içeriğini render et
   const renderStepContent = () => {
+    // Type descriptions
+    const typeDescriptions: Record<AttributeType, string> = {
+      // Basic Types
+      [AttributeType.TEXT]: 'Metin değerleri için kullanılır. Örnek: İsim, açıklama, adres',
+      [AttributeType.NUMBER]: 'Sayısal değerler için kullanılır. Örnek: Fiyat, miktar, yaş',
+      [AttributeType.BOOLEAN]: 'Doğru/yanlış değerleri için kullanılır. Örnek: Aktif/pasif, var/yok',
+      [AttributeType.DATE]: 'Tarih değerleri için kullanılır. Örnek: Doğum tarihi, son güncelleme',
+      [AttributeType.DATETIME]: 'Tarih ve saat değerleri için kullanılır. Örnek: Oluşturulma zamanı',
+      [AttributeType.TIME]: 'Sadece saat değerleri için kullanılır. Örnek: Çalışma saatleri',
+      
+      // Enum Types
+      [AttributeType.SELECT]: 'Önceden tanımlı seçeneklerden biri seçilir. Örnek: Durum, kategori',
+      [AttributeType.MULTISELECT]: 'Önceden tanımlı seçeneklerden birden fazla seçilebilir. Örnek: Etiketler, özellikler',
+      
+      // File Types
+      [AttributeType.FILE]: 'Tekli dosya yükleme için kullanılır. Örnek: PDF, DOCX',
+      [AttributeType.IMAGE]: 'Görsel yükleme için kullanılır. Örnek: Ürün fotoğrafı, logo',
+      [AttributeType.ATTACHMENT]: 'Birden fazla dosya yükleme için kullanılır. Örnek: Belgeler, resimler',
+      
+      // Composite Types
+      [AttributeType.OBJECT]: 'İç içe veri nesneleri için kullanılır. Örnek: Adres bilgileri',
+      [AttributeType.ARRAY]: 'Tek tip dizi değerleri için kullanılır. Örnek: Telefon numaraları',
+      [AttributeType.JSON]: 'Serbest yapılandırılmış veri için kullanılır. Örnek: Ayarlar, metadata',
+      [AttributeType.FORMULA]: 'Dinamik hesaplama için kullanılır. Örnek: Toplam fiyat = fiyat * miktar',
+      [AttributeType.EXPRESSION]: 'Koşullu yapılar için kullanılır. Örnek: IF(durum == "aktif", "Yeşil", "Gri")',
+      
+      // UI Types
+      [AttributeType.COLOR]: 'Renk seçici için kullanılır. Örnek: Tema rengi, kategori rengi',
+      [AttributeType.RICH_TEXT]: 'HTML destekli metin için kullanılır. Örnek: Açıklama, içerik',
+      [AttributeType.RATING]: 'Derecelendirme için kullanılır. Örnek: Ürün puanı, kalite değerlendirmesi',
+      [AttributeType.BARCODE]: 'Barkod görselleştirme için kullanılır. Örnek: Ürün barkodu',
+      [AttributeType.QR]: 'QR kod için kullanılır. Örnek: Ürün bilgisi, link',
+      
+      // Special Types
+      [AttributeType.READONLY]: 'Sadece okunabilir değerler için kullanılır. Oluşturulurken set edilir, sonra değiştirilemez'
+    };
+    
     switch (currentStep) {
       case 0:
         return (

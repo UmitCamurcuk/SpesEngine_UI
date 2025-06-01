@@ -181,6 +181,27 @@ const NumberValidation: React.FC<NumberValidationProps> = ({ validation, onChang
         <h4 className="text-sm font-medium text-gray-800 dark:text-white mb-2">{t('number_type_constraints', 'validation')}</h4>
         
         <div className="space-y-3">
+          {/* Step/Adım */}
+          <div>
+            <label htmlFor="step" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              {t('step_value', 'validation')}
+            </label>
+            <input
+              type="number"
+              id="step"
+              name="step"
+              value={validation.step === undefined ? '' : validation.step}
+              onChange={handleChange}
+              min="0.001"
+              step="0.001"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white"
+              placeholder={t('step_value_placeholder', 'validation')}
+            />
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {t('step_value_help', 'validation')}
+            </p>
+          </div>
+          
           {/* Tam Sayı */}
           <div className="flex items-center">
             <input

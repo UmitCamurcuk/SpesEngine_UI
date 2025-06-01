@@ -407,19 +407,32 @@ const AttributeGroupDetailsPage: React.FC = () => {
           </div>
           <div>
             {isEditing ? (
-              <div>
-                <input
-                  type="text"
-                  name="name"
-                  value={editableFields.name}
-                  onChange={handleInputChange}
-                  className={`text-2xl font-bold bg-transparent border-b-2 ${
-                    formErrors.name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                  } text-gray-900 dark:text-white focus:outline-none focus:border-primary-500`}
-                  placeholder={t('attribute_group_name', 'attribute_groups')}
-                />
-                {formErrors.name && (
-                  <p className="mt-1 text-sm text-red-500 dark:text-red-400">{formErrors.name}</p>
+              <div className="flex items-center space-x-2">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    name="name"
+                    value={editableFields.name}
+                    onChange={handleInputChange}
+                    className={`text-2xl font-bold bg-transparent border-b-2 ${
+                      formErrors.name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                    } text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 w-full`}
+                    placeholder={t('attribute_group_name', 'attribute_groups')}
+                  />
+                  {formErrors.name && (
+                    <p className="mt-1 text-sm text-red-500 dark:text-red-400">{formErrors.name}</p>
+                  )}
+                </div>
+                {attributeGroup?.name && (
+                  <Link
+                    to={`/localizations/details/${(attributeGroup.name as any)?._id}`}
+                    className="p-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
+                    title="Çeviriyi düzenle"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                    </svg>
+                  </Link>
                 )}
               </div>
             ) : (
@@ -606,19 +619,34 @@ const AttributeGroupDetailsPage: React.FC = () => {
               <CardBody>
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('description', 'common')}</h3>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('description', 'common')}</h3>
+                      {isEditing && attributeGroup?.description && (
+                        <Link
+                          to={`/localizations/details/${(attributeGroup.description as any)?._id}`}
+                          className="p-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
+                          title="Çeviriyi düzenle"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                          </svg>
+                        </Link>
+                      )}
+                    </div>
                     {isEditing ? (
                       <div className="mt-2">
-                        <textarea
-                          name="description"
-                          value={editableFields.description}
-                          onChange={handleInputChange}
-                          rows={4}
-                          className={`w-full px-3 py-2 border ${
-                            formErrors.description ? 'border-red-500 dark:border-red-700' : 'border-gray-300 dark:border-gray-600'
-                          } rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark`}
-                          placeholder={t('description_placeholder', 'attributes')}
-                        />
+                        <div className="flex items-start space-x-2">
+                          <textarea
+                            name="description"
+                            value={editableFields.description}
+                            onChange={handleInputChange}
+                            rows={4}
+                            className={`flex-1 px-3 py-2 border ${
+                              formErrors.description ? 'border-red-500 dark:border-red-700' : 'border-gray-300 dark:border-gray-600'
+                            } rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark`}
+                            placeholder={t('description_placeholder', 'attributes')}
+                          />
+                        </div>
                         {formErrors.description && (
                           <p className="mt-1 text-sm text-red-500 dark:text-red-400">{formErrors.description}</p>
                         )}

@@ -12,35 +12,32 @@ import { toast } from 'react-hot-toast';
 // İkonlar
 import { 
   ArrowLeftIcon,
+  PencilIcon,
+  TrashIcon,
   CheckIcon,
   XMarkIcon,
   GlobeAltIcon,
   KeyIcon,
   FolderIcon,
-  DocumentPlusIcon
+  ClockIcon
 } from '@heroicons/react/24/outline';
-
-interface FormData {
-  key: string;
-  namespace: string;
-  translations: Record<string, string>;
-}
 
 const LocalizationCreatePage: React.FC = () => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
   
-  // State
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [languages, setLanguages] = useState<string[]>(['tr', 'en']);
-  const [isDirty, setIsDirty] = useState<boolean>(false);
-  
-  // Form state
-  const [formData, setFormData] = useState<FormData>({
+  // State'ler
+  const [formData, setFormData] = useState<{
+    key: string;
+    namespace: string;
+    translations: Record<string, string>;
+  }>({
     key: '',
     namespace: '',
     translations: {}
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [languages, setLanguages] = useState<string[]>(['tr', 'en']);
+  const [isDirty, setIsDirty] = useState<boolean>(false);
   
   // Dil desteğini getir
   const fetchSupportedLanguages = async () => {
@@ -99,11 +96,11 @@ const LocalizationCreatePage: React.FC = () => {
     setIsLoading(true);
     
     try {
-      // Gerçek API çağrısı
-      const result = await localizationService.createTranslation(formData);
+      await localizationService.createTranslation(formData);
       
-      toast.success('Çeviri başarıyla eklendi');
-      navigate(`/localizations/details/${formData.namespace}/${formData.key}`);
+      // Başarılı oluşturma sonrası yönlendirme
+      toast.success('Çeviri başarıyla oluşturuldu');
+      navigate('/localizations/list');
     } catch (err: any) {
       toast.error(err.message || 'Çeviri eklenirken bir hata oluştu');
     } finally {

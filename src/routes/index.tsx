@@ -268,7 +268,7 @@ const routes: RouteObject[] = [
             element: <PermissionGroupDetailsPage />
           },
           
-          // Lokalizasyon
+          // Çeviriler
           {
             path: 'localizations/list',
             element: <LocalizationsListPage />
@@ -278,7 +278,7 @@ const routes: RouteObject[] = [
             element: <LocalizationCreatePage />
           },
           {
-            path: 'localizations/details/:namespace/:key',
+            path: 'localizations/details/:id',
             element: <LocalizationDetailsPage />
           }
         ]

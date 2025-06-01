@@ -67,6 +67,34 @@ const localizationService = {
       console.error('[localizationService] Yeni çeviri oluşturulurken hata oluştu:', error);
       throw error;
     }
+  },
+
+  // ID'ye göre çeviri getir
+  getTranslationById: async (id: string) => {
+    try {
+      const response = await api.get(`${API_URL}/localizations/details/${id}`, {
+        withCredentials: true
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('[localizationService] Çeviri getirilirken hata oluştu:', error);
+      throw error;
+    }
+  },
+
+  // ID'ye göre çeviri güncelle
+  updateTranslationById: async (id: string, data: { key?: string, namespace?: string, translations?: Record<string, string> }) => {
+    try {
+      const response = await api.put(`${API_URL}/localizations/details/${id}`, data, {
+        withCredentials: true
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('[localizationService] Çeviri güncellenirken hata oluştu:', error);
+      throw error;
+    }
   }
 };
 

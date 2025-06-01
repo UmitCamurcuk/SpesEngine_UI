@@ -47,12 +47,31 @@ const AttributeHistoryItem: React.FC<AttributeHistoryItemProps> = ({ history }) 
   };
   
   // Değişikliklerin okunabilir gösterimi için yardımcı fonksiyon
-  const renderChangeValue = (value: any): React.ReactNode => {
+  const renderChangeValue = (value: any, fieldName?: string): React.ReactNode => {
     if (value === null || value === undefined) {
+      // Özel durumlar için context'e göre farklı gösterim
+      if (fieldName === 'isActive') {
+        return <span className="text-red-600 dark:text-red-400">Pasif</span>;
+      }
+      if (fieldName === 'isRequired') {
+        return <span className="text-gray-500 dark:text-gray-400">Opsiyonel</span>;
+      }
       return <span className="italic text-gray-400 dark:text-gray-500">Yok</span>;
     }
     
     if (typeof value === 'boolean') {
+      // Alan adına göre özel gösterim
+      if (fieldName === 'isActive') {
+        return value ? 
+          <span className="text-green-600 dark:text-green-400">Aktif</span> : 
+          <span className="text-red-600 dark:text-red-400">Pasif</span>;
+      }
+      if (fieldName === 'isRequired') {
+        return value ? 
+          <span className="text-orange-600 dark:text-orange-400">Zorunlu</span> : 
+          <span className="text-gray-500 dark:text-gray-400">Opsiyonel</span>;
+      }
+      // Genel boolean gösterimi
       return value ? 'Evet' : 'Hayır';
     }
     
@@ -90,8 +109,11 @@ const AttributeHistoryItem: React.FC<AttributeHistoryItemProps> = ({ history }) 
       type: 'Tip',
       description: 'Açıklama',
       isRequired: 'Zorunlu',
+      isActive: 'Aktif',
       options: 'Seçenekler',
-      attributeGroup: 'Grup'
+      family: 'Aile',
+      parent: 'Üst Kategori',
+      attributeGroups: 'Öznitelik Grupları'
     };
     
     return (
@@ -104,11 +126,11 @@ const AttributeHistoryItem: React.FC<AttributeHistoryItemProps> = ({ history }) 
             <div className="grid grid-cols-2 gap-2 mt-1">
               <div className="text-sm">
                 <span className="text-gray-500 dark:text-gray-400">Eski:</span>{' '}
-                {renderChangeValue(change.old)}
+                {renderChangeValue((change as any).from || (change as any).old, field)}
               </div>
               <div className="text-sm">
                 <span className="text-gray-500 dark:text-gray-400">Yeni:</span>{' '}
-                {renderChangeValue(change.new)}
+                {renderChangeValue((change as any).to || (change as any).new, field)}
               </div>
             </div>
           </div>

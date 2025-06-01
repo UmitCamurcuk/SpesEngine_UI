@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import Table from '../../../components/ui/Table';
 import type { TableColumn, SortParams, FilterParams, PaginationParams } from '../../../components/ui/Table';
 import Button from '../../../components/ui/Button';
+import Breadcrumb from '../../../components/common/Breadcrumb';
 import localizationService from '../../../services/api/localizationService';
-import { useTranslation } from '../../../context/i18nContext';
 import { toast } from 'react-hot-toast';
 
 // Lokalizasyon tipi
@@ -17,20 +17,8 @@ interface Localization {
   updatedAt: string;
 }
 
-// API parametreleri
-interface LocalizationApiParams {
-  page?: number;
-  limit?: number;
-  search?: string;
-  sort?: string;
-  direction?: 'asc' | 'desc';
-  namespace?: string;
-  [key: string]: any;
-}
-
 const LocalizationsListPage: React.FC = () => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
   
   // State tanımlamaları
   const [localizations, setLocalizations] = useState<Localization[]>([]);
@@ -247,7 +235,7 @@ const LocalizationsListPage: React.FC = () => {
   
   // Satır tıklama handler - detay sayfasına yönlendir
   const handleRowClick = (localization: Localization) => {
-    navigate(`/localizations/details/${localization.namespace}/${localization.key}`);
+    navigate(`/localizations/details/${localization._id}`);
   };
   
   // Çeviri oluştur handler
@@ -256,7 +244,7 @@ const LocalizationsListPage: React.FC = () => {
   };
   
   // Silme işlemi handler
-  const handleDeleteLocalization = async (id: string, key: string, namespace: string) => {
+  const handleDeleteLocalization = async (key: string, namespace: string) => {
     if (window.confirm(`"${namespace}:${key}" çevirisini silmek istediğinize emin misiniz?`)) {
       try {
         // API tamamlandığında burası güncellenecek
@@ -316,7 +304,7 @@ const LocalizationsListPage: React.FC = () => {
             variant="primary"
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/localizations/details/${row.namespace}/${row.key}`);
+              navigate(`/localizations/details/${row._id}`);
             }}
           >
             Detay
@@ -326,7 +314,7 @@ const LocalizationsListPage: React.FC = () => {
             variant="danger"
             onClick={(e) => {
               e.stopPropagation();
-              handleDeleteLocalization(row._id, row.key, row.namespace);
+              handleDeleteLocalization(row.key, row.namespace);
             }}
           >
             Sil
@@ -338,6 +326,15 @@ const LocalizationsListPage: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Breadcrumb */}
+      <div className="flex items-center justify-between mb-6">
+        <Breadcrumb 
+          items={[
+            { label: 'Çeviriler' }
+          ]} 
+        />
+      </div>
+
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Çeviriler</h1>

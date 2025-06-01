@@ -32,62 +32,53 @@ interface Localization {
 }
 
 const LocalizationDetailsPage: React.FC = () => {
-  const { namespace = '', key = '' } = useParams<{ namespace: string; key: string }>();
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { id } = useParams<{ id: string }>();
   
-  // State
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [localization, setLocalization] = useState<Localization | null>(null);
-  const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [languages, setLanguages] = useState<string[]>(['tr', 'en']);
-  const [isDirty, setIsDirty] = useState<boolean>(false);
-  
-  // Form state
-  const [formData, setFormData] = useState<{
-    key: string;
-    namespace: string;
-    translations: Record<string, string>;
-  }>({
+  // State'ler
+  const [localization, setLocalization] = useState<Localization>({
     key: '',
     namespace: '',
     translations: {}
   });
+  const [isLoading, setIsLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editedTranslations, setEditedTranslations] = useState<Record<string, string>>({});
+  const [languages, setLanguages] = useState<string[]>(['tr', 'en']);
 
   // API çağrıları
   const fetchData = async () => {
+    if (!id) {
+      return;
+    }
+
     try {
       setIsLoading(true);
-      const [langResult, transResult] = await Promise.all([
+      
+      const [langResult, localizationResult] = await Promise.all([
         localizationService.getSupportedLanguages(),
-        namespace && key ? localizationService.getTranslations('tr') : null
+        localizationService.getTranslationById(id)
       ]);
 
       if (langResult.success) {
         setLanguages(langResult.data);
       }
 
-      if (transResult?.success && transResult.data?.[namespace]?.[key]) {
-        const translations: Record<string, string> = {
-          tr: transResult.data[namespace][key],
-          en: transResult.data[namespace][key] + ' (EN)' // Mock
-        };
-
+      if (localizationResult.success && localizationResult.data) {
         const localizationData: Localization = {
-          key,
-          namespace,
-          translations,
-          lastUpdated: new Date().toISOString(),
-          updatedBy: 'John Doe'
+          key: localizationResult.data.key,
+          namespace: localizationResult.data.namespace,
+          translations: localizationResult.data.translations || {},
+          lastUpdated: localizationResult.data.updatedAt,
+          updatedBy: 'System' // TODO: Kullanıcı bilgisi eklenebilir
         };
 
         setLocalization(localizationData);
-        setFormData(localizationData);
+        setEditedTranslations(localizationData.translations);
       }
     } catch (err: any) {
       toast.error(err.message || 'Veriler yüklenirken bir hata oluştu');
-      setError(err.message);
     } finally {
       setIsLoading(false);
     }
@@ -95,32 +86,38 @@ const LocalizationDetailsPage: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-  }, [namespace, key]);
+  }, [id]);
 
   // Event handlers
   const handleInputChange = (lang: string, value: string) => {
-    setFormData(prev => ({
+    setEditedTranslations(prev => ({
       ...prev,
-      translations: {
-        ...prev.translations,
-        [lang]: value
-      }
+      [lang]: value
     }));
-    setIsDirty(true);
   };
 
   const handleSubmit = async () => {
+    if (!id) {
+      toast.error('Geçersiz çeviri ID\'si');
+      return;
+    }
+
     try {
-      setIsLoading(true);
-      // API implementasyonu
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      setIsSaving(true);
+      
+      await localizationService.updateTranslationById(id, {
+        translations: editedTranslations
+      });
+      
+      // Yeni veriyi tekrar getir
+      await fetchData();
+      
       toast.success('Değişiklikler kaydedildi');
       setIsEditing(false);
-      setIsDirty(false);
     } catch (err: any) {
-      toast.error('Kayıt sırasında bir hata oluştu');
+      toast.error(err.message || 'Kayıt sırasında bir hata oluştu');
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
@@ -181,7 +178,7 @@ const LocalizationDetailsPage: React.FC = () => {
               Çeviri Detayları
             </h1>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              {namespace}:{key}
+              {localization.namespace}:{localization.key}
             </p>
           </div>
         </div>
@@ -192,7 +189,7 @@ const LocalizationDetailsPage: React.FC = () => {
               <Button
                 variant="success"
                 onClick={handleSubmit}
-                disabled={!isDirty || isLoading}
+                disabled={isSaving}
               >
                 <CheckIcon className="w-5 h-5 mr-2" />
                 Kaydet
@@ -201,8 +198,7 @@ const LocalizationDetailsPage: React.FC = () => {
                 variant="outline"
                 onClick={() => {
                   setIsEditing(false);
-                  setFormData(localization);
-                  setIsDirty(false);
+                  setEditedTranslations(localization.translations);
                 }}
               >
                 <XMarkIcon className="w-5 h-5 mr-2" />
@@ -238,7 +234,7 @@ const LocalizationDetailsPage: React.FC = () => {
             <KeyIcon className="w-5 h-5 text-gray-400 mt-1" />
             <div>
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Anahtar</p>
-              <p className="mt-1 text-gray-900 dark:text-white font-mono">{key}</p>
+              <p className="mt-1 text-gray-900 dark:text-white font-mono">{localization.key}</p>
             </div>
           </div>
           
@@ -246,7 +242,7 @@ const LocalizationDetailsPage: React.FC = () => {
             <FolderIcon className="w-5 h-5 text-gray-400 mt-1" />
             <div>
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Namespace</p>
-              <p className="mt-1 text-gray-900 dark:text-white font-mono">{namespace}</p>
+              <p className="mt-1 text-gray-900 dark:text-white font-mono">{localization.namespace}</p>
             </div>
           </div>
           
@@ -291,7 +287,7 @@ const LocalizationDetailsPage: React.FC = () => {
                 >
                   <Input
                     label={`${lang.toUpperCase()} Çevirisi`}
-                    value={formData.translations[lang] || ''}
+                    value={editedTranslations[lang] || ''}
                     onChange={(e) => handleInputChange(lang, e.target.value)}
                     placeholder={`${lang.toUpperCase()} dilinde çeviriyi girin`}
                   />

@@ -98,13 +98,11 @@ const PaginatedAttributeSelector: React.FC<PaginatedAttributeSelectorProps> = Re
     // Eğer son API çağrısından bu yana 1 saniye geçmediyse, çağrıyı iptal et
     const now = Date.now();
     if (now - lastFetchTime.current < 1000) {
-      console.log('Son API çağrısından bu yana çok az zaman geçti, yeni istek atlanıyor');
       return;
     }
     
     // Eğer zaten bir API çağrısı devam ediyorsa yeni çağrı yapma
     if (isApiCallInProgress.current) {
-      console.log('İşlem zaten devam ediyor, yeni istek atlanıyor');
       return;
     }
     
@@ -131,7 +129,6 @@ const PaginatedAttributeSelector: React.FC<PaginatedAttributeSelectorProps> = Re
       }
       
       // Attribute'ları getir
-      console.log('Öznitelikler için API isteği gönderiliyor:', queryParams);
       const result = await attributeService.getAttributes(queryParams);
       setTotalAttributes(result.total);
       

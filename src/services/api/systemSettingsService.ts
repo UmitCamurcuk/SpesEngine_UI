@@ -266,7 +266,6 @@ class SystemSettingsService {
         }
       });
 
-      console.log(`${section} için API'ye gönderilen veri:`, sanitizedData);
       
       const response: AxiosResponse<{ success: boolean; data: ISystemSettings }> = await api.put(
         `${this.baseUrl}/${section}`,

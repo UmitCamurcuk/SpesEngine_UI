@@ -71,7 +71,6 @@ const categoryService = {
   // Mevcut kategoriyi güncelle
   updateCategory: async (id: string, categoryData: Partial<CreateCategoryDto>): Promise<Category> => {
     try {
-      console.log(`Kategori güncelleniyor (ID: ${id}):`, categoryData);
       const response = await api.put<ApiResponse<Category>>(`/categories/${id}`, categoryData);
       return response.data.data;
     } catch (error) {

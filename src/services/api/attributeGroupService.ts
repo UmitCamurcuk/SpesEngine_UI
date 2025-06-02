@@ -57,12 +57,7 @@ const attributeGroupService = {
   // Mevcut öznitelik grubunu güncelle
   updateAttributeGroup: async (id: string, attributeGroupData: any): Promise<AttributeGroup> => {
     try {
-      console.log('[AttributeGroupService] Öznitelik grubu güncelleme isteği:', JSON.stringify(attributeGroupData, null, 2));
-      
       const response = await api.put<ApiResponse<AttributeGroup>>(`/attributeGroups/${id}`, attributeGroupData);
-      
-      console.log('[AttributeGroupService] Güncelleme yanıtı:', response.data);
-      
       return response.data.data;
     } catch (error) {
       console.error(`${id} ID'li öznitelik grubu güncellenirken hata oluştu:`, error);

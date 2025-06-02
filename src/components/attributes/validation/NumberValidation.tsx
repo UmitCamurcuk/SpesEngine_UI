@@ -84,12 +84,6 @@ const NumberValidation: React.FC<NumberValidationProps> = ({ validation, onChang
           isInteger: true  // Tam hane için tam sayı (integer) kısıtlaması ekliyoruz
         };
         
-        console.log(`[TCKNO Debug] Tam Hane sayısı değişti - ${digits} hane:`, updatedValidation);
-        console.log(`[TCKNO Debug] ${digits} haneli sayı şu aralıkta olmalı: ${minValue} - ${maxValue}`);
-        console.log(`[TCKNO Debug] Validasyon nesnesi:`, JSON.stringify(updatedValidation));
-        
-        // console.trace() ile çağrı yığınını kontrol et
-        console.trace("[TCKNO Debug] validasyon değişikliği çağrı zinciri");
         
         onChange(updatedValidation);
       }

@@ -7,7 +7,6 @@ const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:1903/api';
 const cleanEmptyFields = (obj: any): any => {
   if (!obj || typeof obj !== 'object') return obj;
   
-  //console.log("[API Config] Temizlenmeden önce:", JSON.stringify(obj, null, 2));
   
   const cleaned: any = {};
   
@@ -40,7 +39,6 @@ const cleanEmptyFields = (obj: any): any => {
     }
   });
   
-  // console.log("[API Config] Temizlendikten sonra:", JSON.stringify(cleaned, null, 2));
   return cleaned;
 };
 
@@ -69,11 +67,9 @@ api.interceptors.request.use(
     
     // Validasyon alanlarını temizle (POST ve PUT isteklerinde)
     if ((config.method === 'post' || config.method === 'put') && config.data) {
-      //console.log('[API Config] Veri gönderilmeden önce tüm veri:', JSON.stringify(config.data, null, 2));
       
       // Validations alanı varsa, boş değerleri temizle
       if (config.data.validations) {
-        //console.log('[API Config] Ham validasyon:', JSON.stringify(config.data.validations, null, 2));
         
         // Sayısal değerler için özel kontrol - 0 değeri geçerli olmalı
         const originalValidations = { ...config.data.validations };
@@ -82,10 +78,8 @@ api.interceptors.request.use(
         
         // Eğer temizleme sonrası validations objesi boş kaldıysa, tamamen kaldır
         if (Object.keys(cleanedValidations).length === 0) {
-          //console.log('[API Config] Validasyon verileri tamamen boş, siliniyor');
           delete config.data.validations;
-        } else {
-          //console.log('[API Config] Temizlenmiş validasyon:', JSON.stringify(cleanedValidations, null, 2)); 
+        } else { 
           config.data.validations = cleanedValidations;
         }
       }

@@ -601,7 +601,6 @@ const ItemCreatePage: React.FC = () => {
             
             // ÖNEMLİ: Family'nin category bilgisini işle
             if (familyDetails.category) {
-              console.log("Family içinde category bulundu: ", familyDetails.category.name);
               
               // Category'nin doğrudan bağlı öznitelikleri
               addAttributesToCollection(familyDetails.category.attributes, 'category');
@@ -625,7 +624,6 @@ const ItemCreatePage: React.FC = () => {
               populateAttributeGroupsAttributes: true
             });
             
-            console.log("Kategori detayları:", categoryDetails);
             
             // Category'nin doğrudan bağlı öznitelikleri
             addAttributesToCollection(categoryDetails.attributes, 'category');
@@ -636,9 +634,6 @@ const ItemCreatePage: React.FC = () => {
             console.error('Kategori öznitelikleri yüklenirken hata:', err);
           }
         }
-        
-        console.log("Yüklenen toplam öznitelik sayısı:", allAttributes.length);
-        console.log("Öznitelik grupları:", attributeGroupNamesMap);
         
         // State'leri güncelle
         setAttributes(allAttributes);

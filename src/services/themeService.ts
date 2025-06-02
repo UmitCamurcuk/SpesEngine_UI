@@ -90,8 +90,6 @@ class ThemeService {
       
       // Body'e doğrudan stil uygula
       document.body.style.backgroundColor = backgroundColor;
-      
-      console.log('Custom arkaplan rengi uygulandı:', backgroundColor);
     } else {
       // Diğer modlarda varsayılan arkaplan renklerini kullan
       root.style.removeProperty('--background-light');
@@ -116,11 +114,9 @@ class ThemeService {
     // Geçerli bir tema ise, sınıfı ekle
     if (validThemes.includes(themeId)) {
       root.classList.add(`theme-${themeId}`);
-      console.log(`Tema sınıfı uygulandı: theme-${themeId}`);
     } else {
       // Geçerli tema değilse varsayılan temayı uygula
       root.classList.add('theme-default');
-      console.warn(`Geçersiz tema ID: ${themeId}, varsayılan tema uygulandı.`);
     }
     
     // Renk değişikliklerini zorla uygula
@@ -164,7 +160,6 @@ class ThemeService {
         } else {
           // Eşleşen preset bulunamadı, CSS değişkenlerini doğrudan uygula
           this.updateCSSVariables(theme.primaryColor, theme.accentColor);
-          console.log('Özel renk kombinasyonu uygulandı.');
         }
       } else {
         console.warn('Tema renkleri eksik:', theme);

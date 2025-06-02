@@ -18,34 +18,9 @@ const attributeService = {
     limit: number;
   }> => {
     try {
-      console.log('API isteği (tüm parametreler):', JSON.stringify(params, null, 2));
-      
-      if (params?.sort) {
-        console.log(`Sıralama alanı: "${params.sort}", Yön: "${params.direction}"`);
-      }
-      
       const response = await api.get<ApiResponse<Attribute[]>>('/attributes', { 
         params 
       });
-      
-      console.log('API ham yanıt:', response.status, response.statusText);
-      console.log('API veri yapısı:', {
-        success: response.data.success,
-        dataLength: response.data.data?.length || 0,
-        total: response.data.total,
-        count: response.data.count,
-        page: response.data.page,
-        limit: response.data.limit
-      });
-      
-      // İlk ve son öğeleri göster
-      if (response.data.data?.length > 0) {
-        console.log('İlk öğe:', response.data.data[0]);
-        if (response.data.data.length > 1) {
-          console.log('Son öğe:', response.data.data[response.data.data.length - 1]);
-        }
-      }
-      
       return {
         attributes: response.data.data,
         total: response.data.total || response.data.count || 0,
@@ -83,28 +58,7 @@ const attributeService = {
   // Yeni öznitelik oluştur
   createAttribute: async (attributeData: CreateAttributeDto): Promise<Attribute> => {
     try {
-      console.log('[AttributeService] Öznitelik oluşturma isteği:', JSON.stringify(attributeData, null, 2));
-      
-      // Validasyonları kontrol et
-      if (attributeData.validations) {
-        console.log('[AttributeService] Validasyon içeriği:', attributeData.validations);
-        console.log('[AttributeService] İşlenmemiş validasyon verisi:', JSON.stringify(attributeData.validations, null, 2));
-      } else {
-        console.log('[AttributeService] Validasyon verisi yok!');
-      }
-      
-      // AttributeGroup kontrolü
-      if (attributeData.attributeGroup) {
-        console.log('[AttributeService] AttributeGroup gönderiliyor:', attributeData.attributeGroup);
-      } else {
-        console.log('[AttributeService] AttributeGroup gönderilmiyor');
-      }
-      
       const response = await api.post<ApiResponse<Attribute>>('/attributes', attributeData);
-      
-      console.log('[AttributeService] API yanıtı:', response.status, response.statusText);
-      console.log('[AttributeService] Oluşturulan kayıt:', response.data.data);
-      
       return response.data.data;
     } catch (error) {
       console.error('[AttributeService] Öznitelik oluşturulurken hata oluştu:', error);
@@ -115,12 +69,7 @@ const attributeService = {
   // Mevcut özniteliği güncelle
   updateAttribute: async (id: string, attributeData: any): Promise<Attribute> => {
     try {
-      console.log('[AttributeService] Öznitelik güncelleme isteği:', JSON.stringify(attributeData, null, 2));
-      
       const response = await api.put<ApiResponse<Attribute>>(`/attributes/${id}`, attributeData);
-      
-      console.log('[AttributeService] Güncelleme yanıtı:', response.data);
-      
       return response.data.data;
     } catch (error) {
       console.error(`${id} ID'li öznitelik güncellenirken hata oluştu:`, error);

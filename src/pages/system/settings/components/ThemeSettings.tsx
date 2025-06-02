@@ -157,7 +157,6 @@ const ThemeSettings: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      console.log('Kaydedilecek tema ayarları:', formData);
 
       const themeUpdate: ISystemSettings['theme'] = {
         mode: formData.mode,
@@ -177,7 +176,6 @@ const ThemeSettings: React.FC = () => {
         themeName: selectedTheme
       };
 
-      console.log('Backend\'e gönderilecek veriler:', themeUpdate);
       
       // API çağrısından önce verinin tüm alanlarını kontrol et
       Object.keys(themeUpdate).forEach((key) => {
@@ -188,7 +186,6 @@ const ThemeSettings: React.FC = () => {
       });
       
       const response = await systemSettingsService.updateSection('theme', themeUpdate);
-      console.log('Backend\'den gelen yanıt:', response);
 
       // Başarılı yanıt durumunda localStorage'a da kaydet
       if (response.success) {

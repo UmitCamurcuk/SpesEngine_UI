@@ -56,7 +56,6 @@ const GeneralSettings: React.FC = () => {
         setError(null);
         const settings  = await systemSettingsService.getSettings();
        
-        console.log('Backend\'den gelen ayarlar:', settings);
 
         if (!settings) {
           throw new Error('Ayarlar yüklenemedi');
@@ -74,7 +73,6 @@ const GeneralSettings: React.FC = () => {
           logoFile: null
         };
 
-        console.log('Form verileri yükleniyor:', newFormData);
 
         // State ve ref'i güncelle
         setFormData(newFormData);
@@ -118,7 +116,6 @@ const GeneralSettings: React.FC = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    console.log('Input değişikliği:', { name, value });
 
     // Form verilerini güncelle
     const newFormData = {
@@ -126,7 +123,6 @@ const GeneralSettings: React.FC = () => {
       [name]: value
     };
     
-    console.log('Yeni form verileri:', newFormData);
     
     // State ve ref'i güncelle
     setFormData(newFormData);
@@ -296,7 +292,6 @@ const GeneralSettings: React.FC = () => {
     <form 
       ref={formRef} 
       onSubmit={(e) => {
-        console.log('Form submit edildi');
         handleSave(e);
       }} 
       className="space-y-6"
@@ -308,7 +303,6 @@ const GeneralSettings: React.FC = () => {
         <button
           type="submit"
           disabled={loading}
-          onClick={() => console.log('Kaydet butonuna tıklandı')}
           className="px-4 py-2 bg-primary-light dark:bg-primary-dark text-white rounded-lg hover:bg-primary-light/90 dark:hover:bg-primary-dark/90 focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? t('saving', 'common') : t('save', 'common')}
@@ -393,7 +387,6 @@ const GeneralSettings: React.FC = () => {
             name="companyName"
             value={formData.companyName}
             onChange={(e) => {
-              console.log('Şirket adı değişti:', e.target.value);
               handleChange(e);
             }}
             className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"

@@ -984,7 +984,7 @@ const CategoryDetailsPage: React.FC = () => {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="font-medium text-gray-900 dark:text-white">{group.name}</h4>
+                    <h4 className="font-medium text-gray-900 dark:text-white">{getEntityName(group, currentLanguage) || group.name}</h4>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{group.code}</p>
                   </div>
                   <Button
@@ -1002,9 +1002,9 @@ const CategoryDetailsPage: React.FC = () => {
                 </div>
                 
                 {/* Grup açıklaması */}
-                {group.description && (
+                {getEntityDescription(group, currentLanguage) && (
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-3 border-t border-gray-100 dark:border-gray-700 pt-3">
-                    {group.description}
+                    {getEntityDescription(group, currentLanguage)}
                   </p>
                 )}
                 
@@ -1019,7 +1019,7 @@ const CategoryDetailsPage: React.FC = () => {
                         <li key={attr._id} className="flex items-center justify-between">
                           <div className="flex items-center">
                             <span className="h-1.5 w-1.5 rounded-full bg-primary-light dark:bg-primary-dark mr-2"></span>
-                            <span className="text-sm text-gray-700 dark:text-gray-300">{attr.name}</span>
+                            <span className="text-sm text-gray-700 dark:text-gray-300">{getEntityName(attr, currentLanguage) || attr.name}</span>
                             <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">({attr.type})</span>
                           </div>
                           <Button
@@ -1945,7 +1945,7 @@ const CategoryDetailsPage: React.FC = () => {
                                   >
                                     <div className="flex items-center justify-between">
                                       <div>
-                                        <h4 className="font-medium text-gray-900 dark:text-white">{group.name}</h4>
+                                        <h4 className="font-medium text-gray-900 dark:text-white">{getEntityName(group, currentLanguage) || group.name}</h4>
                                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{group.code}</p>
                                       </div>
                                       <Button
@@ -1962,9 +1962,9 @@ const CategoryDetailsPage: React.FC = () => {
                                     </div>
                                     
                                     {/* Grup açıklaması */}
-                                    {group.description && (
+                                    {getEntityDescription(group, currentLanguage) && (
                                       <p className="text-sm text-gray-500 dark:text-gray-400 mt-3 border-t border-gray-100 dark:border-gray-700 pt-3">
-                                        {group.description}
+                                        {getEntityDescription(group, currentLanguage)}
                                       </p>
                                     )}
                                     
@@ -1979,7 +1979,7 @@ const CategoryDetailsPage: React.FC = () => {
                                             <li key={attr._id} className="flex items-center justify-between">
                                               <div className="flex items-center">
                                                 <span className="h-1.5 w-1.5 rounded-full bg-primary-light dark:bg-primary-dark mr-2"></span>
-                                                <span className="text-sm text-gray-700 dark:text-gray-300">{attr.name}</span>
+                                                <span className="text-sm text-gray-700 dark:text-gray-300">{getEntityName(attr, currentLanguage) || attr.name}</span>
                                                 <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">({attr.type})</span>
                                               </div>
                                               <Button

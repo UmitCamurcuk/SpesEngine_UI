@@ -3,6 +3,12 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
 import Breadcrumb from '../../../components/common/Breadcrumb';
 import EntityHistoryList from '../../../components/common/EntityHistoryList';
+import AttributesTab from '../../../components/common/AttributesTab';
+import PermissionsTab from '../../../components/common/PermissionsTab';
+import RelationshipsTab from '../../../components/common/RelationshipsTab';
+import DocumentationTab from '../../../components/common/DocumentationTab';
+import APITab from '../../../components/common/APITab';
+import StatisticsTab from '../../../components/common/StatisticsTab';
 import attributeGroupService from '../../../services/api/attributeGroupService';
 import attributeService from '../../../services/api/attributeService';
 import { AttributeGroup } from '../../../types/attributeGroup';
@@ -569,6 +575,81 @@ const AttributeGroupDetailsPage: React.FC = () => {
           </button>
           <button
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'permissions'
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+            }`}
+            onClick={() => setActiveTab('permissions')}
+          >
+            <div className="flex items-center">
+              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              İzinler
+            </div>
+          </button>
+          <button
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'relationships'
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+            }`}
+            onClick={() => setActiveTab('relationships')}
+          >
+            <div className="flex items-center">
+              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+              İlişkiler
+            </div>
+          </button>
+          <button
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'documentation'
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+            }`}
+            onClick={() => setActiveTab('documentation')}
+          >
+            <div className="flex items-center">
+              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Dokümantasyon
+            </div>
+          </button>
+          <button
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'api'
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+            }`}
+            onClick={() => setActiveTab('api')}
+          >
+            <div className="flex items-center">
+              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              API
+            </div>
+          </button>
+          <button
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'statistics'
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+            }`}
+            onClick={() => setActiveTab('statistics')}
+          >
+            <div className="flex items-center">
+              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              İstatistikler
+            </div>
+          </button>
+          <button
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'history'
                 ? 'border-primary-500 text-primary-600 dark:text-primary-400'
                 : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
@@ -723,114 +804,54 @@ const AttributeGroupDetailsPage: React.FC = () => {
       )}
       
       {activeTab === 'attributes' && (
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
-                <svg className="w-5 h-5 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                </svg>
-                {t('attributes', 'common')}
-              </h3>
-              <div className="flex items-center space-x-2">
-                <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-sm px-3 py-1 rounded-full">
-                  {attributes.length} {attributes.length === 1 ? t('attribute', 'attributes') : t('attributes', 'attributes')}
-                </span>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => setShowAttributeSelector(true)}
-                  className="flex items-center"
-                >
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  {t('add_attributes', 'attribute_groups')}
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardBody>
-            {attributes.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {attributes.map(attribute => (
-                  <div 
-                    key={attribute._id}
-                    className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden hover:shadow-md transition-shadow duration-150"
-                  >
-                    <div className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-900 dark:text-white">{attribute.name}</h4>
-                          <p className="text-sm text-gray-500 dark:text-gray-400 font-mono mt-1">{attribute.code}</p>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <div className={`text-xs px-2 py-1 rounded-full font-medium ${
-                            attribute.isActive 
-                              ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' 
-                              : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
-                          }`}>
-                            {attribute.isActive ? t('active', 'common') : t('inactive', 'common')}
-                          </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleRemoveAttribute(attribute._id)}
-                            className="text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900 p-1"
-                            title={t('remove_attribute', 'attribute_groups')}
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </Button>
-                        </div>
-                      </div>
-                      {attribute.description && (
-                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-2 line-clamp-2">
-                          {attribute.description}
-                        </p>
-                      )}
-                    </div>
-                    <div className="bg-gray-50 dark:bg-gray-750 p-3 border-t border-gray-200 dark:border-gray-700">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        onClick={() => navigate(`/attributes/${attribute._id}`)}
-                      >
-                        {t('view', 'attributes')}
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="bg-gray-50 dark:bg-gray-750 rounded-lg p-8 flex flex-col items-center justify-center text-center">
-                <div className="w-16 h-16 mb-4 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                  <svg className="w-8 h-8 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                  </svg>
-                </div>
-                <h4 className="text-gray-700 dark:text-gray-300 font-medium mb-2">{t('no_attributes_found', 'attributes')}</h4>
-                <p className="text-gray-500 dark:text-gray-400 text-sm max-w-md mb-4">
-                  {t('no_related_attributes_description', 'attribute_groups')}
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate('/attributes/create')}
-                >
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  {t('create_attribute', 'attributes')}
-                </Button>
-              </div>
-            )}
-          </CardBody>
-        </Card>
+        <AttributesTab
+          attributes={attributes}
+          isEditing={isEditing}
+          onRemove={handleRemoveAttribute}
+          title={`${t('attributes', 'common')} (${attributes.length})`}
+          showAddButton={isEditing}
+          onAdd={(attributeId) => {
+            // Add attribute logic can be handled here
+            setShowAttributeSelector(true);
+          }}
+        />
       )}
       
+      {activeTab === 'permissions' && (
+        <PermissionsTab
+          entityId={id!}
+          entityType="attributeGroup"
+        />
+      )}
+
+      {activeTab === 'relationships' && (
+        <RelationshipsTab
+          entityId={id!}
+          entityType="attributeGroup"
+        />
+      )}
+
+      {activeTab === 'documentation' && (
+        <DocumentationTab
+          entityType="attributeGroup"
+          entityName={getAttributeGroupName(attributeGroup)}
+        />
+      )}
+
+      {activeTab === 'api' && (
+        <APITab
+          entityType="attributeGroup"
+          entityId={id}
+        />
+      )}
+
+      {activeTab === 'statistics' && (
+        <StatisticsTab
+          entityType="attributeGroup"
+          entityId={id}
+        />
+      )}
+
       {/* Attribute Selector Modal */}
       {showAttributeSelector && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

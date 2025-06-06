@@ -1,13 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Table from '../../../components/ui/Table';
 import type { TableColumn, SortParams, FilterParams, PaginationParams } from '../../../components/ui/Table';
 import Button from '../../../components/ui/Button';
+import Breadcrumb from '../../../components/common/Breadcrumb';
 import itemService from '../../../services/api/itemService';
 import type { Item, ItemApiParams } from '../../../types/item';
+import { useTranslation } from '../../../context/i18nContext';
+import { getEntityName, getEntityDescription } from '../../../utils/translationUtils';
+
+const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <div className={`bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden ${className}`}>
+    {children}
+  </div>
+);
+
+const CardHeader: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <div className={`px-6 py-4 border-b border-gray-200 dark:border-gray-700 ${className}`}>
+    {children}
+  </div>
+);
+
+const CardBody: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <div className={`p-6 ${className}`}>
+    {children}
+  </div>
+);
 
 const ItemsListPage: React.FC = () => {
   const navigate = useNavigate();
+  const { t, currentLanguage } = useTranslation();
   
   // State tanımlamaları
   const [items, setItems] = useState<Item[]>([]);
@@ -35,7 +57,7 @@ const ItemsListPage: React.FC = () => {
   });
 
   // Öğeleri getir
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     
@@ -88,16 +110,25 @@ const ItemsListPage: React.FC = () => {
         });
       }
     } catch (err: any) {
-      setError(err.message || 'Öğeler getirilirken bir hata oluştu');
+      setError(err.message || t('items_fetch_error', 'items'));
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [pagination.page, pagination.limit, sort, filters, searchTerm, t]);
+
+  // Debounced search
+  const debouncedSearch = useCallback(
+    debounce((term: string) => {
+      setSearchTerm(term);
+      setPagination(prev => ({ ...prev, page: 1 }));
+    }, 500),
+    []
+  );
   
   // Bağımlılıklar değiştiğinde yeniden veri çek
   useEffect(() => {
     fetchItems();
-  }, [pagination.page, pagination.limit, sort, filters, searchTerm]);
+  }, [fetchItems]);
   
   // Sayfa değişim handler
   const handlePageChange = (page: number) => {
@@ -274,97 +305,85 @@ const ItemsListPage: React.FC = () => {
   );
 
   return (
-    <div className="space-y-6">
-      {/* Başlık Kartı */}
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+    <div className="p-6">
+      <div className="flex flex-col space-y-6">
+        {/* Breadcrumb */}
+        <Breadcrumb 
+          items={[
+            { label: t('home', 'common') },
+            { label: t('items', 'items') }
+          ]}
+        />
+
+        {/* Başlık */}
+        <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
-              <svg className="w-7 h-7 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-              </svg>
-              Öğeler
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+              {t('items', 'items')}
             </h1>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              Tüm öğeleri görüntüleyin, düzenleyin ve yönetin
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {t('items_list_description', 'items')}
             </p>
-            
-            {/* Basit istatistikler */}
-            <div className="flex mt-2 space-x-4 text-xs">
-              <div className="text-gray-500 dark:text-gray-400">
-                <span className="font-semibold text-gray-900 dark:text-white">{stats.total}</span> Toplam
-              </div>
-              <div className="text-gray-500 dark:text-gray-400">
-                <span className="font-semibold text-green-600 dark:text-green-400">{stats.active}</span> Aktif
-              </div>
-              <div className="text-gray-500 dark:text-gray-400">
-                <span className="font-semibold text-red-600 dark:text-red-400">{stats.total - stats.active}</span> Pasif
-              </div>
-            </div>
           </div>
-          
-          <Button
-            className="mt-4 md:mt-0 flex items-center"
+          <Button 
+            variant="primary" 
             onClick={handleCreateItem}
+            className="flex items-center space-x-2"
           >
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
-            Yeni Öğe Oluştur
+            <span>{t('create_item', 'items')}</span>
           </Button>
         </div>
-      </div>
-      
-      {/* Arama ve Filtreleme Kartı */}
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4">
-        <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-              <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+
+        {/* Ana içerik */}
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-medium text-gray-900 dark:text-white">
+                {t('all_items', 'items')}
+              </h2>
+              {stats.total > 0 && (
+                <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
+                  <span>{t('total', 'common')}: {stats.total}</span>
+                  <span>{t('active', 'common')}: {stats.active}</span>
+                </div>
+              )}
             </div>
-            <input 
-              type="text" 
-              className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full pl-10 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark" 
-              placeholder="Öğe adı, kod veya açıklama ara..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+          </CardHeader>
+          <CardBody className="p-0">
+            {error && (
+              <div className="bg-red-50 dark:bg-red-900/20 p-4 border-b border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 flex items-start">
+                <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>{error}</span>
+              </div>
+            )}
+            <Table
+              data={items}
+              columns={columns}
+              isLoading={isLoading}
+              pagination={pagination}
+              onPageChange={handlePageChange}
+              onRowClick={handleRowClick}
+              emptyMessage={t('no_items_found', 'items')}
             />
-          </div>
-          <Button type="submit" className="md:w-auto">
-            Ara
-          </Button>
-        </form>
-      </div>
-      
-      {/* Veri Tablosu */}
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 p-4 border-b border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 flex items-start">
-            <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{error}</span>
-          </div>
-        )}
-        
-        <Table
-          columns={columns}
-          data={items}
-          keyField="_id"
-          isLoading={isLoading}
-          pagination={pagination}
-          onPageChange={handlePageChange}
-          onSort={handleSort}
-          onFilter={handleFilter}
-          renderActions={renderActions}
-          onRowClick={handleRowClick}
-          emptyMessage="Henüz hiç öğe oluşturulmamış"
-        />
+          </CardBody>
+        </Card>
       </div>
     </div>
   );
 };
+
+// Debounce utility
+function debounce<T extends (...args: any[]) => any>(func: T, delay: number): (...args: Parameters<T>) => void {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func.apply(null, args), delay);
+  };
+}
 
 export default ItemsListPage; 

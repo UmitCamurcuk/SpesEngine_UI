@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
+import Breadcrumb from '../../../components/common/Breadcrumb';
 import Stepper from '../../../components/ui/Stepper';
+import TranslationFields from '../../../components/common/TranslationFields';
 import itemTypeService from '../../../services/api/itemTypeService';
 import attributeService from '../../../services/api/attributeService';
 import attributeGroupService from '../../../services/api/attributeGroupService';
 import familyService from '../../../services/api/familyService';
+import { useTranslation } from '../../../context/i18nContext';
+import { useTranslationForm } from '../../../hooks/useTranslationForm';
 import type { CreateItemTypeDto } from '../../../types/itemType';
 
 interface AttributeOption {
@@ -28,7 +32,16 @@ interface FamilyOption {
 
 const ItemTypeCreatePage: React.FC = () => {
   const navigate = useNavigate();
+  const { t, currentLanguage } = useTranslation();
   
+  // Translation hook'unu kullan
+  const {
+    supportedLanguages,
+    translationData,
+    handleTranslationChange,
+    createTranslations
+  } = useTranslationForm();
+
   // Form state
   const [formData, setFormData] = useState<CreateItemTypeDto>({
     name: '',
@@ -61,10 +74,28 @@ const ItemTypeCreatePage: React.FC = () => {
   
   // Stepper adımları
   const steps = useMemo(() => [
-    { title: 'Temel Bilgiler', description: 'Öğe tipinin temel bilgileri' },
-    { title: 'Aile Seçimi', description: 'Öğe tipinin ait olduğu aile' },
-    { title: 'Öznitelikler', description: 'Öğe tipine ait öznitelikler' },
-  ], []);
+    { title: t('general_info', 'itemTypes'), description: t('name_code_description', 'itemTypes') },
+    { title: t('family_selection', 'itemTypes'), description: t('select_family_for_item_type', 'itemTypes') },
+    { title: t('attribute_groups', 'itemTypes'), description: t('select_attribute_groups', 'itemTypes') },
+    { title: t('attributes', 'itemTypes'), description: t('select_attributes', 'itemTypes') },
+    { title: t('review_and_create', 'itemTypes'), description: t('review_before_creating', 'itemTypes') },
+  ], [t, currentLanguage]);
+
+  // Breadcrumb verisi
+  const breadcrumbItems = [
+    { label: t('home', 'common'), path: '/' },
+    { label: t('item_types', 'itemTypes'), path: '/itemtypes/list' },
+    { label: t('create_item_type', 'itemTypes') },
+  ];
+  
+  // Form data'yı translation data ile senkronize et
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      name: translationData.nameTranslations[currentLanguage] || '',
+      description: translationData.descriptionTranslations[currentLanguage] || ''
+    }));
+  }, [translationData, currentLanguage]);
   
   // Öznitelik ve öznitelik gruplarını yükle
   useEffect(() => {
@@ -162,9 +193,15 @@ const ItemTypeCreatePage: React.FC = () => {
     setSuccess(false);
     
     try {
-      // Form verisini hazırla - tüm seçili öznitelik ve grup ID'lerini ekle
+      // Translation verilerini oluştur
+      const nameTranslations = await createTranslations(formData.code, 'itemTypes');
+      const descriptionTranslations = await createTranslations(formData.code, 'itemTypes');
+      
+      // Form verisini hazırla
       const payload: CreateItemTypeDto = {
         ...formData,
+        name: nameTranslations.nameId,
+        description: descriptionTranslations.descriptionId || nameTranslations.nameId,
         attributes: selectedAttributes,
         attributeGroups: selectedAttributeGroups
       };
@@ -179,7 +216,7 @@ const ItemTypeCreatePage: React.FC = () => {
         navigate('/itemtypes/list');
       }, 1500);
     } catch (err: any) {
-      setError(err.message || 'Öğe tipi oluşturulurken bir hata oluştu');
+      setError(err.message || t('item_type_create_error', 'itemTypes'));
     } finally {
       setIsLoading(false);
     }
@@ -189,16 +226,18 @@ const ItemTypeCreatePage: React.FC = () => {
   const validateStep1 = (): boolean => {
     const errors: Record<string, string> = {};
     
-    if (!formData.name.trim()) {
-      errors.name = 'Öğe tipi adı zorunludur';
+    if (!translationData.nameTranslations[currentLanguage]) {
+      errors.name = t('name_required', 'itemTypes');
     }
     
     if (!formData.code.trim()) {
-      errors.code = 'Kod zorunludur';
+      errors.code = t('code_required', 'itemTypes');
+    } else if (!/^[a-zA-Z0-9_]+$/.test(formData.code)) {
+      errors.code = t('code_invalid_format', 'itemTypes');
     }
     
-    if (!formData.description.trim()) {
-      errors.description = 'Açıklama zorunludur';
+    if (!translationData.descriptionTranslations[currentLanguage]) {
+      errors.description = t('description_required', 'itemTypes');
     }
     
     setFormErrors(errors);
@@ -209,7 +248,7 @@ const ItemTypeCreatePage: React.FC = () => {
     const errors: Record<string, string> = {};
     
     if (!formData.family) {
-      errors.family = 'Aile seçimi zorunludur';
+      errors.family = t('family_required', 'itemTypes');
     }
     
     setFormErrors(errors);
@@ -219,8 +258,19 @@ const ItemTypeCreatePage: React.FC = () => {
   const validateStep3 = (): boolean => {
     const errors: Record<string, string> = {};
     
+    if (selectedAttributeGroups.length === 0) {
+      errors.attributeGroups = t('attribute_groups_required', 'itemTypes');
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateStep4 = (): boolean => {
+    const errors: Record<string, string> = {};
+    
     if (selectedAttributes.length === 0) {
-      errors.attributes = 'En az bir öznitelik seçilmelidir';
+      errors.attributes = t('attributes_required', 'itemTypes');
     }
     
     setFormErrors(errors);
@@ -237,6 +287,8 @@ const ItemTypeCreatePage: React.FC = () => {
       isValid = validateStep2();
     } else if (currentStep === 2) {
       isValid = validateStep3();
+    } else if (currentStep === 3) {
+      isValid = validateStep4();
     }
     
     if (isValid) {
@@ -248,9 +300,6 @@ const ItemTypeCreatePage: React.FC = () => {
       // Son adımda değilse sonraki adıma geç
       if (currentStep < steps.length - 1) {
         setCurrentStep((prev) => prev + 1);
-      } else {
-        // Son adımda ise formu gönder
-        handleSubmit(new Event('submit') as any);
       }
     }
   };
@@ -261,106 +310,88 @@ const ItemTypeCreatePage: React.FC = () => {
     }
   };
   
-  // Adım içeriğini render etme
   const renderStepContent = () => {
     switch (currentStep) {
       case 0:
         return (
-          <div className="space-y-4">
-            {/* İsim */}
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Öğe Tipi Adı <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                required
-                className={`bg-gray-50 border ${formErrors.name ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
-                placeholder="Öğe tipi adını girin"
-              />
-              {formErrors.name && (
-                <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>
-              )}
-            </div>
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+              {t('general_info', 'itemTypes')}
+            </h3>
             
-            {/* Kod */}
+            {/* Name - Translation Format */}
+            <TranslationFields
+              label={t('name', 'itemTypes')}
+              fieldType="input"
+              translations={translationData.nameTranslations}
+              supportedLanguages={supportedLanguages}
+              currentLanguage={currentLanguage}
+              onChange={(language, value) => handleTranslationChange('nameTranslations', language, value)}
+              error={formErrors.name}
+              required={true}
+              placeholder={t('enter_item_type_name', 'itemTypes')}
+            />
+            
+            {/* Code */}
             <div>
-              <label htmlFor="code" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Kod <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                {t('code', 'itemTypes')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                id="code"
                 name="code"
                 value={formData.code}
                 onChange={handleChange}
-                required
-                className={`bg-gray-50 border ${formErrors.code ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
-                placeholder="Benzersiz kod girin (BÜYÜK_HARF)"
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                  formErrors.code
+                    ? 'border-red-300 focus:ring-red-500 dark:border-red-700'
+                    : 'border-gray-300 focus:ring-blue-500 dark:border-gray-600'
+                } dark:bg-gray-700 dark:text-white`}
+                placeholder={t('enter_code', 'itemTypes')}
               />
               {formErrors.code && (
-                <p className="mt-1 text-sm text-red-500">{formErrors.code}</p>
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.code}</p>
               )}
             </div>
             
-            {/* Açıklama */}
-            <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Açıklama <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                required
-                rows={3}
-                className={`bg-gray-50 border ${formErrors.description ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
-                placeholder="Öğe tipi hakkında açıklama girin"
-              />
-              {formErrors.description && (
-                <p className="mt-1 text-sm text-red-500">{formErrors.description}</p>
-              )}
-            </div>
-            
-            {/* Aktif/Pasif */}
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="isActive"
-                name="isActive"
-                checked={formData.isActive}
-                onChange={handleChange}
-                className="w-4 h-4 text-primary-light bg-gray-100 border-gray-300 rounded focus:ring-primary-light dark:focus:ring-primary-dark dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-              />
-              <label htmlFor="isActive" className="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300">
-                Aktif
-              </label>
-            </div>
+            {/* Description - Translation Format */}
+            <TranslationFields
+              label={t('description', 'itemTypes')}
+              fieldType="textarea"
+              translations={translationData.descriptionTranslations}
+              supportedLanguages={supportedLanguages}
+              currentLanguage={currentLanguage}
+              onChange={(language, value) => handleTranslationChange('descriptionTranslations', language, value)}
+              error={formErrors.description}
+              required={true}
+              placeholder={t('enter_item_type_description', 'itemTypes')}
+              rows={4}
+            />
           </div>
         );
-      
+        
       case 1:
         return (
-          <div className="space-y-4">
-            {/* Aile Seçimi */}
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+              {t('family_selection', 'itemTypes')}
+            </h3>
+            
             <div>
-              <label htmlFor="family" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Aile <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                {t('family', 'itemTypes')} <span className="text-red-500">*</span>
               </label>
               <select
-                id="family"
                 name="family"
                 value={formData.family}
                 onChange={handleChange}
-                required
-                className={`bg-gray-50 border ${formErrors.family ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                  formErrors.family
+                    ? 'border-red-300 focus:ring-red-500 dark:border-red-700'
+                    : 'border-gray-300 focus:ring-blue-500 dark:border-gray-600'
+                } dark:bg-gray-700 dark:text-white`}
               >
-                <option value="">Aile seçin</option>
+                <option value="">{t('select_family', 'itemTypes')}</option>
                 {familyOptions.map((family) => (
                   <option key={family._id} value={family._id}>
                     {family.name} ({family.code})
@@ -368,31 +399,33 @@ const ItemTypeCreatePage: React.FC = () => {
                 ))}
               </select>
               {formErrors.family && (
-                <p className="mt-1 text-sm text-red-500">{formErrors.family}</p>
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.family}</p>
               )}
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                Öğe tipinin ait olduğu aileyi seçin. Bu, öğelerin organizasyonunu belirleyecektir.
-              </p>
             </div>
           </div>
         );
-      
+        
       case 2:
         return (
           <div className="space-y-6">
-            {/* Öznitelik Grupları */}
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+              {t('attribute_groups', 'itemTypes')}
+            </h3>
+            
             <div>
-              <label htmlFor="attributeGroups" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Öznitelik Grupları
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                {t('attribute_groups', 'itemTypes')} <span className="text-red-500">*</span>
               </label>
               <select
-                id="attributeGroups"
-                name="attributeGroups"
+                multiple
+                size={8}
                 value={selectedAttributeGroups}
                 onChange={handleAttributeGroupChange}
-                multiple
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-                size={Math.min(attributeGroupOptions.length, 5)}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                  formErrors.attributeGroups
+                    ? 'border-red-300 focus:ring-red-500 dark:border-red-700'
+                    : 'border-gray-300 focus:ring-blue-500 dark:border-gray-600'
+                } dark:bg-gray-700 dark:text-white`}
               >
                 {attributeGroupOptions.map((group) => (
                   <option key={group._id} value={group._id}>
@@ -401,24 +434,36 @@ const ItemTypeCreatePage: React.FC = () => {
                 ))}
               </select>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Öğe tipine ait öznitelik gruplarını seçin (Çoklu seçim için CTRL tuşunu basılı tutun)
+                {t('multiple_selection_help', 'itemTypes')}
               </p>
+              {formErrors.attributeGroups && (
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.attributeGroups}</p>
+              )}
             </div>
+          </div>
+        );
+        
+      case 3:
+        return (
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+              {t('attributes', 'itemTypes')}
+            </h3>
             
-            {/* Öznitelikler */}
             <div>
-              <label htmlFor="attributes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Öznitelikler <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                {t('attributes', 'itemTypes')} <span className="text-red-500">*</span>
               </label>
               <select
-                id="attributes"
-                name="attributes"
+                multiple
+                size={10}
                 value={selectedAttributes}
                 onChange={handleAttributeChange}
-                multiple
-                required
-                className={`bg-gray-50 border ${formErrors.attributes ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
-                size={Math.min(attributeOptions.length, 10)}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                  formErrors.attributes
+                    ? 'border-red-300 focus:ring-red-500 dark:border-red-700'
+                    : 'border-gray-300 focus:ring-blue-500 dark:border-gray-600'
+                } dark:bg-gray-700 dark:text-white`}
               >
                 {attributeOptions.map((attr) => (
                   <option key={attr._id} value={attr._id}>
@@ -426,24 +471,104 @@ const ItemTypeCreatePage: React.FC = () => {
                   </option>
                 ))}
               </select>
-              {formErrors.attributes && (
-                <p className="mt-1 text-sm text-red-500">{formErrors.attributes}</p>
-              )}
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Öğe tipine ait öznitelikleri seçin (Çoklu seçim için CTRL tuşunu basılı tutun)
+                {t('multiple_selection_help', 'itemTypes')}
               </p>
+              {formErrors.attributes && (
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.attributes}</p>
+              )}
             </div>
           </div>
         );
-      
+        
+      case 4:
+        return (
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+              {t('review_and_create', 'itemTypes')}
+            </h3>
+            
+            <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+              <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    {t('name', 'itemTypes')}
+                  </dt>
+                  <dd className="mt-1 text-sm text-gray-900 dark:text-white">
+                    {translationData.nameTranslations[currentLanguage] || '-'}
+                  </dd>
+                </div>
+                
+                <div>
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    {t('code', 'itemTypes')}
+                  </dt>
+                  <dd className="mt-1 text-sm text-gray-900 dark:text-white">
+                    {formData.code || '-'}
+                  </dd>
+                </div>
+                
+                <div className="md:col-span-2">
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    {t('description', 'itemTypes')}
+                  </dt>
+                  <dd className="mt-1 text-sm text-gray-900 dark:text-white">
+                    {translationData.descriptionTranslations[currentLanguage] || '-'}
+                  </dd>
+                </div>
+                
+                <div>
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    {t('family', 'itemTypes')}
+                  </dt>
+                  <dd className="mt-1 text-sm text-gray-900 dark:text-white">
+                    {familyOptions.find(f => f._id === formData.family)?.name || '-'}
+                  </dd>
+                </div>
+                
+                <div>
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    {t('attribute_groups', 'itemTypes')} ({selectedAttributeGroups.length})
+                  </dt>
+                  <dd className="mt-1 text-sm text-gray-900 dark:text-white">
+                    {selectedAttributeGroups.length > 0 
+                      ? selectedAttributeGroups.map(id => 
+                          attributeGroupOptions.find(g => g._id === id)?.name
+                        ).filter(Boolean).join(', ')
+                      : '-'
+                    }
+                  </dd>
+                </div>
+                
+                <div>
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    {t('attributes', 'itemTypes')} ({selectedAttributes.length})
+                  </dt>
+                  <dd className="mt-1 text-sm text-gray-900 dark:text-white">
+                    {selectedAttributes.length > 0 
+                      ? selectedAttributes.map(id => 
+                          attributeOptions.find(a => a._id === id)?.name
+                        ).filter(Boolean).join(', ')
+                      : '-'
+                    }
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+        );
+        
       default:
         return null;
     }
   };
-  
+
   return (
     <div className="space-y-6">
-      {/* Başlık */}
+      {/* Breadcrumb */}
+      <Breadcrumb items={breadcrumbItems} />
+      
+      {/* Header */}
       <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
         <div className="flex justify-between items-center">
           <div>
@@ -451,10 +576,10 @@ const ItemTypeCreatePage: React.FC = () => {
               <svg className="w-7 h-7 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              Yeni Öğe Tipi Oluştur
+              {t('create_item_type', 'itemTypes')}
             </h1>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              Katalog için yeni bir öğe tipi tanımlayın
+              {t('create_new_item_type_desc', 'itemTypes')}
             </p>
           </div>
           
@@ -466,85 +591,104 @@ const ItemTypeCreatePage: React.FC = () => {
             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-            Listeye Dön
+            {t('back_to_list', 'itemTypes')}
           </Button>
         </div>
       </div>
-      
-      {/* Stepper */}
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-        <Stepper 
-          steps={steps}
-          activeStep={currentStep}
-          completedSteps={completedSteps}
-        />
-      </div>
-      
-      {/* Form */}
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-        {error && (
-          <div className="mb-4 bg-red-50 dark:bg-red-900/20 p-4 rounded-md border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 flex items-start">
-            <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+
+      {/* Success Message */}
+      {success && (
+        <div className="bg-green-100 dark:bg-green-900 border border-green-400 dark:border-green-700 text-green-700 dark:text-green-300 px-6 py-4 rounded-lg shadow-sm">
+          <div className="flex items-center">
+            <svg className="w-6 h-6 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span>{error}</span>
+            <span className="font-semibold">{t('success', 'common')}!</span>
+            <span className="ml-2">{t('item_type_created_successfully', 'itemTypes')}</span>
           </div>
-        )}
-        
-        {success && (
-          <div className="mb-4 bg-green-50 dark:bg-green-900/20 p-4 rounded-md border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 flex items-start">
-            <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        </div>
+      )}
+
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-300 px-6 py-4 rounded-lg shadow-sm">
+          <div className="flex items-center">
+            <svg className="w-6 h-6 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
-            <span>Öğe tipi başarıyla oluşturuldu! Yönlendiriliyorsunuz...</span>
+            <span className="font-semibold">{t('error', 'common')}:</span>
+            <span className="ml-2">{error}</span>
           </div>
-        )}
+        </div>
+      )}
+
+      {/* Main Content Card */}
+      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <Stepper
+            steps={steps}
+            activeStep={currentStep}
+            completedSteps={completedSteps}
+          />
+        </div>
         
-        <div className="space-y-6">
-          {/* Adımlı form içeriği */}
-          {renderStepContent()}
-          
-          {/* Navigasyon butonları */}
-          <div className="flex justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
-            <Button
-              variant="outline"
-              disabled={currentStep === 0}
-              onClick={handlePrevStep}
-              className="flex items-center"
-            >
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Önceki
-            </Button>
+        <div className="p-6">
+          <form onSubmit={handleSubmit}>
+            {renderStepContent()}
             
-            <Button
-              variant="primary"
-              onClick={handleNextStep}
-              loading={isLoading}
-              className="flex items-center"
-            >
-              {currentStep === steps.length - 1 ? (
-                <>
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Kaydet
-                </>
-              ) : (
-                <>
-                  Sonraki
+            {/* Action Buttons */}
+            <div className="flex justify-between mt-8">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handlePrevStep}
+                disabled={currentStep === 0}
+                className="flex items-center"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                {t('previous', 'common')}
+              </Button>
+              
+              {currentStep < steps.length - 1 ? (
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={handleNextStep}
+                  className="flex items-center"
+                >
+                  {t('next', 'common')}
                   <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
-                </>
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={isLoading}
+                  className="flex items-center"
+                >
+                  {isLoading && (
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  )}
+                  {t('create_item_type', 'itemTypes')}
+                </Button>
               )}
-            </Button>
-          </div>
+            </div>
+          </form>
         </div>
       </div>
     </div>
   );
 };
 
-export default ItemTypeCreatePage; 
+const ItemTypeCreatePageWrapper: React.FC = () => {
+  return <ItemTypeCreatePage />;
+};
+
+export default ItemTypeCreatePageWrapper; 

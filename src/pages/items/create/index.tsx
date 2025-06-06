@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
 import Stepper from '../../../components/ui/Stepper';
+import Breadcrumb from '../../../components/common/Breadcrumb';
+import TranslationFields from '../../../components/common/TranslationFields';
 import itemService from '../../../services/api/itemService';
 import itemTypeService from '../../../services/api/itemTypeService';
 import familyService from '../../../services/api/familyService';
@@ -9,6 +11,8 @@ import categoryService from '../../../services/api/categoryService';
 import attributeGroupService from '../../../services/api/attributeGroupService';
 import type { CreateItemDto } from '../../../types/item';
 import type { Attribute } from '../../../types/attribute';
+import { useTranslation } from '../../../context/i18nContext';
+import { getEntityName, getEntityDescription } from '../../../utils/translationUtils';
 
 interface ItemTypeOption {
   _id: string;
@@ -437,6 +441,7 @@ const debug = (message: string, data?: any) => {
 
 const ItemCreatePage: React.FC = () => {
   const navigate = useNavigate();
+  const { t, currentLanguage, supportedLanguages } = useTranslation();
   
   // Form state
   const [formData, setFormData] = useState<CreateItemDto>({
@@ -446,6 +451,10 @@ const ItemCreatePage: React.FC = () => {
     itemType: '',
     attributeValues: []
   });
+
+  // Translation states
+  const [nameTranslations, setNameTranslations] = useState<Record<string, string>>({});
+  const [descriptionTranslations, setDescriptionTranslations] = useState<Record<string, string>>({});
   
   // Seçenekler
   const [itemTypeOptions, setItemTypeOptions] = useState<ItemTypeOption[]>([]);
@@ -474,11 +483,12 @@ const ItemCreatePage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<CategoryOption | null>(null);
   
   // Stepper adımları
-  const steps = useMemo(() => [
-    { title: 'Temel Bilgiler', description: 'Öğenin temel bilgilerini girin' },
-    { title: 'Tür ve Kategori', description: 'Öğenin hiyerarşisini belirleyin' },
-    { title: 'Öznitelikler', description: 'Öğeye ait öznitelikleri girin' },
-  ], []);
+  const steps = [
+    { title: 'Genel Bilgiler', description: 'Öğe bilgilerini girin' },
+    { title: 'Hiyerarşi', description: 'Tip, aile ve kategori seçin' },
+    { title: 'Öznitelikler', description: 'Öznitelik değerlerini girin' },
+    { title: 'Önizleme', description: 'Bilgileri kontrol edin' }
+  ];
   
   // Sadece öğe tiplerini yükle
   useEffect(() => {
@@ -749,6 +759,21 @@ const ItemCreatePage: React.FC = () => {
     }));
   };
   
+  // Translation change handlers
+  const handleNameTranslationChange = (language: string, value: string) => {
+    setNameTranslations(prev => ({
+      ...prev,
+      [language]: value
+    }));
+  };
+
+  const handleDescriptionTranslationChange = (language: string, value: string) => {
+    setDescriptionTranslations(prev => ({
+      ...prev,
+      [language]: value
+    }));
+  };
+  
   // Form gönderme handler
   const handleSubmit = async () => {
     // Zorunlu attribute'ların kontrolü
@@ -814,8 +839,9 @@ const ItemCreatePage: React.FC = () => {
   const validateStep1 = (): boolean => {
     const errors: Record<string, string> = {};
     
-    if (!formData.name.trim()) {
-      errors.name = 'Öğe adı zorunludur';
+    // Check if name has at least current language translation
+    if (!nameTranslations[currentLanguage]?.trim()) {
+      errors.name = `${currentLanguage.toUpperCase()} dilinde öğe adı zorunludur`;
     }
     
     if (!formData.code.trim()) {
@@ -838,6 +864,17 @@ const ItemCreatePage: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
   
+  // Adım 3 validasyonu
+  const validateStep3 = (): boolean => {
+    const requiredCheck = validateRequiredAttributes();
+    if (!requiredCheck.isValid) {
+      setError(`Zorunlu öznitelik alanları: ${requiredCheck.missingFields.join(', ')}`);
+      return false;
+    }
+    setError(null);
+    return true;
+  };
+  
   // İleri adıma geç
   const handleNextStep = () => {
     let isValid = false;
@@ -849,6 +886,9 @@ const ItemCreatePage: React.FC = () => {
         break;
       case 1:
         isValid = validateStep2();
+        break;
+      case 2:
+        isValid = validateStep3();
         break;
       default:
         isValid = true;
@@ -876,25 +916,20 @@ const ItemCreatePage: React.FC = () => {
     switch (currentStep) {
       case 0:
         return (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* İsim */}
+          <div className="space-y-6">
+            {/* Çok dilli İsim */}
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Öğe Adı <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                required
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
+              <TranslationFields
+                label="Öğe Adı"
+                fieldType="input"
+                translations={nameTranslations}
+                supportedLanguages={supportedLanguages}
+                currentLanguage={currentLanguage}
+                onChange={handleNameTranslationChange}
                 placeholder="Öğe adını girin"
+                required
+                error={formErrors.name}
               />
-              {formErrors.name && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.name}</p>
-              )}
             </div>
             
             {/* Kod */}
@@ -917,24 +952,22 @@ const ItemCreatePage: React.FC = () => {
               )}
             </div>
             
-            {/* Açıklama */}
-            <div className="col-span-1 md:col-span-2">
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Açıklama
-              </label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                rows={3}
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
+            {/* Çok dilli Açıklama */}
+            <div>
+              <TranslationFields
+                label="Açıklama"
+                fieldType="textarea"
+                translations={descriptionTranslations}
+                supportedLanguages={supportedLanguages}
+                currentLanguage={currentLanguage}
+                onChange={handleDescriptionTranslationChange}
                 placeholder="Öğe hakkında açıklama girin"
+                rows={3}
               />
             </div>
             
             {/* Active/Inactive state */}
-            <div className="col-span-1 md:col-span-2">
+            <div>
               <div className="flex items-start">
                 <div className="flex items-center h-5">
                   <input
@@ -1113,6 +1146,144 @@ const ItemCreatePage: React.FC = () => {
           </div>
         );
       
+      case 3:
+        return (
+          <div className="space-y-6">
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-md border border-blue-200 dark:border-blue-800 mb-6">
+              <div className="flex items-start">
+                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                    Öğeyi onaylamak için tüm bilgilerin doğru olduğunu kontrol edin.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Öğe Bilgileri */}
+            <div className="bg-white dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+              <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-4">Öğe Bilgileri</h3>
+              
+              <div className="space-y-4">
+                {/* Name Translations */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Öğe Adı (Çeviriler)</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {supportedLanguages.map((language) => (
+                      <div key={language} className="bg-gray-50 dark:bg-gray-800 p-3 rounded border">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-xs font-medium text-gray-400 uppercase">{language}</span>
+                        </div>
+                        <p className="text-sm text-gray-900 dark:text-white">
+                          {nameTranslations[language] || '-'}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Code */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Öğe Kodu</h4>
+                  <p className="text-sm text-gray-900 dark:text-white font-mono bg-gray-50 dark:bg-gray-800 p-2 rounded border">{formData.code}</p>
+                </div>
+
+                {/* Description Translations */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Açıklama (Çeviriler)</h4>
+                  <div className="space-y-3">
+                    {supportedLanguages.map((language) => (
+                      <div key={language} className="bg-gray-50 dark:bg-gray-800 p-3 rounded border">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-xs font-medium text-gray-400 uppercase">{language}</span>
+                        </div>
+                        <p className="text-sm text-gray-900 dark:text-white">
+                          {descriptionTranslations[language] || '-'}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Hierarchy */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Hiyerarşi</h4>
+                  <div className="space-y-2">
+                    <div className="bg-gray-50 dark:bg-gray-800 p-2 rounded border">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Öğe Tipi:</span>
+                      <span className="ml-2 text-sm text-gray-900 dark:text-white">{selectedItemType?.name} ({selectedItemType?.code})</span>
+                    </div>
+                    {selectedFamily && (
+                      <div className="bg-gray-50 dark:bg-gray-800 p-2 rounded border">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">Aile:</span>
+                        <span className="ml-2 text-sm text-gray-900 dark:text-white">{selectedFamily.name} ({selectedFamily.code})</span>
+                      </div>
+                    )}
+                    {selectedCategory && (
+                      <div className="bg-gray-50 dark:bg-gray-800 p-2 rounded border">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">Kategori:</span>
+                        <span className="ml-2 text-sm text-gray-900 dark:text-white">{selectedCategory.name} ({selectedCategory.code})</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Active Status */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Durum</h4>
+                  <div className="bg-gray-50 dark:bg-gray-800 p-2 rounded border">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      formData.isActive !== false 
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' 
+                        : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+                    }`}>
+                      {formData.isActive !== false ? 'Aktif' : 'Pasif'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Öznitelik Değerleri */}
+            {attributes.length > 0 && (
+              <div className="bg-white dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+                <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-4">Öznitelik Değerleri</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {attributes.map(attribute => {
+                    const value = attributeValues[attribute._id];
+                    const hasValue = value !== undefined && value !== null && value !== '';
+                    
+                    return (
+                      <div key={attribute._id} className="bg-gray-50 dark:bg-gray-800 p-3 rounded border">
+                        <div className="flex items-center mb-2">
+                          <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                            {getEntityName(attribute, currentLanguage)}
+                          </h4>
+                          {attribute.isRequired && (
+                            <span className="ml-1 text-red-500 text-xs">*</span>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                          Tip: {attribute.type}
+                        </div>
+                        <div className="text-sm text-gray-900 dark:text-white">
+                          {hasValue ? (
+                            Array.isArray(value) ? value.join(', ') : String(value)
+                          ) : (
+                            <span className="text-gray-400 italic">Değer girilmedi</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      
       default:
         return null;
     }
@@ -1120,6 +1291,15 @@ const ItemCreatePage: React.FC = () => {
   
   return (
     <div className="space-y-6">
+      {/* Breadcrumb */}
+      <Breadcrumb 
+        items={[
+          { label: 'Ana Sayfa', path: '/' },
+          { label: 'Öğeler', path: '/items/list' },
+          { label: 'Yeni Öğe Oluştur' }
+        ]}
+      />
+
       {/* Başlık */}
       <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
         <div className="flex justify-between items-center">

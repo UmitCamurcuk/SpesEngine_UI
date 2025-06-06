@@ -1,9 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
+import { ConfirmationModal, ToastContainer } from '../../../components/ui';
+import type { Toast } from '../../../components/ui/Toast';
 import Breadcrumb from '../../../components/common/Breadcrumb';
 import AttributeBadge from '../../../components/attributes/AttributeBadge';
 import EntityHistoryList from '../../../components/common/EntityHistoryList';
+import AttributeGroupsTab from '../../../components/common/AttributeGroupsTab';
+import PermissionsTab from '../../../components/common/PermissionsTab';
+import RelationshipsTab from '../../../components/common/RelationshipsTab';
+import DocumentationTab from '../../../components/common/DocumentationTab';
+import APITab from '../../../components/common/APITab';
+import StatisticsTab from '../../../components/common/StatisticsTab';
 import attributeService from '../../../services/api/attributeService';
 import { Attribute } from '../../../types/attribute';
 import dayjs from 'dayjs';
@@ -49,13 +57,15 @@ const AttributeDetailsPage: React.FC = () => {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   
+  // Silme modal ve toast state'leri
+  const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  
   // Attribute Groups state'leri
   const [attributeGroups, setAttributeGroups] = useState<any[]>([]);
   const [allAttributeGroups, setAllAttributeGroups] = useState<any[]>([]);
-  const [isLoadingGroups, setIsLoadingGroups] = useState<boolean>(false);
-  const [isEditingGroups, setIsEditingGroups] = useState<boolean>(false);
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
-  const [isSavingGroups, setIsSavingGroups] = useState<boolean>(false);
   
   // Edit form data
   const [editableFields, setEditableFields] = useState({
@@ -70,15 +80,12 @@ const AttributeDetailsPage: React.FC = () => {
   const fetchAttributeGroups = async () => {
     if (!id) return;
     
-    setIsLoadingGroups(true);
     try {
       const groups = await attributeService.getAttributeGroups(id);
       setAttributeGroups(groups);
       setSelectedGroupIds(groups.map((g: any) => g._id));
     } catch (err: any) {
       console.error('Attribute groups yüklenirken hata:', err);
-    } finally {
-      setIsLoadingGroups(false);
     }
   };
 
@@ -353,51 +360,54 @@ const AttributeDetailsPage: React.FC = () => {
     setIsEditing(true);
   };
 
+  // Toast helper fonksiyonları
+  const addToast = (toast: Omit<Toast, 'id'>) => {
+    const newToast: Toast = {
+      ...toast,
+      id: Date.now().toString() + Math.random().toString(36)
+    };
+    setToasts(prev => [...prev, newToast]);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  };
+
   // Delete attribute
   const handleDelete = async () => {
     if (!id || !attribute) return;
     
-    if (window.confirm(t('confirm_delete_attribute', 'attributes').replace('{{name}}', getEntityName(attribute, currentLanguage)))) {
-      try {
-        await attributeService.deleteAttribute(id);
-        navigate('/attributes/list');
-      } catch (err: any) {
-        setError(err.message || t('attribute_delete_error', 'attributes'));
-      }
-    }
-  };
-
-  const handleEditGroups = () => {
-    setIsEditingGroups(true);
-    fetchAllAttributeGroups();
-  };
-
-  const handleCancelEditGroups = () => {
-    setIsEditingGroups(false);
-    setSelectedGroupIds(attributeGroups.map((g: any) => g._id));
-  };
-
-  const handleSaveGroups = async () => {
-    if (!id) return;
-    
-    setIsSavingGroups(true);
+    setIsDeleting(true);
     try {
-      const updatedGroups = await attributeService.updateAttributeGroups(id, selectedGroupIds);
-      setAttributeGroups(updatedGroups);
-      setIsEditingGroups(false);
+      await attributeService.deleteAttribute(id);
+      
+      // Başarılı silme toast'ı
+      addToast({
+        type: 'success',
+        title: 'Öznitelik Silindi',
+        message: `"${getEntityName(attribute, currentLanguage)}" özniteliği başarıyla silindi.`,
+        duration: 5000
+      });
+      
+      // Sayfayı attributes listesine yönlendir
+      navigate('/attributes');
+      
     } catch (err: any) {
-      console.error('Attribute groups güncellenirken hata:', err);
+      // Hata toast'ı
+      addToast({
+        type: 'error',
+        title: 'Silme Hatası',
+        message: err.message || 'Öznitelik silinirken bir hata oluştu.',
+        duration: 5000
+      });
     } finally {
-      setIsSavingGroups(false);
+      setIsDeleting(false);
+      setShowDeleteModal(false);
     }
   };
 
-  const handleGroupSelection = (groupId: string, isSelected: boolean) => {
-    if (isSelected) {
-      setSelectedGroupIds(prev => [...prev, groupId]);
-    } else {
-      setSelectedGroupIds(prev => prev.filter(id => id !== groupId));
-    }
+  const handleDeleteClick = () => {
+    setShowDeleteModal(true);
   };
 
   // MAIN RENDER
@@ -550,7 +560,7 @@ const AttributeDetailsPage: React.FC = () => {
               <Button
                 variant="secondary"
                 className="flex items-center text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900"
-                onClick={handleDelete}
+                onClick={handleDeleteClick}
               >
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -598,36 +608,6 @@ const AttributeDetailsPage: React.FC = () => {
           </button>
           <button
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'documentation'
-                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
-            }`}
-            onClick={() => setActiveTab('documentation')}
-          >
-            <div className="flex items-center">
-              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-              {t('documentation_tab', 'attributes')}
-            </div>
-          </button>
-          <button
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'relationships'
-                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
-            }`}
-            onClick={() => setActiveTab('relationships')}
-          >
-            <div className="flex items-center">
-              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-              </svg>
-              {t('relationships_tab', 'attributes')}
-            </div>
-          </button>
-          <button
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'permissions'
                 ? 'border-primary-500 text-primary-600 dark:text-primary-400'
                 : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
@@ -639,6 +619,66 @@ const AttributeDetailsPage: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
               {t('permissions', 'common')}
+            </div>
+          </button>
+          <button
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'relations'
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+            }`}
+            onClick={() => setActiveTab('relations')}
+          >
+            <div className="flex items-center">
+              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+              İlişkiler
+            </div>
+          </button>
+          <button
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'documents'
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+            }`}
+            onClick={() => setActiveTab('documents')}
+          >
+            <div className="flex items-center">
+              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+              Dokümantasyon
+            </div>
+          </button>
+          <button
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'api'
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+            }`}
+            onClick={() => setActiveTab('api')}
+          >
+            <div className="flex items-center">
+              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+              </svg>
+              API
+            </div>
+          </button>
+          <button
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'statistics'
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+            }`}
+            onClick={() => setActiveTab('statistics')}
+          >
+            <div className="flex items-center">
+              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              İstatistikler
             </div>
           </button>
           <button
@@ -982,383 +1022,58 @@ const AttributeDetailsPage: React.FC = () => {
 
       {/* TAB CONTENT - ATTRIBUTE GROUPS */}
       {activeTab === 'attribute-groups' && (
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-medium text-gray-900 dark:text-white">Attribute Groups</h2>
-                {!isEditingGroups && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    className="flex items-center"
-                    onClick={handleEditGroups}
-                  >
-                    <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                    Düzenle
-                  </Button>
-                )}
-                {isEditingGroups && (
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      className="flex items-center"
-                      onClick={handleSaveGroups}
-                      loading={isSavingGroups}
-                      disabled={isSavingGroups}
-                    >
-                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Kaydet
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center"
-                      onClick={handleCancelEditGroups}
-                      disabled={isSavingGroups}
-                    >
-                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                      İptal
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </CardHeader>
-            <CardBody>
-              {isLoadingGroups ? (
-                <div className="flex justify-center items-center h-32">
-                  <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary-light border-t-transparent dark:border-primary-dark dark:border-t-transparent"></div>
-                </div>
-              ) : isEditingGroups ? (
-                // Edit Mode - Table View
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-800/50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 text-primary-light focus:ring-primary-light border-gray-300 rounded"
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedGroupIds(allAttributeGroups.map(g => g._id));
-                              } else {
-                                setSelectedGroupIds([]);
-                              }
-                            }}
-                            checked={selectedGroupIds.length === allAttributeGroups.length && allAttributeGroups.length > 0}
-                          />
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          Grup Adı
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          Kod
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          Açıklama
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                      {allAttributeGroups.map((group) => (
-                        <tr key={group._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4 text-primary-light focus:ring-primary-light border-gray-300 rounded"
-                              checked={selectedGroupIds.includes(group._id)}
-                              onChange={(e) => handleGroupSelection(group._id, e.target.checked)}
-                            />
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                              {getEntityName(group, currentLanguage)}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="text-sm font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-gray-700 dark:text-gray-300">
-                              {group.code}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="text-sm text-gray-900 dark:text-gray-100">
-                              {getEntityDescription(group, currentLanguage) || '-'}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                // View Mode - Card View
-                <div className="space-y-4">
-                  {attributeGroups.length === 0 ? (
-                    <div className="text-center py-8">
-                      <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                      </svg>
-                      <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">Attribute Group Yok</h3>
-                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        Bu attribute henüz hiçbir attribute group'a bağlı değil.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {attributeGroups.map((group) => (
-                        <div key={group._id} className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                {getEntityName(group, currentLanguage)}
-                              </h3>
-                              <p className="text-xs font-mono text-gray-500 dark:text-gray-400 mt-1">
-                                {group.code}
-                              </p>
-                              {getEntityDescription(group, currentLanguage) && (
-                                <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-                                  {getEntityDescription(group, currentLanguage)}
-                                </p>
-                              )}
-                            </div>
-                            <div className="ml-4">
-                              <Link
-                                to={`/attribute-groups/${group._id}`}
-                                className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
-                              >
-                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                </svg>
-                              </Link>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardBody>
-          </Card>
-        </div>
+        <AttributeGroupsTab
+          attributeGroups={attributeGroups}
+          isEditing={isEditing}
+          onAdd={() => fetchAllAttributeGroups()}
+          onRemove={(groupId) => {
+            setAttributeGroups(prev => prev.filter(g => g._id !== groupId));
+            setSelectedGroupIds(prev => prev.filter(id => id !== groupId));
+          }}
+          title="Öznitelik Grupları"
+          emptyMessage="Bu öznitelik henüz hiçbir gruba bağlı değil."
+          showAddButton={isEditing}
+        />
       )}
 
       {/* TAB CONTENT - DOCUMENTATION */}
-      {activeTab === 'documentation' && (
-        <Card>
-          <CardBody>
-            <div className="prose dark:prose-invert max-w-none">
-              <h2>{t('documentation_title', 'attributes')}</h2>
-              <p>
-                {t('documentation_description', 'attributes').replace('{{attributeName}}', getEntityName(attribute, currentLanguage))}
-              </p>
-              
-              <h3>{t('usage_guidelines_title', 'attributes')}</h3>
-              <ul>
-                <li>{t('usage_guideline_1', 'attributes')}</li>
-                <li>{t('usage_guideline_2', 'attributes')}</li>
-                <li>{t('usage_guideline_3', 'attributes')}</li>
-                <li>{t('usage_guideline_4', 'attributes')}</li>
-              </ul>
-              
-              <h3>{t('integration_notes_title', 'attributes')}</h3>
-              <p>
-                {t('integration_notes_description', 'attributes')}
-              </p>
-              <ul>
-                <li>{t('integration_note_1', 'attributes')}</li>
-                <li>{t('integration_note_2', 'attributes')}</li>
-                <li>{t('integration_note_3', 'attributes')}</li>
-                <li>{t('integration_note_4', 'attributes')}</li>
-              </ul>
-
-              <div className="not-prose mt-6">
-                <Button 
-                  variant="outline"
-                  className="flex items-center"
-                >
-                  <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                  </svg>
-                  {t('view_full_documentation', 'attributes')}
-                </Button>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
+      {activeTab === 'documents' && (
+        <DocumentationTab
+          entityType="attribute"
+          entityName={getEntityName(attribute, currentLanguage)}
+        />
       )}
 
-      {/* TAB CONTENT - RELATIONSHIPS */}
-      {activeTab === 'relationships' && (
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <h2 className="text-lg font-medium text-gray-900 dark:text-white">{t('entity_relationships_title', 'attributes')}</h2>
-            </CardHeader>
-            <CardBody className="p-0">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-800/50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        {t('entity_type_column', 'attributes')}
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        {t('relationship_column', 'attributes')}
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        {t('count_column', 'attributes')}
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        {t('actions_column', 'attributes')}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="h-8 w-8 rounded-lg bg-blue-100 dark:bg-blue-900/50 
-                                        flex items-center justify-center mr-3">
-                            <svg className="h-4 w-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                            </svg>
-                          </div>
-                          <div>
-                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                              {t('product_entity', 'attributes')}
-                            </div>
-                            <div className="text-sm text-gray-500 dark:text-gray-400">
-                              {t('core_entity_description', 'attributes')}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200">
-                          {t('core_attribute_relationship', 'attributes')}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 dark:text-gray-100">1,245</div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">{t('instances_label', 'attributes')}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <Button variant="outline" size="sm">{t('view_button', 'common')}</Button>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="h-8 w-8 rounded-lg bg-purple-100 dark:bg-purple-900/50 
-                                        flex items-center justify-center mr-3">
-                            <svg className="h-4 w-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                            </svg>
-                          </div>
-                          <div>
-                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                              {t('catalog_entity', 'attributes')}
-                            </div>
-                            <div className="text-sm text-gray-500 dark:text-gray-400">
-                              {t('display_entity_description', 'attributes')}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
-                          {t('display_attribute_relationship', 'attributes')}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 dark:text-gray-100">18</div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">{t('instances_label', 'attributes')}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <Button variant="outline" size="sm">{t('view_button', 'common')}</Button>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </CardBody>
-          </Card>
+      {/* TAB CONTENT - PERMISSIONS */}
+      {activeTab === 'permissions' && (
+        <PermissionsTab
+          entityId={id!}
+          entityType="attribute"
+        />
+      )}
 
-          <Card>
-            <CardHeader>
-              <h2 className="text-lg font-medium text-gray-900 dark:text-white">{t('access_control_title', 'attributes')}</h2>
-            </CardHeader>
-            <CardBody>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                  <div className="flex items-center">
-                    <svg className="h-5 w-5 text-gray-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                    </svg>
-                    <div>
-                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {t('administrators_role', 'attributes')}
-                      </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {t('administrators_description', 'attributes')}
-                      </div>
-                    </div>
-                  </div>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200">
-                    {t('full_access_permission', 'attributes')}
-                  </span>
-                </div>
+      {/* TAB CONTENT - RELATIONS */}
+      {activeTab === 'relations' && (
+        <RelationshipsTab
+          entityId={id!}
+          entityType="attribute"
+        />
+      )}
 
-                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                  <div className="flex items-center">
-                    <svg className="h-5 w-5 text-gray-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                    </svg>
-                    <div>
-                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {t('content_editors_role', 'attributes')}
-                      </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {t('content_editors_description', 'attributes')}
-                      </div>
-                    </div>
-                  </div>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200">
-                    {t('read_write_permission', 'attributes')}
-                  </span>
-                </div>
+      {/* TAB CONTENT - API */}
+      {activeTab === 'api' && (
+        <APITab
+          entityType="attribute"
+          entityId={id}
+        />
+      )}
 
-                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                  <div className="flex items-center">
-                    <svg className="h-5 w-5 text-gray-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                    </svg>
-                    <div>
-                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {t('viewers_role', 'attributes')}
-                      </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {t('viewers_description', 'attributes')}
-                      </div>
-                    </div>
-                  </div>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
-                    {t('read_only_permission', 'attributes')}
-                  </span>
-                </div>
-              </div>
-            </CardBody>
-          </Card>
-        </div>
+      {/* TAB CONTENT - STATISTICS */}
+      {activeTab === 'statistics' && (
+        <StatisticsTab
+          entityType="attribute"
+          entityId={id}
+        />
       )}
 
       {/* TAB CONTENT - HISTORY */}
@@ -1372,6 +1087,26 @@ const AttributeDetailsPage: React.FC = () => {
           </CardBody>
         </Card>
       )}
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDelete}
+        type="delete"
+        title="Öznitelik Silme Onayı"
+        message={`"${attribute ? getEntityName(attribute, currentLanguage) : ''}" özniteliğini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`}
+        confirmText="Sil"
+        cancelText="İptal"
+        isLoading={isDeleting}
+      />
+
+      {/* Toast Container */}
+      <ToastContainer
+        toasts={toasts}
+        position="top-right"
+        onDismiss={removeToast}
+      />
     </div>
   );
 };

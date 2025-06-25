@@ -4,30 +4,36 @@ import Button from '../../../components/ui/Button';
 import Breadcrumb from '../../../components/common/Breadcrumb';
 import Stepper from '../../../components/ui/Stepper';
 import TranslationFields from '../../../components/common/TranslationFields';
+import AttributeGroupsSelector from '../../../components/attributes/AttributeGroupSelector';
+import AttributeSelector from '../../../components/attributes/AttributeSelector';
 import itemTypeService from '../../../services/api/itemTypeService';
 import attributeService from '../../../services/api/attributeService';
 import attributeGroupService from '../../../services/api/attributeGroupService';
-import familyService from '../../../services/api/familyService';
+import categoryService from '../../../services/api/categoryService';
 import { useTranslation } from '../../../context/i18nContext';
 import { useTranslationForm } from '../../../hooks/useTranslationForm';
+import { getEntityName, getEntityDescription } from '../../../utils/translationUtils';
 import type { CreateItemTypeDto } from '../../../types/itemType';
 
 interface AttributeOption {
   _id: string;
-  name: string;
+  name: any;
   code: string;
+  description?: any;
 }
 
 interface AttributeGroupOption {
   _id: string;
-  name: string;
+  name: any;
   code: string;
+  description?: any;
 }
 
-interface FamilyOption {
+interface CategoryOption {
   _id: string;
-  name: string;
+  name: any;
   code: string;
+  description?: any;
 }
 
 const ItemTypeCreatePage: React.FC = () => {
@@ -47,7 +53,7 @@ const ItemTypeCreatePage: React.FC = () => {
     name: '',
     code: '',
     description: '',
-    family: '',
+    category: '',
     attributeGroups: [],
     attributes: [],
     isActive: true
@@ -56,7 +62,7 @@ const ItemTypeCreatePage: React.FC = () => {
   // Seçenekler
   const [attributeOptions, setAttributeOptions] = useState<AttributeOption[]>([]);
   const [attributeGroupOptions, setAttributeGroupOptions] = useState<AttributeGroupOption[]>([]);
-  const [familyOptions, setFamilyOptions] = useState<FamilyOption[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
   
   // Seçili öğeler
   const [selectedAttributes, setSelectedAttributes] = useState<string[]>([]);
@@ -75,7 +81,7 @@ const ItemTypeCreatePage: React.FC = () => {
   // Stepper adımları
   const steps = useMemo(() => [
     { title: t('general_info', 'itemTypes'), description: t('name_code_description', 'itemTypes') },
-    { title: t('family_selection', 'itemTypes'), description: t('select_family_for_item_type', 'itemTypes') },
+    { title: t('category_selection', 'itemTypes'), description: t('select_category_for_item_type', 'itemTypes') },
     { title: t('attribute_groups', 'itemTypes'), description: t('select_attribute_groups', 'itemTypes') },
     { title: t('attributes', 'itemTypes'), description: t('select_attributes', 'itemTypes') },
     { title: t('review_and_create', 'itemTypes'), description: t('review_before_creating', 'itemTypes') },
@@ -106,7 +112,8 @@ const ItemTypeCreatePage: React.FC = () => {
         setAttributeOptions(attributesResult.attributes.map(attr => ({
           _id: attr._id,
           name: attr.name,
-          code: attr.code
+          code: attr.code,
+          description: attr.description
         })));
         
         // Öznitelik gruplarını getir
@@ -114,15 +121,17 @@ const ItemTypeCreatePage: React.FC = () => {
         setAttributeGroupOptions(groupsResult.attributeGroups.map(group => ({
           _id: group._id,
           name: group.name,
-          code: group.code
+          code: group.code,
+          description: group.description
         })));
 
-        // Aileleri getir
-        const familiesResult = await familyService.getFamilies({ limit: 100 });
-        setFamilyOptions(familiesResult.families.map(family => ({
-          _id: family._id,
-          name: family.name,
-          code: family.code
+        // Kategorileri getir
+        const categoriesResult = await categoryService.getCategories({ limit: 100 });
+        setCategoryOptions(categoriesResult.categories.map(category => ({
+          _id: category._id,
+          name: category.name,
+          code: category.code,
+          description: category.description
         })));
       } catch (err) {
         console.error('Seçenekler yüklenirken hata oluştu:', err);
@@ -155,39 +164,10 @@ const ItemTypeCreatePage: React.FC = () => {
     }
   };
   
-  // Öznitelik seçimi değişiklik handler
-  const handleAttributeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const options = e.target.options;
-    const selectedValues: string[] = [];
-    
-    for (let i = 0; i < options.length; i++) {
-      if (options[i].selected) {
-        selectedValues.push(options[i].value);
-      }
-    }
-    
-    setSelectedAttributes(selectedValues);
-    setFormData((prev: CreateItemTypeDto) => ({ ...prev, attributes: selectedValues }));
-  };
-  
-  // Öznitelik grubu seçimi değişiklik handler
-  const handleAttributeGroupChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const options = e.target.options;
-    const selectedValues: string[] = [];
-    
-    for (let i = 0; i < options.length; i++) {
-      if (options[i].selected) {
-        selectedValues.push(options[i].value);
-      }
-    }
-    
-    setSelectedAttributeGroups(selectedValues);
-    setFormData((prev: CreateItemTypeDto) => ({ ...prev, attributeGroups: selectedValues }));
-  };
+
   
   // Form gönderme handler
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     setIsLoading(true);
     setError(null);
     setSuccess(false);
@@ -247,8 +227,8 @@ const ItemTypeCreatePage: React.FC = () => {
   const validateStep2 = (): boolean => {
     const errors: Record<string, string> = {};
     
-    if (!formData.family) {
-      errors.family = t('family_required', 'itemTypes');
+    if (!formData.category) {
+      errors.category = t('category_required', 'itemTypes');
     }
     
     setFormErrors(errors);
@@ -374,32 +354,32 @@ const ItemTypeCreatePage: React.FC = () => {
         return (
           <div className="space-y-6">
             <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-              {t('family_selection', 'itemTypes')}
+              {t('category_selection', 'itemTypes')}
             </h3>
             
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                {t('family', 'itemTypes')} <span className="text-red-500">*</span>
+                {t('category', 'itemTypes')} <span className="text-red-500">*</span>
               </label>
               <select
-                name="family"
-                value={formData.family}
+                name="category"
+                value={formData.category}
                 onChange={handleChange}
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                  formErrors.family
+                  formErrors.category
                     ? 'border-red-300 focus:ring-red-500 dark:border-red-700'
                     : 'border-gray-300 focus:ring-blue-500 dark:border-gray-600'
                 } dark:bg-gray-700 dark:text-white`}
               >
-                <option value="">{t('select_family', 'itemTypes')}</option>
-                {familyOptions.map((family) => (
-                  <option key={family._id} value={family._id}>
-                    {family.name} ({family.code})
+                <option value="">{t('select_category', 'itemTypes')}</option>
+                {categoryOptions.map((category) => (
+                  <option key={category._id} value={category._id}>
+                    {getEntityName(category, currentLanguage)} ({category.code})
                   </option>
                 ))}
               </select>
-              {formErrors.family && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.family}</p>
+              {formErrors.category && (
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.category}</p>
               )}
             </div>
           </div>
@@ -416,26 +396,10 @@ const ItemTypeCreatePage: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 {t('attribute_groups', 'itemTypes')} <span className="text-red-500">*</span>
               </label>
-              <select
-                multiple
-                size={8}
-                value={selectedAttributeGroups}
-                onChange={handleAttributeGroupChange}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                  formErrors.attributeGroups
-                    ? 'border-red-300 focus:ring-red-500 dark:border-red-700'
-                    : 'border-gray-300 focus:ring-blue-500 dark:border-gray-600'
-                } dark:bg-gray-700 dark:text-white`}
-              >
-                {attributeGroupOptions.map((group) => (
-                  <option key={group._id} value={group._id}>
-                    {group.name} ({group.code})
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {t('multiple_selection_help', 'itemTypes')}
-              </p>
+              <AttributeGroupsSelector
+                selectedAttributeGroups={selectedAttributeGroups}
+                onChange={setSelectedAttributeGroups}
+              />
               {formErrors.attributeGroups && (
                 <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.attributeGroups}</p>
               )}
@@ -454,26 +418,11 @@ const ItemTypeCreatePage: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 {t('attributes', 'itemTypes')} <span className="text-red-500">*</span>
               </label>
-              <select
-                multiple
-                size={10}
-                value={selectedAttributes}
-                onChange={handleAttributeChange}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                  formErrors.attributes
-                    ? 'border-red-300 focus:ring-red-500 dark:border-red-700'
-                    : 'border-gray-300 focus:ring-blue-500 dark:border-gray-600'
-                } dark:bg-gray-700 dark:text-white`}
-              >
-                {attributeOptions.map((attr) => (
-                  <option key={attr._id} value={attr._id}>
-                    {attr.name} ({attr.code})
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {t('multiple_selection_help', 'itemTypes')}
-              </p>
+              <AttributeSelector
+                attributeGroupIds={selectedAttributeGroups}
+                selectedAttributes={selectedAttributes}
+                onChange={setSelectedAttributes}
+              />
               {formErrors.attributes && (
                 <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.attributes}</p>
               )}
@@ -519,10 +468,10 @@ const ItemTypeCreatePage: React.FC = () => {
                 
                 <div>
                   <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                    {t('family', 'itemTypes')}
+                    {t('category', 'itemTypes')}
                   </dt>
                   <dd className="mt-1 text-sm text-gray-900 dark:text-white">
-                    {familyOptions.find(f => f._id === formData.family)?.name || '-'}
+                    {formData.category ? getEntityName(categoryOptions.find(c => c._id === formData.category), currentLanguage) || '-' : '-'}
                   </dd>
                 </div>
                 
@@ -532,9 +481,10 @@ const ItemTypeCreatePage: React.FC = () => {
                   </dt>
                   <dd className="mt-1 text-sm text-gray-900 dark:text-white">
                     {selectedAttributeGroups.length > 0 
-                      ? selectedAttributeGroups.map(id => 
-                          attributeGroupOptions.find(g => g._id === id)?.name
-                        ).filter(Boolean).join(', ')
+                      ? selectedAttributeGroups.map(id => {
+                          const group = attributeGroupOptions.find(g => g._id === id);
+                          return group ? getEntityName(group, currentLanguage) : null;
+                        }).filter(Boolean).join(', ')
                       : '-'
                     }
                   </dd>
@@ -546,9 +496,10 @@ const ItemTypeCreatePage: React.FC = () => {
                   </dt>
                   <dd className="mt-1 text-sm text-gray-900 dark:text-white">
                     {selectedAttributes.length > 0 
-                      ? selectedAttributes.map(id => 
-                          attributeOptions.find(a => a._id === id)?.name
-                        ).filter(Boolean).join(', ')
+                      ? selectedAttributes.map(id => {
+                          const attribute = attributeOptions.find(a => a._id === id);
+                          return attribute ? getEntityName(attribute, currentLanguage) : null;
+                        }).filter(Boolean).join(', ')
                       : '-'
                     }
                   </dd>
@@ -633,7 +584,7 @@ const ItemTypeCreatePage: React.FC = () => {
         </div>
         
         <div className="p-6">
-          <form onSubmit={handleSubmit}>
+          <div>
             {renderStepContent()}
             
             {/* Action Buttons */}
@@ -665,9 +616,10 @@ const ItemTypeCreatePage: React.FC = () => {
                 </Button>
               ) : (
                 <Button
-                  type="submit"
+                  type="button"
                   variant="primary"
                   disabled={isLoading}
+                  onClick={handleSubmit}
                   className="flex items-center"
                 >
                   {isLoading && (
@@ -680,7 +632,7 @@ const ItemTypeCreatePage: React.FC = () => {
                 </Button>
               )}
             </div>
-          </form>
+          </div>
         </div>
       </div>
     </div>

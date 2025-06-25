@@ -17,7 +17,7 @@ export interface ItemType {
   name: string;
   code: string;
   description: string;
-  family?: string;
+  category?: string;
   attributeGroups?: string[];
   attributes?: Attribute[];
   isActive: boolean;
@@ -41,7 +41,7 @@ export interface CreateItemTypeDto {
   name: string;
   code: string;
   description: string;
-  family?: string;
+  category?: string;
   attributeGroups?: string[];
   attributes?: string[];
   isActive?: boolean;

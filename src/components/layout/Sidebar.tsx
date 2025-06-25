@@ -261,10 +261,6 @@ const Sidebar = ({ isOpen, closeSidebar }: SidebarProps) => {
     setNavItems(items);
   }, [t, currentLanguage]); // currentLanguage ekleyerek dil değişiminde yeniden render olmasını sağlıyoruz
 
-  // isOpen değişikliğini izleyen log
-  useEffect(() => {
-    console.log("Sidebar isOpen durumu değişti:", isOpen);
-  }, [isOpen]);
 
   const activeClass = "bg-gray-100 dark:bg-gray-700 text-primary-light dark:text-primary-dark";
   const inactiveClass = "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700";

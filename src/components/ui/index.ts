@@ -1,4 +1,5 @@
 // UI Bileşenlerini toplu ihraç et
+export { default as AlertModal } from './AlertModal';
 export { default as Button } from './Button';
 export { default as Modal } from './Modal';
 export { default as ConfirmationModal } from './ConfirmationModal';

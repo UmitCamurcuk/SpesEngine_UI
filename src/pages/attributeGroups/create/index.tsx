@@ -5,11 +5,13 @@ import attributeGroupService from '../../../services/api/attributeGroupService';
 import attributeService from '../../../services/api/attributeService';
 import Breadcrumb from '../../../components/common/Breadcrumb';
 import Button from '../../../components/ui/Button';
+import { AlertModal } from '../../../components/ui';
 import Stepper from '../../../components/ui/Stepper';
 import TranslationFields from '../../../components/common/TranslationFields';
 import { useTranslationForm } from '../../../hooks/useTranslationForm';
 import { Attribute } from '../../../types/attribute';
 import { getEntityName, getEntityDescription } from '../../../utils/translationUtils';
+import AttributesSelect from '../../../components/attributes/AttributesSelect';
 
 // INTERFACES
 interface CreateAttributeGroupDto {
@@ -50,6 +52,19 @@ const AttributeGroupCreatePage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // Alert modal state'leri
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    type: 'success' | 'error' | 'warning' | 'info';
+    title: string;
+    message: string;
+  }>({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: ''
+  });
 
   // Stepper adımları
   const steps = useMemo(() => [
@@ -188,9 +203,16 @@ const AttributeGroupCreatePage: React.FC = () => {
       
       await attributeGroupService.createAttributeGroup(attributeGroupData);
       
-      navigate('/attributeGroups/list');
+      // Başarılı oluşturma alert'ı
+      showAlert('success', 'Öznitelik Grubu Oluşturuldu', 'Öznitelik grubu başarıyla oluşturuldu. Liste sayfasına yönlendiriliyorsunuz...');
+      
+      // 2 saniye sonra yönlendir
+      setTimeout(() => {
+        navigate('/attributeGroups/list');
+      }, 2000);
+      
     } catch (err: any) {
-      setError(err.message || t('attribute_group_create_error', 'attribute_groups'));
+      showAlert('error', 'Oluşturma Hatası', err.message || t('attribute_group_create_error', 'attribute_groups'));
     } finally {
       setIsSubmitting(false);
     }
@@ -290,89 +312,21 @@ const AttributeGroupCreatePage: React.FC = () => {
       case 1:
         return (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-800 dark:text-white">{t('select_attributes', 'attribute_groups')}</h3>
-              <div className="flex space-x-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSelectAllAttributes}
-                  disabled={availableAttributes.length === 0}
-                >
-                  {t('select_all', 'common')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDeselectAllAttributes}
-                  disabled={selectedAttributes.length === 0}
-                >
-                  {t('select_none', 'common')}
-                </Button>
-              </div>
-            </div>
-
+            <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">{t('select_attributes', 'attribute_groups')}</h3>
+            
             <p className="text-sm text-gray-600 dark:text-gray-400">
               {t('select_attributes_description', 'attribute_groups')}
             </p>
 
-            {availableAttributes.length === 0 ? (
-              <div className="text-center py-8">
-                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                </svg>
-                <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">{t('no_attributes_available', 'attribute_groups')}</h3>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{t('create_attributes_first', 'attribute_groups')}</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {availableAttributes.map((attribute) => (
-                  <div
-                    key={attribute._id}
-                    className={`relative rounded-lg border p-4 cursor-pointer transition-colors ${
-                      selectedAttributes.includes(attribute._id)
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                        : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
-                    }`}
-                    onClick={() => handleAttributeToggle(attribute._id)}
-                  >
-                    <div className="flex items-start">
-                      <div className="flex items-center h-5">
-                        <input
-                          type="checkbox"
-                          checked={selectedAttributes.includes(attribute._id)}
-                          onChange={() => handleAttributeToggle(attribute._id)}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                      </div>
-                      <div className="ml-3 flex-1">
-                        <h4 className="text-sm font-medium text-gray-900 dark:text-white">
-                          {getEntityName(attribute, currentLanguage)}
-                        </h4>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          {attribute.code}
-                        </p>
-                        {getEntityDescription(attribute, currentLanguage) && (
-                          <p className="text-xs text-gray-600 dark:text-gray-300 mt-2 line-clamp-2">
-                            {getEntityDescription(attribute, currentLanguage)}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {selectedAttributes.length > 0 && (
-              <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <p className="text-sm text-blue-800 dark:text-blue-200">
-                  {t('selected_attributes_count', 'attribute_groups').replace('{{count}}', selectedAttributes.length.toString())}
-                </p>
-              </div>
-            )}
+            <AttributesSelect
+              selectedAttributeIds={selectedAttributes}
+              onSelectionChange={setSelectedAttributes}
+              title="Öznitelik Seçimi"
+              emptyMessage="Henüz öznitelik bulunmuyor. Önce öznitelik oluşturun."
+              searchPlaceholder="Öznitelik adı veya kodu ile ara..."
+              maxHeight="max-h-96"
+              isMultiple={true}
+            />
           </div>
         );
 
@@ -452,6 +406,20 @@ const AttributeGroupCreatePage: React.FC = () => {
       default:
         return null;
     }
+  };
+
+  // Alert modal helper fonksiyonları
+  const showAlert = (type: 'success' | 'error' | 'warning' | 'info', title: string, message: string) => {
+    setAlertModal({
+      isOpen: true,
+      type,
+      title,
+      message
+    });
+  };
+
+  const closeAlert = () => {
+    setAlertModal(prev => ({ ...prev, isOpen: false }));
   };
 
   // MAIN RENDER
@@ -566,6 +534,15 @@ const AttributeGroupCreatePage: React.FC = () => {
           </form>
         </div>
       </div>
+
+      {/* Alert Modal */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={closeAlert}
+        type={alertModal.type}
+        title={alertModal.title}
+        message={alertModal.message}
+      />
     </div>
   );
 };

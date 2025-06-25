@@ -18,6 +18,16 @@ interface AttributeGroup {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  createdBy?: {
+    _id: string;
+    name: string;
+    email: string;
+  };
+  updatedBy?: {
+    _id: string;
+    name: string;
+    email: string;
+  };
 }
 
 interface AttributeGroupApiParams {
@@ -75,16 +85,21 @@ const AttributeGroupsListPage: React.FC = () => {
     onThisPage: 0
   });
 
-  // HELPER FUNCTIONS
-  const debouncedSearch = useCallback(
-    debounce((term: string) => {
-      setSearchTerm(term);
-      setPagination(prev => ({ ...prev, page: 1 }));
-    }, 500),
-    []
-  );
+  // Filter states
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [dateRangeFilter, setDateRangeFilter] = useState<{
+    field: string;
+    startDate: string;
+    endDate: string;
+  } | null>(null);
+  const [userFilter, setUserFilter] = useState<{
+    field: string;
+    userId: string;
+  } | null>(null);
+  const [showFilters, setShowFilters] = useState<boolean>(false);
 
-  const fetchAttributeGroups = useCallback(async () => {
+  // HELPER FUNCTIONS
+  const fetchAttributeGroups = async () => {
     setIsLoading(true);
     setError(null);
     
@@ -109,27 +124,42 @@ const AttributeGroupsListPage: React.FC = () => {
       
       const result = await attributeGroupService.getAttributeGroups(params);
       
-      setAttributeGroups(result.attributeGroups);
+      // Güvenli erişim sağla
+      const attributeGroups = result?.attributeGroups || [];
+      setAttributeGroups(attributeGroups);
       setPagination({
-        page: result.page,
-        limit: result.limit,
-        total: result.total
+        page: result?.page || 1,
+        limit: result?.limit || 10,
+        total: result?.total || 0 // API'de total field'i var
       });
       
-      // İstatistikleri hesapla
-      const activeCount = result.attributeGroups.filter(group => group.isActive).length;
+      // İstatistikleri hesapla - güvenli filter işlemi
+      const activeCount = attributeGroups.filter(group => group?.isActive).length;
       
       setStats({
-        total: result.total,
+        total: result?.total || 0,
         active: activeCount,
-        onThisPage: result.attributeGroups.length
+        onThisPage: attributeGroups.length
       });
     } catch (err: any) {
+      console.error('AttributeGroups fetch hatası:', err);
       setError(err.message || t('attribute_groups_fetch_error', 'attribute_groups'));
     } finally {
       setIsLoading(false);
     }
-  }, [pagination.page, pagination.limit, sort, filters, searchTerm, t]);
+  };
+
+  const debouncedSearch = useCallback(
+    debounce((term: string) => {
+      setSearchTerm(term);
+      // setPagination(prev => ({ ...prev, page: 1 })); // Sayfa sıfırlamayı kaldırıyoruz
+    }, 500),
+    []
+  );
+
+  const handleSearchInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    debouncedSearch(e.target.value);
+  };
 
   const handlePageChange = (page: number) => {
     setPagination(prev => ({ ...prev, page }));
@@ -171,15 +201,19 @@ const AttributeGroupsListPage: React.FC = () => {
   // EFFECTS
   useEffect(() => {
     fetchAttributeGroups();
-  }, [fetchAttributeGroups]);
+  }, [pagination.page, pagination.limit, sort, filters]);
 
+  // Search term değiştiğinde otomatik fetch - dependency cycle'ını kırmak için ayrı
   useEffect(() => {
+    // İlk yüklemede search yapma
+    if (searchTerm === '') return;
+    
     const timeoutId = setTimeout(() => {
       fetchAttributeGroups();
-    }, 100);
+    }, 300); // Debounce süresi
     
     return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
+  }, [searchTerm]); // fetchAttributeGroups dependency'sini kaldırıyoruz
 
   // TABLE COLUMNS
   const columns: TableColumn<AttributeGroup>[] = [
@@ -188,13 +222,17 @@ const AttributeGroupsListPage: React.FC = () => {
       header: t('name', 'attribute_groups'),
       sortable: true,
       filterable: false,
-      render: (row) => (
-        <div className="flex items-center">
-          <div className="font-medium text-gray-900 dark:text-white truncate max-w-[200px]" title={getEntityName(row, currentLanguage)}>
-            {getEntityName(row, currentLanguage)}
+      render: (row) => {
+        const entityName = getEntityName(row, currentLanguage);
+        
+        return (
+          <div className="flex items-center">
+            <div className="font-medium text-gray-900 dark:text-white truncate max-w-[200px]" title={entityName}>
+              {entityName || 'İsim bulunamadı'}
+            </div>
           </div>
-        </div>
-      )
+        );
+      }
     },
     {
       key: 'code',
@@ -261,6 +299,58 @@ const AttributeGroupsListPage: React.FC = () => {
             hour: '2-digit',
             minute: '2-digit'
           })}
+        </div>
+      )
+    },
+    {
+      key: 'updatedBy',
+      header: t('last_changed_by', 'attribute_groups'),
+      render: (row) => (
+        <div className="text-sm text-gray-600 dark:text-gray-400">
+          {row.updatedBy ? (
+            <div className="flex items-center">
+              <div className="w-6 h-6 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center mr-2 text-xs font-medium">
+                {row.updatedBy.name.charAt(0).toUpperCase()}
+              </div>
+              <span title={row.updatedBy.email}>{row.updatedBy.name}</span>
+            </div>
+          ) : (
+            <span className="text-gray-400 italic">{t('unknown', 'attribute_groups')}</span>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'createdAt',
+      header: t('created', 'attribute_groups'),
+      sortable: true,
+      render: (row) => (
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          {new Date(row.createdAt).toLocaleDateString('tr-TR', { 
+            day: '2-digit', 
+            month: '2-digit', 
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })}
+        </div>
+      )
+    },
+    {
+      key: 'createdBy',
+      header: t('created_by', 'attribute_groups'),
+      render: (row) => (
+        <div className="text-sm text-gray-600 dark:text-gray-400">
+          {row.createdBy ? (
+            <div className="flex items-center">
+              <div className="w-6 h-6 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center mr-2 text-xs font-medium">
+                {row.createdBy.name.charAt(0).toUpperCase()}
+              </div>
+              <span title={row.createdBy.email}>{row.createdBy.name}</span>
+            </div>
+          ) : (
+            <span className="text-gray-400 italic">{t('unknown', 'attribute_groups')}</span>
+          )}
         </div>
       )
     }
@@ -406,7 +496,7 @@ const AttributeGroupsListPage: React.FC = () => {
                 type="text"
                 className="block w-full p-2 pl-10 text-sm border border-gray-300 rounded-l-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
                 placeholder={t('search_attribute_groups', 'attribute_groups')}
-                onChange={(e) => debouncedSearch(e.target.value)}
+                onChange={handleSearchInput}
               />
             </div>
             <Button
@@ -434,7 +524,7 @@ const AttributeGroupsListPage: React.FC = () => {
       <Card>
         <Table
           columns={columns}
-          data={attributeGroups}
+          data={attributeGroups || []}
           keyField="_id"
           isLoading={isLoading}
           pagination={pagination}

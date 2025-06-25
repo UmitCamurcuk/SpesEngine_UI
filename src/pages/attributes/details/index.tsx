@@ -62,6 +62,11 @@ const AttributeDetailsPage: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   
+  // Comment modal state'leri
+  const [showCommentModal, setShowCommentModal] = useState<boolean>(false);
+  const [comment, setComment] = useState<string>('');
+  const [commentError, setCommentError] = useState<string>('');
+  
   // Attribute Groups state'leri
   const [attributeGroups, setAttributeGroups] = useState<any[]>([]);
   const [allAttributeGroups, setAllAttributeGroups] = useState<any[]>([]);
@@ -283,49 +288,65 @@ const AttributeDetailsPage: React.FC = () => {
 
   // Save changes
   const handleSave = async () => {
-    if (!id || !attribute) return;
+    // Önce comment modal'ını göster
+    setShowCommentModal(true);
+  };
+  
+  // Comment modal'da save işlemi
+  const handleSaveWithComment = async () => {
+    // Comment validasyonu
+    if (comment.trim().length < 3) {
+      setCommentError('Yorum en az 3 karakter olmalıdır.');
+      return;
+    }
+    
+    setCommentError('');
     
     if (!validateForm()) return;
     
     setIsSaving(true);
-    setError(null);
-    
     try {
-      // Sadece değişen translation'ları gönder
-      const currentName = getEntityName(attribute, currentLanguage);
-      const currentDescription = getEntityDescription(attribute, currentLanguage);
-      
-      const updatedData: any = {
-        code: editableFields.code.trim(),
+      const updateData = {
+        name: editableFields.name,
+        code: editableFields.code,
+        description: editableFields.description,
         isRequired: editableFields.isRequired,
-        isActive: editableFields.isActive
+        isActive: editableFields.isActive,
+        comment: comment.trim() // Comment'i de gönder
       };
       
-      // Name değişmişse translation'ı ekle
-      if (editableFields.name.trim() !== currentName) {
-        updatedData.nameTranslations = {
-          [currentLanguage]: editableFields.name.trim()
-        };
-      }
-      
-      // Description değişmişse translation'ı ekle  
-      if (editableFields.description.trim() !== currentDescription) {
-        updatedData.descriptionTranslations = {
-          [currentLanguage]: editableFields.description.trim()
-        };
-      }
-      
-      const updatedAttribute = await attributeService.updateAttribute(id, updatedData);
+      const updatedAttribute = await attributeService.updateAttribute(id!, updateData);
       setAttribute(updatedAttribute);
       setIsEditing(false);
+      setFormErrors({});
+      setShowCommentModal(false);
+      setComment(''); // Comment'i temizle
       
-      // Show success message
-      alert(t('attribute_updated_success', 'attributes'));
+      // Başarılı güncelleme toast'ı
+      addToast({
+        type: 'success',
+        title: 'Öznitelik Güncellendi',
+        message: `"${getEntityName(updatedAttribute, currentLanguage)}" özniteliği başarıyla güncellendi.`,
+        duration: 5000
+      });
+      
     } catch (err: any) {
-      setError(err.message || t('attribute_update_error', 'attributes'));
+      // Hata toast'ı
+      addToast({
+        type: 'error',
+        title: 'Güncelleme Hatası',
+        message: err.message || 'Öznitelik güncellenirken bir hata oluştu.',
+        duration: 5000
+      });
     } finally {
       setIsSaving(false);
     }
+  };
+  
+  const handleCancelComment = () => {
+    setShowCommentModal(false);
+    setComment('');
+    setCommentError('');
   };
 
   // Cancel edit
@@ -390,7 +411,7 @@ const AttributeDetailsPage: React.FC = () => {
       });
       
       // Sayfayı attributes listesine yönlendir
-      navigate('/attributes');
+      navigate('/attributes/list');
       
     } catch (err: any) {
       // Hata toast'ı
@@ -417,7 +438,7 @@ const AttributeDetailsPage: React.FC = () => {
       <div className="flex items-center justify-between">
         <Breadcrumb 
           items={[
-            { label: t('attributes_title', 'attributes'), path: '/attributes' },
+            { label: t('attributes_title', 'attributes'), path: '/attributes/list' },
             { label: getEntityName(attribute, currentLanguage) }
           ]} 
         />
@@ -426,7 +447,7 @@ const AttributeDetailsPage: React.FC = () => {
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center">
-          <Link to="/attributes" className="mr-4">
+          <Link to="/attributes/list" className="mr-4">
             <Button variant="outline" size="sm" className="flex items-center">
               <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -1100,6 +1121,35 @@ const AttributeDetailsPage: React.FC = () => {
         cancelText="İptal"
         isLoading={isDeleting}
       />
+
+      {/* Comment Modal */}
+      <ConfirmationModal
+        isOpen={showCommentModal}
+        onClose={handleCancelComment}
+        onConfirm={handleSaveWithComment}
+        type="confirm"
+        size="md"
+        title="Değişiklik Yorumu"
+        message="Lütfen yaptığınız değişiklikler hakkında kısa bir açıklama yazın:"
+        confirmText="Kaydet"
+        cancelText="İptal"
+        isLoading={isSaving}
+      >
+        <div className="mt-4">
+          <textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            className={`w-full px-3 py-2 border ${
+              commentError ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+            } rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white resize-none`}
+            placeholder="Değişiklik nedenini açıklayın... (en az 3 karakter)"
+            rows={5}
+          />
+          {commentError && (
+            <p className="mt-1 text-sm text-red-500">{commentError}</p>
+          )}
+        </div>
+      </ConfirmationModal>
 
       {/* Toast Container */}
       <ToastContainer

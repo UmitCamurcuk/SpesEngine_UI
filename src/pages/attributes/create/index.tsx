@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
+import { AlertModal } from '../../../components/ui';
 import Breadcrumb from '../../../components/common/Breadcrumb';
 import Stepper from '../../../components/ui/Stepper';
 import attributeService from '../../../services/api/attributeService';
@@ -76,10 +77,40 @@ const AttributeCreatePage: React.FC = () => {
   // AttributeGroup durumu
   const [attributeGroups, setAttributeGroups] = useState<AttributeGroup[]>([]);
   
+  // Loading state for attribute groups
+  const [isLoadingGroups, setIsLoadingGroups] = useState<boolean>(true);
+  
   // Form işleme durumu
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // Alert modal state'leri
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    type: 'success' | 'error' | 'warning' | 'info';
+    title: string;
+    message: string;
+  }>({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: ''
+  });
+
+  // Alert modal helper fonksiyonları
+  const showAlert = (type: 'success' | 'error' | 'warning' | 'info', title: string, message: string) => {
+    setAlertModal({
+      isOpen: true,
+      type,
+      title,
+      message
+    });
+  };
+
+  const closeAlert = () => {
+    setAlertModal(prev => ({ ...prev, isOpen: false }));
+  };
 
   // Stepper adımları
   const steps = useMemo(() => [
@@ -93,16 +124,27 @@ const AttributeCreatePage: React.FC = () => {
   // Öznitelik gruplarını yükle
   useEffect(() => {
     const fetchAttributeGroups = async () => {
+      console.log('AttributeGroups yükleniyor...');
+      setIsLoadingGroups(true);
       try {
         const response = await attributeGroupService.getAttributeGroups({ isActive: true });
-        setAttributeGroups(response.attributeGroups);
+        console.log('AttributeGroups yanıtı:', response);
+        
+        // Güvenli erişim - response yapısını kontrol et
+        const groups = response?.attributeGroups || [];
+        setAttributeGroups(groups);
+        console.log('AttributeGroups state güncellendi:', groups);
+        console.log('Groups array length:', groups.length);
       } catch (err: any) {
         console.error(t('attribute_groups_fetch_error', 'attribute_groups'), err);
+        setAttributeGroups([]); // Hata durumunda boş array
+      } finally {
+        setIsLoadingGroups(false);
       }
     };
     
     fetchAttributeGroups();
-  }, [t, currentLanguage]);
+  }, [t]);
   
   // Form data'yı translation data ile senkronize et
   useEffect(() => {
@@ -203,7 +245,7 @@ const AttributeCreatePage: React.FC = () => {
     // Sayısal öznitelikler için validasyon zorunlu
     if (formData.type === AttributeType.NUMBER) {
       if (!formData.validations || Object.keys(formData.validations).length === 0) {
-        setError(t('number_validation_required', 'attributes'));
+        showAlert('error', 'Validasyon Gerekli', t('number_validation_required', 'attributes'));
         return false;
       }
     }
@@ -212,9 +254,8 @@ const AttributeCreatePage: React.FC = () => {
     if (formData.type === AttributeType.TEXT) {
       // Kullanıcıya bir uyarı göster ama engelleme - TEXT tipi için isteğe bağlı
       if (!formData.validations || Object.keys(formData.validations).length === 0) {
-        if (!confirm(t('text_no_validation_confirm', 'attributes'))) {
-          return false;
-        }
+        showAlert('warning', 'Validasyon Uyarısı', t('text_no_validation_confirm', 'attributes'));
+        return false; // Modal'dan sonra devam etmek için ayrı bir state gerekebilir
       }
     }
     
@@ -222,9 +263,8 @@ const AttributeCreatePage: React.FC = () => {
     if (formData.type === AttributeType.DATE) {
       // Kullanıcıya bir uyarı göster ama engelleme - DATE tipi için isteğe bağlı
       if (!formData.validations || Object.keys(formData.validations).length === 0) {
-        if (!confirm(t('date_no_validation_confirm', 'attributes'))) {
-          return false;
-        }
+        showAlert('warning', 'Validasyon Uyarısı', t('date_no_validation_confirm', 'attributes'));
+        return false;
       }
     }
     
@@ -235,9 +275,8 @@ const AttributeCreatePage: React.FC = () => {
           (!formData.validations || 
            (formData.validations.minSelections === undefined && 
             formData.validations.maxSelections === undefined))) {
-        if (!confirm(t('multiselect_no_validation_confirm', 'attributes'))) {
-          return false;
-        }
+        showAlert('warning', 'Validasyon Uyarısı', t('multiselect_no_validation_confirm', 'attributes'));
+        return false;
       }
     }
     
@@ -363,6 +402,11 @@ const AttributeCreatePage: React.FC = () => {
       [AttributeType.DATETIME]: 'Tarih ve saat değerleri için kullanılır. Örnek: Oluşturulma zamanı',
       [AttributeType.TIME]: 'Sadece saat değerleri için kullanılır. Örnek: Çalışma saatleri',
       
+      // Contact Types
+      [AttributeType.EMAIL]: 'E-posta adresleri için kullanılır. Örnek: info@example.com',
+      [AttributeType.PHONE]: 'Telefon numaraları için kullanılır. Örnek: +90 555 123 4567',
+      [AttributeType.URL]: 'Web adresleri için kullanılır. Örnek: https://example.com',
+      
       // Enum Types
       [AttributeType.SELECT]: 'Önceden tanımlı seçeneklerden biri seçilir. Örnek: Durum, kategori',
       [AttributeType.MULTISELECT]: 'Önceden tanımlı seçeneklerden birden fazla seçilebilir. Örnek: Etiketler, özellikler',
@@ -451,7 +495,16 @@ const AttributeCreatePage: React.FC = () => {
                 {t('attribute_group', 'attributes')}
               </label>
               
-              {(!attributeGroups || attributeGroups.length === 0) ? (
+              {isLoadingGroups ? (
+                <div className="text-center py-8 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <div className="inline-flex items-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
+                    <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
+                      Öznitelik grupları yükleniyor...
+                    </span>
+                  </div>
+                </div>
+              ) : (!attributeGroups || attributeGroups.length === 0) ? (
                 <div className="text-center py-8 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
                   <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -976,16 +1029,17 @@ const AttributeCreatePage: React.FC = () => {
           </form>
         </div>
       </div>
+
+      {/* Alert Modal */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={closeAlert}
+        type={alertModal.type}
+        title={alertModal.title}
+        message={alertModal.message}
+      />
     </div>
   );
 };
 
-export default AttributeCreatePage;
-
-// Dil değiştiğinde bileşeni zorla yeniden oluşturmak için key prop kullanıyoruz
-const AttributeCreatePageWrapper: React.FC = () => {
-  const { currentLanguage } = useTranslation();
-  return <AttributeCreatePage key={`attribute-create-${currentLanguage}`} />;
-};
-
-export { AttributeCreatePageWrapper }; 
+export default AttributeCreatePage; 

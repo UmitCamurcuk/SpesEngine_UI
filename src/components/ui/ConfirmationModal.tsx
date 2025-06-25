@@ -22,6 +22,7 @@ interface ConfirmationModalProps {
   cancelText?: string;
   isLoading?: boolean;
   size?: 'sm' | 'md' | 'lg';
+  children?: React.ReactNode;
 }
 
 const getModalStyles = (type: ConfirmationType) => {
@@ -158,7 +159,8 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   confirmText,
   cancelText,
   isLoading = false,
-  size = 'md'
+  size = 'md',
+  children
 }) => {
   const styles = getModalStyles(type);
   
@@ -202,6 +204,11 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                 <p className="text-sm text-gray-500 dark:text-gray-300">
                   {message || styles.defaultMessage}
                 </p>
+                {children && (
+                  <div className="mt-3">
+                    {children}
+                  </div>
+                )}
               </div>
             </div>
           </div>

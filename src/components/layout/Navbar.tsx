@@ -22,18 +22,15 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
     // LocalStorage'dan sistem ayarlarını al ve sistemin logo/başlık ayarlarını yükle
     const loadSystemSettings = async () => {
       try {
-        console.log('Sistem ayarları yükleniyor...');
         
         // Önce localStorage'dan kontrol et
         const systemSettingsStr = localStorage.getItem('systemSettings');
-        console.log('LocalStorage\'dan okunan ayarlar:', systemSettingsStr ? 'Mevcut' : 'Yok');
         
         let settings = null;
         
         if (systemSettingsStr) {
           try {
             settings = JSON.parse(systemSettingsStr);
-            console.log('Ayarlar başarıyla parse edildi:', settings);
           } catch (parseError) {
             console.error('Sistem ayarları parse edilirken hata:', parseError);
           }
@@ -56,12 +53,10 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
         // Ayarları uygula
         if (settings) {
           if (settings.systemTitle) {
-            console.log('Sistem başlığı ayarlanıyor:', settings.systemTitle);
             setSystemTitle(settings.systemTitle);
           }
           
           if (settings.logoUrl) {
-            console.log('Logo URL ayarlanıyor:', settings.logoUrl);
             setLogoUrl(settings.logoUrl);
             setLogoError(false);
           }
@@ -108,7 +103,6 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
                 alt={systemTitle}
                 className="h-8 w-auto"
                 onError={(e) => {
-                  console.log('Logo yüklenemedi:', logoUrl);
                   setLogoError(true);
                   // Fallback logo denemesinde de hata olmaması için src temizlenir
                   (e.target as HTMLImageElement).src = '';

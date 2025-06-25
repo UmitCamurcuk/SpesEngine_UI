@@ -16,12 +16,12 @@ const attributeGroupService = {
     limit: number;
   }> => {
     try {
-      const response = await api.get<ApiResponse<AttributeGroup[]>>('/attributeGroups', { 
+      const response = await api.get<any>('/attributeGroups', { 
         params 
       });
       
       return {
-        attributeGroups: response.data.data,
+        attributeGroups: response.data.attributeGroups || [],
         total: response.data.total || response.data.count || 0,
         page: response.data.page || 1,
         limit: response.data.limit || 10
@@ -35,8 +35,8 @@ const attributeGroupService = {
   // Belirli bir öznitelik grubunu ID'ye göre getir
   getAttributeGroupById: async (id: string, options?: { includeAttributes?: boolean }): Promise<AttributeGroup> => {
     try {
-      const response = await api.get<ApiResponse<AttributeGroup>>(`/attributeGroups/${id}`, { params: options });
-      return response.data.data;
+      const response = await api.get<any>(`/attributeGroups/${id}`, { params: options });
+      return response.data.data || response.data;
     } catch (error) {
       console.error(`${id} ID'li öznitelik grubu getirilirken hata oluştu:`, error);
       throw error;
@@ -46,8 +46,8 @@ const attributeGroupService = {
   // Yeni öznitelik grubu oluştur
   createAttributeGroup: async (attributeGroupData: CreateAttributeGroupDto): Promise<AttributeGroup> => {
     try {
-      const response = await api.post<ApiResponse<AttributeGroup>>('/attributeGroups', attributeGroupData);
-      return response.data.data;
+      const response = await api.post<any>('/attributeGroups', attributeGroupData);
+      return response.data.data || response.data;
     } catch (error) {
       console.error('Öznitelik grubu oluşturulurken hata oluştu:', error);
       throw error;
@@ -57,8 +57,8 @@ const attributeGroupService = {
   // Mevcut öznitelik grubunu güncelle
   updateAttributeGroup: async (id: string, attributeGroupData: any): Promise<AttributeGroup> => {
     try {
-      const response = await api.put<ApiResponse<AttributeGroup>>(`/attributeGroups/${id}`, attributeGroupData);
-      return response.data.data;
+      const response = await api.put<any>(`/attributeGroups/${id}`, attributeGroupData);
+      return response.data.data || response.data;
     } catch (error) {
       console.error(`${id} ID'li öznitelik grubu güncellenirken hata oluştu:`, error);
       throw error;
@@ -83,8 +83,8 @@ const attributeGroupService = {
     attributes: any[];
   }> => {
     try {
-      const response = await api.get<ApiResponse<any>>(`/attributeGroups/test/${id}`);
-      return response.data.data;
+      const response = await api.get<any>(`/attributeGroups/test/${id}`);
+      return response.data.result || response.data;
     } catch (error) {
       console.error(`${id} ID'li öznitelik grubu test edilirken hata oluştu:`, error);
       throw error;

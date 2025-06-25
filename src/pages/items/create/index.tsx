@@ -39,7 +39,8 @@ interface AttributeFormProps {
   itemType?: ItemTypeOption | null;
   family?: FamilyOption | null;
   category?: CategoryOption | null;
-  attributeGroupNames: Record<string, string>;
+  attributeGroupNames: Record<string, any>;
+  currentLanguage: string;
 }
 
 // Öznitelik bileşenini oluşturmak için yardımcı fonksiyon
@@ -48,13 +49,14 @@ const AttributeField: React.FC<{
   value: any;
   onChange: (value: any) => void;
 }> = ({ attribute, value, onChange }) => {
+  const { currentLanguage } = useTranslation();
   const [error, setError] = useState<string | null>(null);
   
   // Validation kurallarını uygula
   const validateField = (value: any): boolean => {
     // Zorunlu alan kontrolü
     if (attribute.isRequired && (value === undefined || value === null || value === '')) {
-      setError(`${attribute.name} alanı zorunludur`);
+      setError(`${getEntityName(attribute, currentLanguage)} alanı zorunludur`);
       return false;
     }
     
@@ -185,7 +187,7 @@ const AttributeField: React.FC<{
           htmlFor={`attr-${attribute._id}`} 
           className="block text-sm font-medium text-gray-700 dark:text-gray-300"
         >
-          {attribute.name} {attribute.isRequired && <span className="text-red-500">*</span>}
+          {getEntityName(attribute, currentLanguage)} {attribute.isRequired && <span className="text-red-500">*</span>}
         </label>
         
         {tooltipContent && (
@@ -211,7 +213,7 @@ const AttributeField: React.FC<{
             minLength={attribute.validations?.minLength}
             maxLength={attribute.validations?.maxLength}
             pattern={attribute.validations?.pattern}
-            placeholder={attribute.validations?.placeholder || `${attribute.name} girin`}
+            placeholder={attribute.validations?.placeholder || `${getEntityName(attribute, currentLanguage)} girin`}
             className={`bg-gray-50 border ${error ? 'border-red-500' : 'border-gray-300'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
           />
         </div>
@@ -228,7 +230,7 @@ const AttributeField: React.FC<{
             min={attribute.validations?.min}
             max={attribute.validations?.max}
             step={attribute.validations?.step || 1}
-            placeholder={attribute.validations?.placeholder || `${attribute.name} girin`}
+            placeholder={attribute.validations?.placeholder || `${getEntityName(attribute, currentLanguage)} girin`}
             className={`bg-gray-50 border ${error ? 'border-red-500' : 'border-gray-300'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
           />
         </div>
@@ -315,9 +317,9 @@ const AttributeField: React.FC<{
         </p>
       )}
       
-      {attribute.description && (
+      {getEntityDescription(attribute, currentLanguage) && (
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          {attribute.description}
+          {getEntityDescription(attribute, currentLanguage)}
         </p>
       )}
     </div>
@@ -331,7 +333,8 @@ const AttributeForm: React.FC<AttributeFormProps> = ({
   itemType,
   family,
   category,
-  attributeGroupNames
+  attributeGroupNames,
+  currentLanguage
 }) => {
   // Öznitelikleri gruplara ayır
   const groupedAttributes = useMemo(() => {
@@ -341,11 +344,12 @@ const AttributeForm: React.FC<AttributeFormProps> = ({
     
     // Her özniteliği uygun gruba ekle
     attributes.forEach(attr => {
-      if (attr.attributeGroup && attributeGroupNames[attr.attributeGroup]) {
-        if (!grouped[attr.attributeGroup]) {
-          grouped[attr.attributeGroup] = [];
+      const groupId = attr.attributeGroup as string;
+      if (groupId && attributeGroupNames[groupId]) {
+        if (!grouped[groupId]) {
+          grouped[groupId] = [];
         }
-        grouped[attr.attributeGroup].push(attr);
+        grouped[groupId].push(attr);
       } else {
         grouped.ungrouped.push(attr);
       }
@@ -356,7 +360,14 @@ const AttributeForm: React.FC<AttributeFormProps> = ({
   
   // Grup adını döndür
   const getGroupName = (groupId: string): string => {
-    return attributeGroupNames[groupId] || 'Diğer Öznitelikler';
+    const groupNameObj = attributeGroupNames[groupId];
+    if (typeof groupNameObj === 'string') {
+      return groupNameObj;
+    }
+    if (groupNameObj && typeof groupNameObj === 'object') {
+      return getEntityName(groupNameObj, currentLanguage);
+    }
+    return 'Diğer Öznitelikler';
   };
   
   // Öznitelik kaynağına göre başlık rengini belirle
@@ -517,7 +528,7 @@ const ItemCreatePage: React.FC = () => {
       try {
         // Tüm öznitelikleri saklayacak dizi
         let allAttributes: Attribute[] = [];
-        let attributeGroupNamesMap: Record<string, string> = {};
+        let attributeGroupNamesMap: Record<string, any> = {};
         
         // Tüm öznitelik ID'lerini saklayacak Set
         const existingIds = new Set<string>();
@@ -1141,6 +1152,7 @@ const ItemCreatePage: React.FC = () => {
                 family={selectedFamily}
                 category={selectedCategory}
                 attributeGroupNames={attributeGroupNames}
+                currentLanguage={currentLanguage}
               />
             )}
           </div>

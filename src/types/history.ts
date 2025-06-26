@@ -20,6 +20,7 @@ export interface History {
   changes: Record<string, HistoryChange>;
   previousData: any;
   newData: any;
+  comment?: string;
   createdBy: {
     _id: string;
     name: string;

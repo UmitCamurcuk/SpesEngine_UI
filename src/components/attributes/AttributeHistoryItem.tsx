@@ -169,6 +169,25 @@ const AttributeHistoryItem: React.FC<AttributeHistoryItemProps> = ({ history }) 
               </svg>
               {history.createdBy?.name || 'Bilinmeyen Kullanıcı'}
             </div>
+
+            {/* Yorum */}
+            {history.comment && (
+              <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+                <div className="flex items-start">
+                  <svg className="w-4 h-4 mr-2 mt-0.5 text-blue-600 dark:text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                  </svg>
+                  <div>
+                    <div className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">
+                      Yorum:
+                    </div>
+                    <div className="text-sm text-blue-700 dark:text-blue-400 whitespace-pre-wrap">
+                      {history.comment}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             
             {/* Değişiklikler */}
             {history.action !== ActionType.DELETE && renderChanges()}

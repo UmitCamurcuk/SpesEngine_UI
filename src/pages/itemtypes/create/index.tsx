@@ -184,11 +184,15 @@ const ItemTypeCreatePage: React.FC = () => {
         ),
         primaryButton: {
           text: 'Öğe Türüne Git',
-          onClick: () => navigate(`/itemtypes/details/${createdItemType._id}`)
+          onClick: () => {
+            navigate(`/itemtypes/details/${createdItemType._id}`);
+          }
         },
         secondaryButton: {
           text: 'Kapat',
-          onClick: () => {}
+          onClick: () => {
+            navigate('/itemtypes/list');
+          }
         }
       });
       

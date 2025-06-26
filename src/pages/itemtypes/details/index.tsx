@@ -319,13 +319,49 @@ const ItemTypeDetailsPage: React.FC = () => {
   const handleSave = async (comment: string) => {
     setIsSaving(true);
     try {
-      // Update data oluştur
-      const updateData = {
-        ...editableFields,
-        attributeGroups: attributeGroups.map(g => g.id),
-        attributes: attributes.map(a => a.id),
-        comment // Yorum ekle
-      };
+      // Sadece değişen alanları payload'a dahil et
+      const updateData: any = {};
+      
+      if (itemType) {
+        // Kod değişmişse ekle
+        if (editableFields.code !== itemType.code) {
+          updateData.code = editableFields.code;
+        }
+        
+        // Durum değişmişse ekle
+        if (editableFields.isActive !== itemType.isActive) {
+          updateData.isActive = editableFields.isActive;
+        }
+        
+        // Kategori değişmişse ekle
+        const currentCategoryId = (itemType.category && typeof itemType.category === 'object') ? (itemType.category as any)._id : (itemType.category || '');
+        if (editableFields.category !== currentCategoryId) {
+          updateData.category = editableFields.category;
+        }
+        
+        // Öznitelik grupları değişmişse ekle
+        const currentAttributeGroupIds = attributeGroups.map(g => g.id);
+        const originalAttributeGroupIds = itemType.attributeGroups ? 
+          (Array.isArray(itemType.attributeGroups) ? itemType.attributeGroups.map((ag: any) => ag._id || ag) : []) : [];
+        
+        if (JSON.stringify(currentAttributeGroupIds.sort()) !== JSON.stringify(originalAttributeGroupIds.sort())) {
+          updateData.attributeGroups = currentAttributeGroupIds;
+        }
+        
+        // Öznitelikler değişmişse ekle
+        const currentAttributeIds = attributes.map(a => a.id);
+        const originalAttributeIds = itemType.attributes ? 
+          (Array.isArray(itemType.attributes) ? itemType.attributes.map((attr: any) => attr._id || attr) : []) : [];
+        
+        if (JSON.stringify(currentAttributeIds.sort()) !== JSON.stringify(originalAttributeIds.sort())) {
+          updateData.attributes = currentAttributeIds;
+        }
+        
+        // Comment varsa ekle
+        if (comment && comment.trim()) {
+          updateData.comment = comment.trim();
+        }
+      }
       
       const updatedItemType = await itemTypeService.updateItemType(id!, updateData);
       setItemType(updatedItemType);

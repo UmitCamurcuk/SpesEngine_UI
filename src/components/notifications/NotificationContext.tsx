@@ -63,7 +63,14 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
   // Comment modal functions
   const showCommentModal = useCallback((props: Omit<CommentModalProps, 'isOpen' | 'onClose'>) => {
-    setCommentModalProps(props);
+    const wrappedProps = {
+      ...props,
+      onSave: async (comment: string) => {
+        await props.onSave(comment);
+        closeCommentModal(); // Modal'ı save işleminden sonra kapat
+      }
+    };
+    setCommentModalProps(wrappedProps);
   }, []);
 
   const closeCommentModal = useCallback(() => {

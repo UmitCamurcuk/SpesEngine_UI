@@ -2,9 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
-import { ToastContainer } from 'react-toastify';
 import { NotificationProvider } from '../notifications';
-import 'react-toastify/dist/ReactToastify.css';
 
 const AppLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -47,19 +45,7 @@ const AppLayout: React.FC = () => {
           </main>
         </div>
         
-        {/* Toast Container */}
-        <ToastContainer
-          position="top-right"
-          autoClose={3000}
-          hideProgressBar={false}
-          newestOnTop
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="colored"
-        />
+
       </div>
     </NotificationProvider>
   );

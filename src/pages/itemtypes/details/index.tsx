@@ -628,8 +628,8 @@ const ItemTypeDetailsPage: React.FC = () => {
                 JSON Göster
               </Button>
               <Button
-                variant="primary"
-                className="flex items-center"
+                variant="outline"
+                className="flex items-center bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-800 border-blue-300 hover:border-blue-400 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 dark:text-blue-400 dark:hover:text-blue-300 dark:border-blue-700 dark:hover:border-blue-600"
                 onClick={handleStartEdit}
               >
                 <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -638,8 +638,8 @@ const ItemTypeDetailsPage: React.FC = () => {
                 Düzenle
               </Button>
               <Button
-                variant="secondary"
-                className="flex items-center text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900"
+                variant="outline"
+                className="flex items-center bg-red-50 hover:bg-red-100 text-red-700 hover:text-red-800 border-red-300 hover:border-red-400 dark:bg-red-900/20 dark:hover:bg-red-900/40 dark:text-red-400 dark:hover:text-red-300 dark:border-red-700 dark:hover:border-red-600"
                 onClick={handleDelete}
               >
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">

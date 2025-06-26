@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useTranslation } from '../../../context/i18nContext';
-import { toast } from 'react-toastify';
+import { useNotification } from '../../../components/notifications';
 import GeneralSettings from './components/GeneralSettings';
 import SecuritySettings from './components/SecuritySettings';
 import BackupSettings from './components/BackupSettings';
@@ -19,6 +19,7 @@ type SettingTab = {
 
 const SystemSettingsPage: React.FC = () => {
   const { t } = useTranslation();
+  const { showToast } = useNotification();
   const [activeTab, setActiveTab] = useState<string>('general');
   const [loading, setLoading] = useState(false);
 
@@ -109,10 +110,20 @@ const SystemSettingsPage: React.FC = () => {
       // Her bir bileşenin kendi kaydetme fonksiyonunu çağır
       //const settings = await systemSettingsService.getSettings();
       // await systemSettingsService.updateSettings(settings);
-      toast.success(t('settings_saved', 'system'));
+      showToast({
+        type: 'success',
+        title: 'Başarılı',
+        message: 'Ayarlar başarıyla kaydedildi',
+        duration: 3000
+      });
     } catch (error) {
       console.error('Ayarlar kaydedilirken hata:', error);
-      toast.error(t('settings_save_error', 'system'));
+      showToast({
+        type: 'error',
+        title: 'Hata',
+        message: 'Ayarlar kaydedilirken bir hata oluştu',
+        duration: 5000
+      });
     } finally {
       setLoading(false);
     }

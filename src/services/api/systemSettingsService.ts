@@ -78,10 +78,16 @@ export interface ISystemSettings {
   integrations: {
     api: {
       enabled: boolean;
+      enablePublicAPI: boolean;
       rateLimit: number;
     };
     email: {
       provider: string;
+      host?: string;
+      port?: number;
+      username?: string;
+      password?: string;
+      fromEmail?: string;
       smtpHost?: string;
       smtpPort?: number;
       smtpUsername?: string;
@@ -92,7 +98,18 @@ export interface ISystemSettings {
       provider: string;
       clientId?: string;
       clientSecret?: string;
+      callbackUrl?: string;
       domain?: string;
+    };
+    slack?: {
+      enabled: boolean;
+      webhookUrl: string;
+      channel: string;
+      username: string;
+      iconEmoji: string;
+      notifyOnErrors: boolean;
+      notifyOnWarnings: boolean;
+      notifyOnSuccess: boolean;
     };
     erp?: {
       integration: string;
@@ -183,6 +200,7 @@ const defaultSettings: ISystemSettings = {
   integrations: {
     api: {
       enabled: true,
+      enablePublicAPI: false,
       rateLimit: 100
     },
     email: {
@@ -314,6 +332,25 @@ class SystemSettingsService {
       console.error('Varsayılan ayarlara dönerken hata:', error);
       localStorage.setItem('offlineSettings', JSON.stringify(defaultSettings));
       return defaultSettings;
+    }
+  }
+
+  // Slack webhook test et
+  async testSlackWebhook(webhookData: {
+    webhookUrl: string;
+    channel?: string;
+    username?: string;
+    iconEmoji?: string;
+  }): Promise<{ success: boolean; message: string }> {
+    try {
+      const response: AxiosResponse<{ success: boolean; message: string }> = await api.post(
+        `${this.baseUrl}/test-slack`,
+        webhookData
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Slack webhook test hatası:', error);
+      throw error;
     }
   }
 }

@@ -18,57 +18,66 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
   const [logoUrl, setLogoUrl] = useState<string | null>('/logo.png');
   const [logoError, setLogoError] = useState(false);
 
-  useEffect(() => {
-    // LocalStorage'dan sistem ayarlarını al ve sistemin logo/başlık ayarlarını yükle
-    const loadSystemSettings = async () => {
-      try {
-        
-        // Önce localStorage'dan kontrol et
-        const systemSettingsStr = localStorage.getItem('systemSettings');
-        
-        let settings = null;
-        
-        if (systemSettingsStr) {
-          try {
-            settings = JSON.parse(systemSettingsStr);
-          } catch (parseError) {
-            console.error('Sistem ayarları parse edilirken hata:', parseError);
-          }
+  const loadSystemSettings = async () => {
+    try {
+      // Önce localStorage'dan kontrol et
+      const systemSettingsStr = localStorage.getItem('systemSettings');
+      
+      let settings = null;
+      
+      if (systemSettingsStr) {
+        try {
+          settings = JSON.parse(systemSettingsStr);
+        } catch (parseError) {
+          console.error('Sistem ayarları parse edilirken hata:', parseError);
         }
-        
-        // LocalStorage'da ayarlar yoksa veya parse edilemiyorsa API'den getir
-        if (!settings) {
-          console.log('LocalStorage\'da geçerli ayarlar bulunamadı, API\'den alınıyor...');
-          try {
-            settings = await systemSettingsService.getSettings();
-            console.log('API\'den alınan ayarlar:', settings);
-            
-            // Alınan ayarları localStorage'a kaydet
-            localStorage.setItem('systemSettings', JSON.stringify(settings));
-          } catch (apiError) {
-            console.error('API\'den sistem ayarları alınırken hata:', apiError);
-          }
-        }
-        
-        // Ayarları uygula
-        if (settings) {
-          if (settings.systemTitle) {
-            setSystemTitle(settings.systemTitle);
-          }
-          
-          if (settings.logoUrl) {
-            setLogoUrl(settings.logoUrl);
-            setLogoError(false);
-          }
-        } else {
-          console.log('Ayarlar bulunamadı, varsayılanlar kullanılıyor');
-        }
-      } catch (error) {
-        console.error('Sistem ayarları yüklenirken beklenmeyen hata:', error);
       }
-    };
-    
+      
+      // LocalStorage'da ayarlar yoksa veya parse edilemiyorsa API'den getir
+      if (!settings) {
+        console.log('LocalStorage\'da geçerli ayarlar bulunamadı, API\'den alınıyor...');
+        try {
+          settings = await systemSettingsService.getSettings();
+          console.log('API\'den alınan ayarlar:', settings);
+          
+          // Alınan ayarları localStorage'a kaydet
+          localStorage.setItem('systemSettings', JSON.stringify(settings));
+        } catch (apiError) {
+          console.error('API\'den sistem ayarları alınırken hata:', apiError);
+        }
+      }
+      
+      // Ayarları uygula
+      if (settings) {
+        if (settings.systemTitle) {
+          setSystemTitle(settings.systemTitle);
+        }
+        
+        if (settings.logoUrl) {
+          setLogoUrl(settings.logoUrl);
+          setLogoError(false);
+        }
+      } else {
+        console.log('Ayarlar bulunamadı, varsayılanlar kullanılıyor');
+      }
+    } catch (error) {
+      console.error('Sistem ayarları yüklenirken beklenmeyen hata:', error);
+    }
+  };
+
+  useEffect(() => {
     loadSystemSettings();
+
+    // Custom event listener for system settings changes
+    const handleSystemSettingsUpdate = () => {
+      loadSystemSettings();
+    };
+
+    window.addEventListener('systemSettingsUpdated', handleSystemSettingsUpdate);
+
+    return () => {
+      window.removeEventListener('systemSettingsUpdated', handleSystemSettingsUpdate);
+    };
   }, []);
 
   const handleLogout = () => {
@@ -101,7 +110,7 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
               <img 
                 src={logoUrl} 
                 alt={systemTitle}
-                className="h-8 w-auto"
+                className="h-8 w-auto max-w-[120px] object-contain"
                 onError={(e) => {
                   setLogoError(true);
                   // Fallback logo denemesinde de hata olmaması için src temizlenir

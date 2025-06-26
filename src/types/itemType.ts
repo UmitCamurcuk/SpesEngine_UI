@@ -14,12 +14,12 @@ export interface ItemTypeApiParams {
 // ItemType modeli
 export interface ItemType {
   _id: string;
-  name: string;
+  name: any; // Localization objesi olarak gelir
   code: string;
-  description: string;
-  category?: string;
-  attributeGroups?: string[];
-  attributes?: Attribute[];
+  description: any; // Localization objesi olarak gelir
+  category?: any; // Category objesi olarak populate edilmiş
+  attributeGroups?: any[]; // AttributeGroup objeleri olarak populate edilmiş
+  attributes?: any[]; // Attribute objeleri olarak populate edilmiş
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -43,6 +43,5 @@ export interface CreateItemTypeDto {
   description: string;
   category?: string;
   attributeGroups?: string[];
-  attributes?: string[];
   isActive?: boolean;
 } 

@@ -5,9 +5,12 @@ import type { TableColumn, SortParams, FilterParams, PaginationParams } from '..
 import Button from '../../../components/ui/Button';
 import itemTypeService from '../../../services/api/itemTypeService';
 import type { ItemType, ItemTypeApiParams } from '../../../types/itemType';
+import { useTranslation } from '../../../context/i18nContext';
+import { getEntityName, getEntityDescription } from '../../../utils/translationUtils';
 
 const ItemTypesListPage: React.FC = () => {
   const navigate = useNavigate();
+  const { t, currentLanguage } = useTranslation();
   
   // State tanımlamaları
   const [itemTypes, setItemTypes] = useState<ItemType[]>([]);
@@ -154,8 +157,8 @@ const ItemTypesListPage: React.FC = () => {
       filterable: true,
       render: (row) => (
         <div className="flex items-center">
-          <div className="font-medium text-gray-900 dark:text-white truncate max-w-[200px]" title={row.name}>
-            {row.name}
+          <div className="font-medium text-gray-900 dark:text-white truncate max-w-[200px]" title={getEntityName(row, currentLanguage)}>
+            {getEntityName(row, currentLanguage)}
           </div>
         </div>
       )
@@ -175,8 +178,8 @@ const ItemTypesListPage: React.FC = () => {
       key: 'description',
       header: 'Açıklama',
       render: (row) => (
-        <div className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={row.description}>
-          {row.description || <span className="text-gray-400 italic">Açıklama yok</span>}
+        <div className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={getEntityDescription(row, currentLanguage)}>
+          {getEntityDescription(row, currentLanguage) || <span className="text-gray-400 italic">Açıklama yok</span>}
         </div>
       )
     },
@@ -241,7 +244,7 @@ const ItemTypesListPage: React.FC = () => {
         className="p-1 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900 rounded-md"
         onClick={(e) => {
           e.stopPropagation();
-          handleDeleteItemType(itemType._id, itemType.name);
+          handleDeleteItemType(itemType._id, getEntityName(itemType, currentLanguage));
         }}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">

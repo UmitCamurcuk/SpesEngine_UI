@@ -5,22 +5,13 @@ import Breadcrumb from '../../../components/common/Breadcrumb';
 import Stepper from '../../../components/ui/Stepper';
 import TranslationFields from '../../../components/common/TranslationFields';
 import AttributeGroupsSelector from '../../../components/attributes/AttributeGroupSelector';
-import AttributeSelector from '../../../components/attributes/AttributeSelector';
 import itemTypeService from '../../../services/api/itemTypeService';
-import attributeService from '../../../services/api/attributeService';
 import attributeGroupService from '../../../services/api/attributeGroupService';
 import categoryService from '../../../services/api/categoryService';
 import { useTranslation } from '../../../context/i18nContext';
 import { useTranslationForm } from '../../../hooks/useTranslationForm';
 import { getEntityName, getEntityDescription } from '../../../utils/translationUtils';
 import type { CreateItemTypeDto } from '../../../types/itemType';
-
-interface AttributeOption {
-  _id: string;
-  name: any;
-  code: string;
-  description?: any;
-}
 
 interface AttributeGroupOption {
   _id: string;
@@ -55,17 +46,14 @@ const ItemTypeCreatePage: React.FC = () => {
     description: '',
     category: '',
     attributeGroups: [],
-    attributes: [],
     isActive: true
   });
   
   // Seçenekler
-  const [attributeOptions, setAttributeOptions] = useState<AttributeOption[]>([]);
   const [attributeGroupOptions, setAttributeGroupOptions] = useState<AttributeGroupOption[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
   
   // Seçili öğeler
-  const [selectedAttributes, setSelectedAttributes] = useState<string[]>([]);
   const [selectedAttributeGroups, setSelectedAttributeGroups] = useState<string[]>([]);
   
   // Loading ve error state
@@ -83,7 +71,6 @@ const ItemTypeCreatePage: React.FC = () => {
     { title: t('general_info', 'itemTypes'), description: t('name_code_description', 'itemTypes') },
     { title: t('category_selection', 'itemTypes'), description: t('select_category_for_item_type', 'itemTypes') },
     { title: t('attribute_groups', 'itemTypes'), description: t('select_attribute_groups', 'itemTypes') },
-    { title: t('attributes', 'itemTypes'), description: t('select_attributes', 'itemTypes') },
     { title: t('review_and_create', 'itemTypes'), description: t('review_before_creating', 'itemTypes') },
   ], [t, currentLanguage]);
 
@@ -103,19 +90,10 @@ const ItemTypeCreatePage: React.FC = () => {
     }));
   }, [translationData, currentLanguage]);
   
-  // Öznitelik ve öznitelik gruplarını yükle
+  // Öznitelik grupları ve kategorileri yükle
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        // Öznitelikleri getir
-        const attributesResult = await attributeService.getAttributes({ limit: 100 });
-        setAttributeOptions(attributesResult.attributes.map(attr => ({
-          _id: attr._id,
-          name: attr.name,
-          code: attr.code,
-          description: attr.description
-        })));
-        
         // Öznitelik gruplarını getir
         const groupsResult = await attributeGroupService.getAttributeGroups({ limit: 100 });
         setAttributeGroupOptions(groupsResult.attributeGroups.map(group => ({
@@ -182,7 +160,6 @@ const ItemTypeCreatePage: React.FC = () => {
         ...formData,
         name: nameTranslations.nameId,
         description: descriptionTranslations.descriptionId || nameTranslations.nameId,
-        attributes: selectedAttributes,
         attributeGroups: selectedAttributeGroups
       };
       
@@ -238,20 +215,10 @@ const ItemTypeCreatePage: React.FC = () => {
   const validateStep3 = (): boolean => {
     const errors: Record<string, string> = {};
     
-    if (selectedAttributeGroups.length === 0) {
-      errors.attributeGroups = t('attribute_groups_required', 'itemTypes');
-    }
-    
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const validateStep4 = (): boolean => {
-    const errors: Record<string, string> = {};
-    
-    if (selectedAttributes.length === 0) {
-      errors.attributes = t('attributes_required', 'itemTypes');
-    }
+    // AttributeGroups opsiyonel yap
+    // if (selectedAttributeGroups.length === 0) {
+    //   errors.attributeGroups = t('attribute_groups_required', 'itemTypes');
+    // }
     
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -267,8 +234,6 @@ const ItemTypeCreatePage: React.FC = () => {
       isValid = validateStep2();
     } else if (currentStep === 2) {
       isValid = validateStep3();
-    } else if (currentStep === 3) {
-      isValid = validateStep4();
     }
     
     if (isValid) {
@@ -394,7 +359,7 @@ const ItemTypeCreatePage: React.FC = () => {
             
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                {t('attribute_groups', 'itemTypes')} <span className="text-red-500">*</span>
+                {t('attribute_groups', 'itemTypes')} <span className="text-gray-400">({t('optional', 'common')})</span>
               </label>
               <AttributeGroupsSelector
                 selectedAttributeGroups={selectedAttributeGroups}
@@ -408,29 +373,6 @@ const ItemTypeCreatePage: React.FC = () => {
         );
         
       case 3:
-        return (
-          <div className="space-y-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-              {t('attributes', 'itemTypes')}
-            </h3>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                {t('attributes', 'itemTypes')} <span className="text-red-500">*</span>
-              </label>
-              <AttributeSelector
-                attributeGroupIds={selectedAttributeGroups}
-                selectedAttributes={selectedAttributes}
-                onChange={setSelectedAttributes}
-              />
-              {formErrors.attributes && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.attributes}</p>
-              )}
-            </div>
-          </div>
-        );
-        
-      case 4:
         return (
           <div className="space-y-6">
             <h3 className="text-lg font-medium text-gray-900 dark:text-white">
@@ -484,21 +426,6 @@ const ItemTypeCreatePage: React.FC = () => {
                       ? selectedAttributeGroups.map(id => {
                           const group = attributeGroupOptions.find(g => g._id === id);
                           return group ? getEntityName(group, currentLanguage) : null;
-                        }).filter(Boolean).join(', ')
-                      : '-'
-                    }
-                  </dd>
-                </div>
-                
-                <div>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                    {t('attributes', 'itemTypes')} ({selectedAttributes.length})
-                  </dt>
-                  <dd className="mt-1 text-sm text-gray-900 dark:text-white">
-                    {selectedAttributes.length > 0 
-                      ? selectedAttributes.map(id => {
-                          const attribute = attributeOptions.find(a => a._id === id);
-                          return attribute ? getEntityName(attribute, currentLanguage) : null;
                         }).filter(Boolean).join(', ')
                       : '-'
                     }

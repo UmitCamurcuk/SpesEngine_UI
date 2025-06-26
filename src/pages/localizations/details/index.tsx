@@ -33,7 +33,10 @@ interface Localization {
 
 const LocalizationDetailsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
+  const { namespace, key } = useParams<{ namespace: string; key: string }>();
+  
+  // Debug parametreleri
+  console.log('Details page params:', { namespace, key });
   
   // State'ler
   const [localization, setLocalization] = useState<Localization>({
@@ -49,16 +52,18 @@ const LocalizationDetailsPage: React.FC = () => {
 
   // API çağrıları
   const fetchData = async () => {
-    if (!id) {
+    if (!namespace || !key) {
       return;
     }
 
     try {
       setIsLoading(true);
       
+      const compositeId = `${namespace}:${key}`;
+      
       const [langResult, localizationResult] = await Promise.all([
         localizationService.getSupportedLanguages(),
-        localizationService.getTranslationById(id)
+        localizationService.getTranslationById(compositeId)
       ]);
 
       if (langResult.success) {
@@ -86,7 +91,7 @@ const LocalizationDetailsPage: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-  }, [id]);
+  }, [namespace, key]);
 
   // Event handlers
   const handleInputChange = (lang: string, value: string) => {
@@ -97,15 +102,17 @@ const LocalizationDetailsPage: React.FC = () => {
   };
 
   const handleSubmit = async () => {
-    if (!id) {
-      toast.error('Geçersiz çeviri ID\'si');
+    if (!namespace || !key) {
+      toast.error('Geçersiz çeviri parametreleri');
       return;
     }
 
     try {
       setIsSaving(true);
       
-      await localizationService.updateTranslationById(id, {
+      const compositeId = `${namespace}:${key}`;
+      
+      await localizationService.updateTranslationById(compositeId, {
         translations: editedTranslations
       });
       

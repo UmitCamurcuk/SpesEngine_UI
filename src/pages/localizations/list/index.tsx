@@ -235,7 +235,9 @@ const LocalizationsListPage: React.FC = () => {
   
   // Satır tıklama handler - detay sayfasına yönlendir
   const handleRowClick = (localization: Localization) => {
-    navigate(`/localizations/details/${localization._id}`);
+    console.log('handleRowClick called with:', localization);
+    console.log('Navigating to:', `/localizations/details/${encodeURIComponent(localization.namespace)}/${encodeURIComponent(localization.key)}`);
+    navigate(`/localizations/details/${encodeURIComponent(localization.namespace)}/${encodeURIComponent(localization.key)}`);
   };
   
   // Çeviri oluştur handler
@@ -304,7 +306,9 @@ const LocalizationsListPage: React.FC = () => {
             variant="primary"
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/localizations/details/${row._id}`);
+              console.log('Detay button clicked for:', row);
+              console.log('Navigating to:', `/localizations/details/${encodeURIComponent(row.namespace)}/${encodeURIComponent(row.key)}`);
+              navigate(`/localizations/details/${encodeURIComponent(row.namespace)}/${encodeURIComponent(row.key)}`);
             }}
           >
             Detay

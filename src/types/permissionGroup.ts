@@ -24,6 +24,7 @@ export interface UpdatePermissionGroupDto {
   code?: string;
   permissions?: string[];
   isActive?: boolean;
+  comment?: string;
 }
 
 export interface PermissionGroupListParams {

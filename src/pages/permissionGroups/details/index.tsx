@@ -4,6 +4,8 @@ import Button from '../../../components/ui/Button';
 import { useNotification } from '../../../components/notifications';
 import Breadcrumb from '../../../components/common/Breadcrumb';
 import EntityHistoryList from '../../../components/common/EntityHistoryList';
+import PermissionSelectorModal from '../../../components/permissions/PermissionSelectorModal';
+import { useTranslation } from '../../../context/i18nContext';
 import permissionGroupService from '../../../services/api/permissionGroupService';
 import permissionService from '../../../services/api/permissionService';
 import { PermissionGroup } from '../../../types/permissionGroup';
@@ -36,6 +38,7 @@ const PermissionGroupDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { showToast, showModal, showCommentModal } = useNotification();
+  const { currentLanguage } = useTranslation();
   
   // STATE VARIABLES
   const [permissionGroup, setPermissionGroup] = useState<PermissionGroup | null>(null);
@@ -50,6 +53,7 @@ const PermissionGroupDetailsPage: React.FC = () => {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [selectedPermissionIds, setSelectedPermissionIds] = useState<string[]>([]);
+  const [showPermissionModal, setShowPermissionModal] = useState<boolean>(false);
   
   // Edit form data
   const [editableFields, setEditableFields] = useState({
@@ -209,16 +213,14 @@ const PermissionGroupDetailsPage: React.FC = () => {
       return;
     }
 
-    try {
-      const comment = await showCommentModal({
-        title: 'İzin Grubu Güncelleme',
-        changes
-      });
-
-      await handleSaveWithComment(comment, changes);
-    } catch (error) {
-      // Comment modal iptal edildi
-    }
+    // Comment modal göster
+    showCommentModal({
+      title: 'İzin Grubu Güncelleme',
+      changes: changes,
+      onSave: async (comment: string) => {
+        await handleSaveWithComment(comment, changes);
+      }
+    });
   };
   
   const handleSaveWithComment = async (comment: string, changes: any) => {
@@ -230,7 +232,7 @@ const PermissionGroupDetailsPage: React.FC = () => {
       await permissionGroupService.updatePermissionGroup(id, {
         ...editableFields,
         permissions: selectedPermissionIds,
-        comment
+        comment: comment
       });
       
       // Veriyi yeniden yükle
@@ -267,26 +269,35 @@ const PermissionGroupDetailsPage: React.FC = () => {
   
   const handleDeleteClick = () => {
     showModal({
+      type: 'error',
       title: 'İzin Grubunu Sil',
       message: `"${permissionGroup?.name}" izin grubunu silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`,
-      type: 'error'
-    }).then(async (confirmed) => {
-      if (confirmed && id) {
-        try {
-          await permissionGroupService.deletePermissionGroup(id);
-          showToast({ 
-            title: 'Başarılı', 
-            message: 'İzin grubu başarıyla silindi',
-            type: 'success'
-          });
-          navigate('/permissionGroups/list');
-        } catch (err: any) {
-          showToast({ 
-            title: 'Hata', 
-            message: 'Silme hatası: ' + err.message,
-            type: 'error'
-          });
-        }
+      primaryButton: {
+        text: 'Sil',
+        onClick: async () => {
+          if (id) {
+            try {
+              await permissionGroupService.deletePermissionGroup(id);
+              showToast({ 
+                title: 'Başarılı', 
+                message: 'İzin grubu başarıyla silindi',
+                type: 'success'
+              });
+              navigate('/permissionGroups/list');
+            } catch (err: any) {
+              showToast({ 
+                title: 'Hata', 
+                message: 'Silme hatası: ' + err.message,
+                type: 'error'
+              });
+            }
+          }
+        },
+        variant: 'error'
+      },
+      secondaryButton: {
+        text: 'İptal',
+        onClick: () => {}
       }
     });
   };
@@ -685,50 +696,97 @@ const PermissionGroupDetailsPage: React.FC = () => {
         <Card>
           <CardHeader className="flex items-center justify-between">
             <h2 className="text-lg font-medium text-gray-900 dark:text-white">Grup İzinleri</h2>
-            <span className="text-sm text-gray-500 dark:text-gray-400">
-              {selectedPermissionIds.length} / {allPermissions.length} izin seçildi
-            </span>
+            <div className="flex items-center space-x-3">
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                {selectedPermissionIds.length} izin atanmış
+              </span>
+              {isEditing && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setShowPermissionModal(true)}
+                  className="flex items-center"
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  İzin Ekle
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardBody>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {allPermissions.map((permission) => (
-                <div
-                  key={permission._id}
-                  className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800"
-                >
-                  <label className="flex items-start cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedPermissionIds.includes(permission._id)}
-                      onChange={() => handlePermissionToggle(permission._id)}
-                      disabled={!isEditing}
-                      className="mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500 disabled:opacity-50"
-                    />
-                    <div className="ml-3">
-                      <div className="font-medium text-gray-900 dark:text-white">
-                        {permission.name.tr}
-                      </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {permission.description.tr}
-                      </div>
-                      <div className="text-xs text-gray-400 dark:text-gray-500 font-mono">
-                        {permission.code}
-                      </div>
-                    </div>
-                  </label>
-                </div>
-              ))}
-            </div>
-            
-            {allPermissions.length === 0 && (
+            {selectedPermissionIds.length === 0 ? (
               <div className="text-center py-12">
-                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
-                <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">İzin bulunamadı</h3>
+                <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
+                  {isEditing ? 'Henüz hiç izin eklenmemiş' : 'Bu grupta hiç izin yok'}
+                </h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Sistemde tanımlı izin bulunmamaktadır.
+                  {isEditing 
+                    ? 'İzin eklemek için yukarıdaki "İzin Ekle" butonunu kullanın.'
+                    : 'Bu izin grubuna henüz hiç izin atanmamış.'
+                  }
                 </p>
+                {isEditing && (
+                  <div className="mt-6">
+                    <Button
+                      variant="primary"
+                      onClick={() => setShowPermissionModal(true)}
+                      className="flex items-center mx-auto"
+                    >
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                      İzin Ekle
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {allPermissions
+                  .filter(permission => selectedPermissionIds.includes(permission._id))
+                  .map((permission) => (
+                    <div
+                      key={permission._id}
+                      className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800"
+                    >
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900 dark:text-white">
+                          {currentLanguage === 'tr' ? permission.name.tr : permission.name.en}
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {currentLanguage === 'tr' ? permission.description.tr : permission.description.en}
+                        </div>
+                        <div className="text-xs text-gray-400 dark:text-gray-500 font-mono mt-1">
+                          {permission.code}
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          permission.isActive 
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+                        }`}>
+                          {permission.isActive ? 'Aktif' : 'Pasif'}
+                        </span>
+                        {isEditing && (
+                          <button
+                            onClick={() => handlePermissionToggle(permission._id)}
+                            className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                            title="İzni kaldır"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
               </div>
             )}
           </CardBody>
@@ -749,6 +807,19 @@ const PermissionGroupDetailsPage: React.FC = () => {
           </CardBody>
         </Card>
       )}
+
+      {/* Permission Selector Modal */}
+      <PermissionSelectorModal
+        isOpen={showPermissionModal}
+        onClose={() => setShowPermissionModal(false)}
+        onSave={(newSelectedIds) => {
+          setSelectedPermissionIds(newSelectedIds);
+          setShowPermissionModal(false);
+        }}
+        allPermissions={allPermissions}
+        selectedPermissionIds={selectedPermissionIds}
+        title="İzin Grubuna İzin Ekle"
+      />
     </div>
   );
 };

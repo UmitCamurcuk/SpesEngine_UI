@@ -278,7 +278,7 @@ const routes: RouteObject[] = [
             element: <LocalizationCreatePage />
           },
           {
-            path: 'localizations/details/:id',
+            path: 'localizations/details/:namespace/:key',
             element: <LocalizationDetailsPage />
           }
         ]

@@ -120,6 +120,17 @@ export interface AttributeValidation {
   defaultValue?: any; // varsayılan değer
 }
 
+// Notification ayarları
+export interface NotificationSettings {
+  onUpdate?: boolean;
+  onDelete?: boolean;
+  onUsedInCategory?: boolean;
+  onUsedInFamily?: boolean;
+  onUsedInAttributeGroup?: boolean;
+  onUsedInItemType?: boolean;
+  onUsedInItem?: boolean;
+}
+
 // Attribute modeli
 export interface Attribute {
   _id: string;
@@ -136,6 +147,7 @@ export interface Attribute {
     description?: string;
   };
   validations?: AttributeValidation;
+  notificationSettings?: NotificationSettings;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

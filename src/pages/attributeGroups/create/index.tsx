@@ -5,7 +5,7 @@ import attributeGroupService from '../../../services/api/attributeGroupService';
 import attributeService from '../../../services/api/attributeService';
 import Breadcrumb from '../../../components/common/Breadcrumb';
 import Button from '../../../components/ui/Button';
-// Removed AlertModal - replaced with new notification system
+import { useNotification } from '../../../components/notifications';
 import Stepper from '../../../components/ui/Stepper';
 import TranslationFields from '../../../components/common/TranslationFields';
 import { useTranslationForm } from '../../../hooks/useTranslationForm';
@@ -536,13 +536,7 @@ const AttributeGroupCreatePage: React.FC = () => {
       </div>
 
       {/* Alert Modal */}
-      <AlertModal
-        isOpen={alertModal.isOpen}
-        onClose={closeAlert}
-        type={alertModal.type}
-        title={alertModal.title}
-        message={alertModal.message}
-      />
+
     </div>
   );
 };

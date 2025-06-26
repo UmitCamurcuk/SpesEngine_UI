@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
-// Removed AlertModal - replaced with new notification system
+import { useNotification } from '../../../components/notifications';
 import Breadcrumb from '../../../components/common/Breadcrumb';
 import Stepper from '../../../components/ui/Stepper';
 import attributeService from '../../../services/api/attributeService';
-import localizationService from '../../../services/api/localizationService';
+
 import { CreateAttributeDto, AttributeValidation } from '../../../types/attribute';
 import attributeGroupService from '../../../services/api/attributeGroupService';
 import { AttributeGroup } from '../../../types/attributeGroup';
@@ -58,6 +58,7 @@ const initialFormData: FormData = {
 const AttributeCreatePage: React.FC = () => {
   const navigate = useNavigate();
   const { t, currentLanguage } = useTranslation();
+  const { showToast, showModal } = useNotification();
   
   // Translation hook'unu kullan
   const {
@@ -85,32 +86,7 @@ const AttributeCreatePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  // Alert modal state'leri
-  const [alertModal, setAlertModal] = useState<{
-    isOpen: boolean;
-    type: 'success' | 'error' | 'warning' | 'info';
-    title: string;
-    message: string;
-  }>({
-    isOpen: false,
-    type: 'info',
-    title: '',
-    message: ''
-  });
 
-  // Alert modal helper fonksiyonları
-  const showAlert = (type: 'success' | 'error' | 'warning' | 'info', title: string, message: string) => {
-    setAlertModal({
-      isOpen: true,
-      type,
-      title,
-      message
-    });
-  };
-
-  const closeAlert = () => {
-    setAlertModal(prev => ({ ...prev, isOpen: false }));
-  };
 
   // Stepper adımları
   const steps = useMemo(() => [
@@ -245,7 +221,12 @@ const AttributeCreatePage: React.FC = () => {
     // Sayısal öznitelikler için validasyon zorunlu
     if (formData.type === AttributeType.NUMBER) {
       if (!formData.validations || Object.keys(formData.validations).length === 0) {
-        showAlert('error', 'Validasyon Gerekli', t('number_validation_required', 'attributes'));
+        showToast({
+          type: 'error',
+          title: 'Validasyon Gerekli',
+          message: t('number_validation_required', 'attributes'),
+          duration: 5000
+        });
         return false;
       }
     }
@@ -254,7 +235,12 @@ const AttributeCreatePage: React.FC = () => {
     if (formData.type === AttributeType.TEXT) {
       // Kullanıcıya bir uyarı göster ama engelleme - TEXT tipi için isteğe bağlı
       if (!formData.validations || Object.keys(formData.validations).length === 0) {
-        showAlert('warning', 'Validasyon Uyarısı', t('text_no_validation_confirm', 'attributes'));
+        showToast({
+          type: 'warning',
+          title: 'Validasyon Uyarısı',
+          message: t('text_no_validation_confirm', 'attributes'),
+          duration: 5000
+        });
         return false; // Modal'dan sonra devam etmek için ayrı bir state gerekebilir
       }
     }
@@ -263,7 +249,12 @@ const AttributeCreatePage: React.FC = () => {
     if (formData.type === AttributeType.DATE) {
       // Kullanıcıya bir uyarı göster ama engelleme - DATE tipi için isteğe bağlı
       if (!formData.validations || Object.keys(formData.validations).length === 0) {
-        showAlert('warning', 'Validasyon Uyarısı', t('date_no_validation_confirm', 'attributes'));
+        showToast({
+          type: 'warning',
+          title: 'Validasyon Uyarısı',
+          message: t('date_no_validation_confirm', 'attributes'),
+          duration: 5000
+        });
         return false;
       }
     }
@@ -275,7 +266,12 @@ const AttributeCreatePage: React.FC = () => {
           (!formData.validations || 
            (formData.validations.minSelections === undefined && 
             formData.validations.maxSelections === undefined))) {
-        showAlert('warning', 'Validasyon Uyarısı', t('multiselect_no_validation_confirm', 'attributes'));
+        showToast({
+          type: 'warning',
+          title: 'Validasyon Uyarısı',
+          message: t('multiselect_no_validation_confirm', 'attributes'),
+          duration: 5000
+        });
         return false;
       }
     }
@@ -375,16 +371,36 @@ const AttributeCreatePage: React.FC = () => {
       
       console.log('[FRONTEND DEBUG] Oluşturulan attribute:', createdAttribute);
       
-      // Oluşturulan attribute'un ID'sini al ve details sayfasına yönlendir
-      if (createdAttribute && createdAttribute._id) {
-        navigate(`/attributes/${createdAttribute._id}`);
-      } else {
-        // Fallback olarak liste sayfasına yönlendir
-        navigate('/attributes/list');
-      }
+      showToast({
+        type: 'success',
+        title: 'Başarılı',
+        message: 'Attribute başarıyla oluşturuldu',
+        duration: 3000
+      });
+      
+             showModal({
+         type: 'success',
+         title: 'Attribute Oluşturuldu',
+         message: 'Yeni attribute başarıyla oluşturuldu.',
+         primaryButton: {
+           text: 'Attribute\'a Git',
+           onClick: () => navigate(`/attributes/${createdAttribute._id}`)
+         },
+         secondaryButton: {
+           text: 'Liste\'ye Dön',
+           onClick: () => navigate('/attributes/list')
+         }
+       });
+      
     } catch (err: any) {
       console.error('[FRONTEND DEBUG] Attribute create hatası:', err);
       setError(err.message || t('attribute_create_error', 'attributes'));
+      showToast({
+        type: 'error',
+        title: 'Hata',
+        message: err.message || 'Attribute oluşturulurken bir hata oluştu',
+        duration: 5000
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -1030,14 +1046,7 @@ const AttributeCreatePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Alert Modal */}
-      <AlertModal
-        isOpen={alertModal.isOpen}
-        onClose={closeAlert}
-        type={alertModal.type}
-        title={alertModal.title}
-        message={alertModal.message}
-      />
+
     </div>
   );
 };

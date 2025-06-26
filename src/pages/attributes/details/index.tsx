@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
-import { ToastContainer } from '../../../components/ui';
-import type { Toast } from '../../../components/ui/Toast';
+import { useNotification } from '../../../components/notifications';
+import { NotificationSettings } from '../../../types/attribute';
 import Breadcrumb from '../../../components/common/Breadcrumb';
 import AttributeBadge from '../../../components/attributes/AttributeBadge';
 import EntityHistoryList from '../../../components/common/EntityHistoryList';
@@ -44,6 +44,7 @@ const AttributeDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t, currentLanguage } = useTranslation();
+  const { showToast, showModal, showCommentModal } = useNotification();
   
   // STATE VARIABLES
   const [attribute, setAttribute] = useState<Attribute | null>(null);
@@ -56,16 +57,6 @@ const AttributeDetailsPage: React.FC = () => {
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  
-  // Silme modal ve toast state'leri
-  const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
-  const [isDeleting, setIsDeleting] = useState<boolean>(false);
-  const [toasts, setToasts] = useState<Toast[]>([]);
-  
-  // Comment modal state'leri
-  const [showCommentModal, setShowCommentModal] = useState<boolean>(false);
-  const [comment, setComment] = useState<string>('');
-  const [commentError, setCommentError] = useState<string>('');
   
   // Attribute Groups state'leri
   const [attributeGroups, setAttributeGroups] = useState<any[]>([]);
@@ -80,6 +71,9 @@ const AttributeDetailsPage: React.FC = () => {
     isRequired: false,
     isActive: true
   });
+  
+  // Notification settings state'i
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({});
   
   // Attribute Groups fonksiyonları - useEffect'ten önce tanımla
   const fetchAttributeGroups = async () => {
@@ -165,6 +159,9 @@ const AttributeDetailsPage: React.FC = () => {
             isRequired: data.isRequired,
             isActive: data.isActive
           });
+          
+          // Initialize notification settings
+          setNotificationSettings(data.notificationSettings || {});
           
           // Attribute groups'ları da yükle
           fetchAttributeGroups();
@@ -286,149 +283,144 @@ const AttributeDetailsPage: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
 
-  // Save changes
   const handleSave = async () => {
-    // Önce comment modal'ını göster
-    setShowCommentModal(true);
-  };
-  
-  // Comment modal'da save işlemi
-  const handleSaveWithComment = async () => {
-    // Comment validasyonu
-    if (comment.trim().length < 3) {
-      setCommentError('Yorum en az 3 karakter olmalıdır.');
+    if (!validateForm()) return;
+    
+    // Değişiklikleri kontrol et
+    const changes: any = {};
+    
+    if (editableFields.name !== getEntityName(attribute!, currentLanguage)) {
+      changes.name = editableFields.name;
+    }
+    if (editableFields.code !== attribute!.code) {
+      changes.code = editableFields.code;
+    }
+    if (editableFields.description !== getEntityDescription(attribute!, currentLanguage)) {
+      changes.description = editableFields.description;
+    }
+    if (editableFields.isRequired !== attribute!.isRequired) {
+      changes.isRequired = editableFields.isRequired;
+    }
+    if (editableFields.isActive !== attribute!.isActive) {
+      changes.isActive = editableFields.isActive;
+    }
+    
+    if (Object.keys(changes).length === 0) {
+      showToast({
+        type: 'info',
+        title: 'Bilgi',
+        message: 'Değişiklik yapılmadı',
+        duration: 3000
+      });
       return;
     }
     
-    setCommentError('');
-    
-    if (!validateForm()) return;
+    // Comment modal göster
+    const changesList = Object.keys(changes).map(key => `${key}: ${changes[key]}`);
+    showCommentModal({
+      title: 'Değişiklik Yorumu',
+      changes: changesList,
+      onSave: async (comment: string) => {
+        await handleSaveWithComment(comment, changes);
+      }
+    });
+  };
+
+  const handleSaveWithComment = async (comment: string, changes: any) => {
+    if (comment.trim().length < 3) {
+      showToast({
+        type: 'error',
+        title: 'Hata',
+        message: 'Yorum en az 3 karakter olmalıdır',
+        duration: 3000
+      });
+      return;
+    }
     
     setIsSaving(true);
+    
     try {
-      const updateData = {
-        name: editableFields.name,
-        code: editableFields.code,
-        description: editableFields.description,
-        isRequired: editableFields.isRequired,
-        isActive: editableFields.isActive,
-        comment: comment.trim() // Comment'i de gönder
-      };
-      
-      const updatedAttribute = await attributeService.updateAttribute(id!, updateData);
-      setAttribute(updatedAttribute);
+      const updateData = { ...changes, comment: comment.trim() };
+      const response = await attributeService.updateAttribute(id!, updateData);
+      setAttribute(response);
       setIsEditing(false);
-      setFormErrors({});
-      setShowCommentModal(false);
-      setComment(''); // Comment'i temizle
       
-      // Başarılı güncelleme toast'ı
-      addToast({
+      showToast({
         type: 'success',
-        title: 'Öznitelik Güncellendi',
-        message: `"${getEntityName(updatedAttribute, currentLanguage)}" özniteliği başarıyla güncellendi.`,
-        duration: 5000
+        title: 'Başarılı',
+        message: 'Öznitelik başarıyla güncellendi',
+        duration: 3000
       });
-      
-    } catch (err: any) {
-      // Hata toast'ı
-      addToast({
+    } catch (error: any) {
+      showToast({
         type: 'error',
-        title: 'Güncelleme Hatası',
-        message: err.message || 'Öznitelik güncellenirken bir hata oluştu.',
+        title: 'Hata',
+        message: error.message || 'Öznitelik güncellenirken bir hata oluştu',
         duration: 5000
       });
     } finally {
       setIsSaving(false);
     }
   };
-  
-  const handleCancelComment = () => {
-    setShowCommentModal(false);
-    setComment('');
-    setCommentError('');
-  };
 
-  // Cancel edit
-  const handleCancelEdit = () => {
-    if (!attribute) return;
-    
-    // Reset form to original values
-    setEditableFields({
-      name: getEntityName(attribute, currentLanguage),
-      code: attribute.code || '',
-      description: getEntityDescription(attribute, currentLanguage),
-      isRequired: attribute.isRequired,
-      isActive: attribute.isActive
-    });
-    
-    setFormErrors({});
-    setIsEditing(false);
-  };
 
-  // Start editing
-  const handleStartEdit = () => {
-    if (!attribute) return;
-    
-    setEditableFields({
-      name: getEntityName(attribute, currentLanguage),
-      code: attribute.code || '',
-      description: getEntityDescription(attribute, currentLanguage),
-      isRequired: attribute.isRequired,
-      isActive: attribute.isActive
-    });
-    
-    setIsEditing(true);
-  };
-
-  // Toast helper fonksiyonları
-  const addToast = (toast: Omit<Toast, 'id'>) => {
-    const newToast: Toast = {
-      ...toast,
-      id: Date.now().toString() + Math.random().toString(36)
-    };
-    setToasts(prev => [...prev, newToast]);
-  };
-
-  const removeToast = (id: string) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id));
-  };
-
-  // Delete attribute
-  const handleDelete = async () => {
-    if (!id || !attribute) return;
-    
-    setIsDeleting(true);
-    try {
-      await attributeService.deleteAttribute(id);
-      
-      // Başarılı silme toast'ı
-      addToast({
-        type: 'success',
-        title: 'Öznitelik Silindi',
-        message: `"${getEntityName(attribute, currentLanguage)}" özniteliği başarıyla silindi.`,
-        duration: 5000
-      });
-      
-      // Sayfayı attributes listesine yönlendir
-      navigate('/attributes/list');
-      
-    } catch (err: any) {
-      // Hata toast'ı
-      addToast({
-        type: 'error',
-        title: 'Silme Hatası',
-        message: err.message || 'Öznitelik silinirken bir hata oluştu.',
-        duration: 5000
-      });
-    } finally {
-      setIsDeleting(false);
-      setShowDeleteModal(false);
-    }
-  };
 
   const handleDeleteClick = () => {
-    setShowDeleteModal(true);
+    showModal({
+      type: 'error',
+      title: 'Öznitelik Silme Onayı',
+      message: `"${attribute ? getEntityName(attribute, currentLanguage) : ''}" özniteliğini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`,
+      primaryButton: {
+        text: 'Sil',
+        onClick: async () => {
+          try {
+            await attributeService.deleteAttribute(id!);
+            showToast({
+              type: 'success',
+              title: 'Başarılı',
+              message: 'Öznitelik başarıyla silindi',
+              duration: 3000
+            });
+            navigate('/attributes/list');
+          } catch (error: any) {
+            showToast({
+              type: 'error',
+              title: 'Hata',
+              message: error.message || 'Öznitelik silinirken bir hata oluştu',
+              duration: 5000
+            });
+          }
+        },
+        variant: 'error'
+      },
+      secondaryButton: {
+        text: 'İptal',
+        onClick: () => {}
+      }
+    });
+  };
+
+  const handleNotificationUpdate = async (settings: NotificationSettings) => {
+    try {
+      const updateData = { notificationSettings: settings };
+      const response = await attributeService.updateAttribute(id!, updateData);
+      setAttribute(response);
+      setNotificationSettings(settings);
+      
+      showToast({
+        type: 'success',
+        title: 'Başarılı',
+        message: 'Bildirim ayarları güncellendi',
+        duration: 3000
+      });
+    } catch (error: any) {
+      showToast({
+        type: 'error',
+        title: 'Hata',
+        message: error.message || 'Bildirim ayarları güncellenirken bir hata oluştu',
+        duration: 5000
+      });
+    }
   };
 
   // MAIN RENDER
@@ -547,7 +539,7 @@ const AttributeDetailsPage: React.FC = () => {
               <Button
                 variant="outline"
                 className="flex items-center"
-                onClick={handleCancelEdit}
+                onClick={() => setIsEditing(false)}
                 disabled={isSaving}
               >
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -571,7 +563,7 @@ const AttributeDetailsPage: React.FC = () => {
               <Button
                 variant="primary"
                 className="flex items-center"
-                onClick={handleStartEdit}
+                onClick={() => setIsEditing(true)}
               >
                 <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -1070,6 +1062,8 @@ const AttributeDetailsPage: React.FC = () => {
         <PermissionsTab
           entityId={id!}
           entityType="attribute"
+          notificationSettings={notificationSettings}
+          onUpdateNotifications={handleNotificationUpdate}
         />
       )}
 
@@ -1109,54 +1103,7 @@ const AttributeDetailsPage: React.FC = () => {
         </Card>
       )}
 
-      {/* Confirmation Modal */}
-      <ConfirmationModal
-        isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        onConfirm={handleDelete}
-        type="delete"
-        title="Öznitelik Silme Onayı"
-        message={`"${attribute ? getEntityName(attribute, currentLanguage) : ''}" özniteliğini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`}
-        confirmText="Sil"
-        cancelText="İptal"
-        isLoading={isDeleting}
-      />
 
-      {/* Comment Modal */}
-      <ConfirmationModal
-        isOpen={showCommentModal}
-        onClose={handleCancelComment}
-        onConfirm={handleSaveWithComment}
-        type="confirm"
-        size="md"
-        title="Değişiklik Yorumu"
-        message="Lütfen yaptığınız değişiklikler hakkında kısa bir açıklama yazın:"
-        confirmText="Kaydet"
-        cancelText="İptal"
-        isLoading={isSaving}
-      >
-        <div className="mt-4">
-          <textarea
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            className={`w-full px-3 py-2 border ${
-              commentError ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-            } rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white resize-none`}
-            placeholder="Değişiklik nedenini açıklayın... (en az 3 karakter)"
-            rows={5}
-          />
-          {commentError && (
-            <p className="mt-1 text-sm text-red-500">{commentError}</p>
-          )}
-        </div>
-      </ConfirmationModal>
-
-      {/* Toast Container */}
-      <ToastContainer
-        toasts={toasts}
-        position="top-right"
-        onDismiss={removeToast}
-      />
     </div>
   );
 };

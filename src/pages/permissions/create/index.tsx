@@ -1,48 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
+import Breadcrumb from '../../../components/common/Breadcrumb';
+import { useNotification } from '../../../components/notifications';
+import TranslationFields from '../../../components/common/TranslationFields';
+import { useTranslationForm } from '../../../hooks/useTranslationForm';
+import { useTranslation } from '../../../context/i18nContext';
 import permissionService from '../../../services/api/permissionService';
-import permissionGroupService from '../../../services/api/permissionGroupService';
-import type { CreatePermissionDto } from '../../../services/api/permissionService';
-import type { PermissionGroup } from '../../../services/api/permissionGroupService';
+import type { CreatePermissionDto } from '../../../types/permission';
 
 const PermissionCreatePage: React.FC = () => {
   const navigate = useNavigate();
+  const { showToast } = useNotification();
+  const { currentLanguage } = useTranslation();
+  
+  // Translation hook'unu kullan
+  const {
+    supportedLanguages,
+    translationData,
+    handleTranslationChange
+  } = useTranslationForm();
   
   // Form state
-  const [formData, setFormData] = useState<CreatePermissionDto>({
-    name: '',
-    description: '',
+  const [formData, setFormData] = useState({
     code: '',
-    permissionGroup: '',
     isActive: true
   });
   
-  // Grup seçenekleri
-  const [groupOptions, setGroupOptions] = useState<PermissionGroup[]>([]);
-  
-  // Loading ve error state
+  // Loading state
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isFetchingOptions, setIsFetchingOptions] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<boolean>(false);
-  
-  // İzin gruplarını yükle
-  useEffect(() => {
-    const fetchPermissionGroups = async () => {
-      try {
-        setIsFetchingOptions(true);
-        const result = await permissionGroupService.getPermissionGroups({ limit: 100 });
-        setGroupOptions(result.permissionGroups);
-      } catch (err: any) {
-        console.error('İzin grupları yüklenirken hata oluştu:', err);
-      } finally {
-        setIsFetchingOptions(false);
-      }
-    };
-    
-    fetchPermissionGroups();
-  }, []);
   
   // Form input değişiklik handler
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -62,26 +48,65 @@ const PermissionCreatePage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError(null);
-    setSuccess(false);
     
     try {
+      // Name translation kontrolü
+      if (!translationData.nameTranslations[currentLanguage]?.trim()) {
+        showToast({
+          type: 'error',
+          title: 'Hata',
+          message: 'İzin adı gereklidir',
+          duration: 3000
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      // Code kontrolü
+      if (!formData.code.trim()) {
+        showToast({
+          type: 'error',
+          title: 'Hata',
+          message: 'İzin kodu gereklidir',
+          duration: 3000
+        });
+        setIsLoading(false);
+        return;
+      }
+      
       // Form verisini hazırla
       const payload: CreatePermissionDto = {
-        ...formData
+        name: {
+          tr: translationData.nameTranslations.tr || '',
+          en: translationData.nameTranslations.en || ''
+        },
+        description: {
+          tr: translationData.descriptionTranslations.tr || '',
+          en: translationData.descriptionTranslations.en || ''
+        },
+        code: formData.code,
+        isActive: formData.isActive
       };
       
       // API'ye gönder
       await permissionService.createPermission(payload);
       
-      setSuccess(true);
+      showToast({
+        type: 'success',
+        title: 'Başarılı',
+        message: 'İzin başarıyla oluşturuldu',
+        duration: 3000
+      });
       
       // Başarılı olduğunda listeye yönlendir
-      setTimeout(() => {
-        navigate('/permissions/list');
-      }, 1500);
+      navigate('/permissions/list');
     } catch (err: any) {
-      setError(err.message || 'İzin oluşturulurken bir hata oluştu');
+      showToast({
+        type: 'error',
+        title: 'Hata',
+        message: err.message || 'İzin oluşturulurken bir hata oluştu',
+        duration: 5000
+      });
     } finally {
       setIsLoading(false);
     }
@@ -92,18 +117,26 @@ const PermissionCreatePage: React.FC = () => {
     return name.replace(/\s+/g, '_').toUpperCase();
   };
   
-  // İsim değiştiğinde otomatik kod oluştur
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const name = e.target.value;
-    setFormData(prev => ({ 
-      ...prev, 
-      name,
-      code: generateCode(name)
-    }));
+  // TR isim değiştiğinde otomatik kod oluştur
+  const handleNameChange = (language: string, value: string) => {
+    if (language === 'tr') {
+      setFormData(prev => ({
+        ...prev,
+        code: generateCode(value)
+      }));
+    }
   };
   
   return (
     <div className="space-y-6">
+      {/* Breadcrumb */}
+      <Breadcrumb 
+        items={[
+          { label: 'İzinler', path: '/permissions/list' },
+          { label: 'Yeni İzin Oluştur' }
+        ]} 
+      />
+      
       {/* Başlık */}
       <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
         <div className="flex justify-between items-center">
@@ -134,23 +167,6 @@ const PermissionCreatePage: React.FC = () => {
       
       {/* Form */}
       <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-        {error && (
-          <div className="mb-4 bg-red-50 dark:bg-red-900/20 p-4 rounded-md border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 flex items-start">
-            <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{error}</span>
-          </div>
-        )}
-        
-        {success && (
-          <div className="mb-4 bg-green-50 dark:bg-green-900/20 p-4 rounded-md border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 flex items-start">
-            <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <span>İzin başarıyla oluşturuldu! Yönlendiriliyorsunuz...</span>
-          </div>
-        )}
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -159,19 +175,19 @@ const PermissionCreatePage: React.FC = () => {
             </div>
             
             {/* İzin Adı */}
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                İzin Adı <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleNameChange}
-                required
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
+            <div className="col-span-1 md:col-span-2">
+              <TranslationFields
+                label="İzin Adı"
+                fieldType="input"
+                translations={translationData.nameTranslations}
+                supportedLanguages={supportedLanguages}
+                currentLanguage={currentLanguage}
+                onChange={(language, value) => {
+                  handleTranslationChange('nameTranslations', language, value);
+                  handleNameChange(language, value);
+                }}
                 placeholder="İzin adını girin"
+                required
               />
             </div>
             
@@ -195,48 +211,19 @@ const PermissionCreatePage: React.FC = () => {
               </p>
             </div>
             
-            {/* İzin Grubu */}
-            <div>
-              <label htmlFor="permissionGroup" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                İzin Grubu <span className="text-red-500">*</span>
-              </label>
-              <select
-                id="permissionGroup"
-                name="permissionGroup"
-                value={formData.permissionGroup}
-                onChange={handleChange}
-                required
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-              >
-                <option value="" disabled>Bir grup seçin</option>
-                {isFetchingOptions ? (
-                  <option value="" disabled>Yükleniyor...</option>
-                ) : groupOptions.length > 0 ? (
-                  groupOptions.map(group => (
-                    <option key={group._id} value={group._id}>
-                      {group.name} ({group.code})
-                    </option>
-                  ))
-                ) : (
-                  <option value="" disabled>Grup bulunamadı</option>
-                )}
-              </select>
-            </div>
-            
             {/* Açıklama */}
             <div className="col-span-1 md:col-span-2">
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Açıklama <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                required
+              <TranslationFields
+                label="Açıklama"
+                fieldType="textarea"
+                translations={translationData.descriptionTranslations}
+                supportedLanguages={supportedLanguages}
+                currentLanguage={currentLanguage}
+                onChange={(language, value) => {
+                  handleTranslationChange('descriptionTranslations', language, value);
+                }}
+                placeholder="İzin açıklamasını girin"
                 rows={3}
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-                placeholder="İzin hakkında açıklama girin"
               />
             </div>
             

@@ -6,6 +6,8 @@ import Breadcrumb from '../../../components/common/Breadcrumb';
 import EntityHistoryList from '../../../components/common/EntityHistoryList';
 import permissionGroupService from '../../../services/api/permissionGroupService';
 import permissionService from '../../../services/api/permissionService';
+import { PermissionGroup } from '../../../types/permissionGroup';
+import { Permission } from '../../../types/permission';
 import dayjs from 'dayjs';
 import 'dayjs/locale/tr';
 
@@ -28,17 +30,6 @@ const CardBody: React.FC<{ children: React.ReactNode; className?: string }> = ({
   </div>
 );
 
-interface PermissionGroupData {
-  _id: string;
-  name: string;
-  description: string;
-  code: string;
-  isActive: boolean;
-  permissions: any[];
-  createdAt: string;
-  updatedAt: string;
-}
-
 // MAIN COMPONENT
 const PermissionGroupDetailsPage: React.FC = () => {
   // HOOKS
@@ -47,8 +38,8 @@ const PermissionGroupDetailsPage: React.FC = () => {
   const { showToast, showModal, showCommentModal } = useNotification();
   
   // STATE VARIABLES
-  const [permissionGroup, setPermissionGroup] = useState<PermissionGroupData | null>(null);
-  const [allPermissions, setAllPermissions] = useState<any[]>([]);
+  const [permissionGroup, setPermissionGroup] = useState<PermissionGroup | null>(null);
+  const [allPermissions, setAllPermissions] = useState<Permission[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('details');
@@ -715,10 +706,10 @@ const PermissionGroupDetailsPage: React.FC = () => {
                     />
                     <div className="ml-3">
                       <div className="font-medium text-gray-900 dark:text-white">
-                        {permission.name}
+                        {permission.name.tr}
                       </div>
                       <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {permission.description}
+                        {permission.description.tr}
                       </div>
                       <div className="text-xs text-gray-400 dark:text-gray-500 font-mono">
                         {permission.code}

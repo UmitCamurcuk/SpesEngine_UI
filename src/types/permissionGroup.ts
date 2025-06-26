@@ -1,8 +1,11 @@
+import { Permission } from './permission';
+
 export interface PermissionGroup {
   _id: string;
   name: string;
   description: string;
   code: string;
+  permissions: Permission[] | string[];
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -19,6 +22,7 @@ export interface UpdatePermissionGroupDto {
   name?: string;
   description?: string;
   code?: string;
+  permissions?: string[];
   isActive?: boolean;
 }
 

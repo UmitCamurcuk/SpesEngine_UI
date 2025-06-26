@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Table, SearchBar, Pagination, Badge } from '../../../components/ui';
 import type { TableColumn } from '../../../components/ui/Table';
 import permissionService from '../../../services/api/permissionService';
-import type { Permission } from '../../../services/api/permissionService';
+import type { Permission } from '../../../types/permission';
 
 const PermissionsListPage: React.FC = () => {
   const navigate = useNavigate();
@@ -61,7 +61,7 @@ const PermissionsListPage: React.FC = () => {
       header: 'İzin Adı',
       render: (permission: Permission) => (
         <div className="font-medium text-gray-900 dark:text-white">
-          {permission.name}
+          {permission.name.tr}
         </div>
       )
     },
@@ -75,19 +75,13 @@ const PermissionsListPage: React.FC = () => {
       )
     },
     {
-      key: 'permissionGroup',
-      header: 'Grup',
-      render: (permission: Permission) => {
-        const group = typeof permission.permissionGroup === 'object' 
-          ? permission.permissionGroup 
-          : { name: 'Belirtilmemiş' };
-          
-        return (
-          <div className="text-sm">
-            {group.name}
-          </div>
-        );
-      }
+      key: 'description',
+      header: 'Açıklama',
+      render: (permission: Permission) => (
+        <div className="text-sm text-gray-600 dark:text-gray-400">
+          {permission.description.tr}
+        </div>
+      )
     },
     {
       key: 'isActive',

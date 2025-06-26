@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 import { ToastContainer } from 'react-toastify';
+import { NotificationProvider } from '../notifications';
 import 'react-toastify/dist/ReactToastify.css';
 
 const AppLayout: React.FC = () => {
@@ -27,38 +28,40 @@ const AppLayout: React.FC = () => {
   }, [location.pathname]);
 
   return (
-    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-      {/* Navbar - Sabit olarak üstte */}
-      <div className="fixed top-0 left-0 right-0 z-40">
-        <Navbar toggleSidebar={toggleSidebar} />
+    <NotificationProvider>
+      <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
+        {/* Navbar - Sabit olarak üstte */}
+        <div className="fixed top-0 left-0 right-0 z-40">
+          <Navbar toggleSidebar={toggleSidebar} />
+        </div>
+        
+        {/* Sidebar */}
+        <Sidebar isOpen={sidebarOpen} closeSidebar={closeSidebar} />
+        
+        {/* Ana içerik - sidebardan bağımsız */}
+        <div className="flex-1 pt-14 md:pl-64">
+          <main className="h-full overflow-y-auto bg-gray-100 dark:bg-gray-900">
+            <div className="container mx-auto px-6 py-8">
+              <Outlet />
+            </div>
+          </main>
+        </div>
+        
+        {/* Toast Container */}
+        <ToastContainer
+          position="top-right"
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="colored"
+        />
       </div>
-      
-      {/* Sidebar */}
-      <Sidebar isOpen={sidebarOpen} closeSidebar={closeSidebar} />
-      
-      {/* Ana içerik - sidebardan bağımsız */}
-      <div className="flex-1 pt-14 md:pl-64">
-        <main className="h-full overflow-y-auto bg-gray-100 dark:bg-gray-900">
-          <div className="container mx-auto px-6 py-8">
-            <Outlet />
-          </div>
-        </main>
-      </div>
-      
-      {/* Toast Container */}
-      <ToastContainer
-        position="top-right"
-        autoClose={3000}
-        hideProgressBar={false}
-        newestOnTop
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="colored"
-      />
-    </div>
+    </NotificationProvider>
   );
 };
 

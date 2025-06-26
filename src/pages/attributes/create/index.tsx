@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
-import { AlertModal } from '../../../components/ui';
+// Removed AlertModal - replaced with new notification system
 import Breadcrumb from '../../../components/common/Breadcrumb';
 import Stepper from '../../../components/ui/Stepper';
 import attributeService from '../../../services/api/attributeService';

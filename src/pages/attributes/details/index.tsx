@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
-import { ConfirmationModal, ToastContainer } from '../../../components/ui';
+import { ToastContainer } from '../../../components/ui';
 import type { Toast } from '../../../components/ui/Toast';
 import Breadcrumb from '../../../components/common/Breadcrumb';
 import AttributeBadge from '../../../components/attributes/AttributeBadge';

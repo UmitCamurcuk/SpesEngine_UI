@@ -5,7 +5,7 @@ import attributeGroupService from '../../../services/api/attributeGroupService';
 import attributeService from '../../../services/api/attributeService';
 import Breadcrumb from '../../../components/common/Breadcrumb';
 import Button from '../../../components/ui/Button';
-import { AlertModal } from '../../../components/ui';
+// Removed AlertModal - replaced with new notification system
 import Stepper from '../../../components/ui/Stepper';
 import TranslationFields from '../../../components/common/TranslationFields';
 import { useTranslationForm } from '../../../hooks/useTranslationForm';

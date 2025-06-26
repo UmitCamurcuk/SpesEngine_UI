@@ -11,6 +11,7 @@ import categoryService from '../../../services/api/categoryService';
 import { useTranslation } from '../../../context/i18nContext';
 import { useTranslationForm } from '../../../hooks/useTranslationForm';
 import { getEntityName, getEntityDescription } from '../../../utils/translationUtils';
+import { useNotification } from '../../../components/notifications';
 import type { CreateItemTypeDto } from '../../../types/itemType';
 
 interface AttributeGroupOption {
@@ -30,6 +31,7 @@ interface CategoryOption {
 const ItemTypeCreatePage: React.FC = () => {
   const navigate = useNavigate();
   const { t, currentLanguage } = useTranslation();
+  const { showToast, showModal } = useNotification();
   
   // Translation hook'unu kullan
   const {
@@ -56,10 +58,8 @@ const ItemTypeCreatePage: React.FC = () => {
   // Seçili öğeler
   const [selectedAttributeGroups, setSelectedAttributeGroups] = useState<string[]>([]);
   
-  // Loading ve error state
+  // Loading state
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<boolean>(false);
   
   // Stepper state
   const [currentStep, setCurrentStep] = useState<number>(0);
@@ -147,8 +147,6 @@ const ItemTypeCreatePage: React.FC = () => {
   // Form gönderme handler
   const handleSubmit = async () => {
     setIsLoading(true);
-    setError(null);
-    setSuccess(false);
     
     try {
       // Translation verilerini oluştur
@@ -164,16 +162,44 @@ const ItemTypeCreatePage: React.FC = () => {
       };
       
       // API'ye gönder
-      await itemTypeService.createItemType(payload);
+      const createdItemType = await itemTypeService.createItemType(payload);
       
-      setSuccess(true);
+      // Success toast göster
+      showToast({
+        type: 'success',
+        title: t('item_type_created_successfully', 'itemTypes'),
+        message: `${getEntityName(createdItemType, currentLanguage)} başarıyla oluşturuldu`,
+        duration: 3000
+      });
+
+      // Success modal göster
+      showModal({
+        type: 'success',
+        title: t('item_type_created_successfully', 'itemTypes'),
+        message: `${getEntityName(createdItemType, currentLanguage)} adlı öğe türü başarıyla oluşturuldu.`,
+        icon: (
+          <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        ),
+        primaryButton: {
+          text: 'Öğe Türüne Git',
+          onClick: () => navigate(`/itemtypes/details/${createdItemType._id}`)
+        },
+        secondaryButton: {
+          text: 'Kapat',
+          onClick: () => {}
+        }
+      });
       
-      // Başarılı olduğunda listeye yönlendir
-      setTimeout(() => {
-        navigate('/itemtypes/list');
-      }, 1500);
     } catch (err: any) {
-      setError(err.message || t('item_type_create_error', 'itemTypes'));
+      // Error toast göster
+      showToast({
+        type: 'error',
+        title: t('item_type_create_error', 'itemTypes'),
+        message: err.message || 'Beklenmeyen bir hata oluştu',
+        duration: 5000
+      });
     } finally {
       setIsLoading(false);
     }
@@ -474,31 +500,7 @@ const ItemTypeCreatePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Success Message */}
-      {success && (
-        <div className="bg-green-100 dark:bg-green-900 border border-green-400 dark:border-green-700 text-green-700 dark:text-green-300 px-6 py-4 rounded-lg shadow-sm">
-          <div className="flex items-center">
-            <svg className="w-6 h-6 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="font-semibold">{t('success', 'common')}!</span>
-            <span className="ml-2">{t('item_type_created_successfully', 'itemTypes')}</span>
-          </div>
-        </div>
-      )}
 
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-300 px-6 py-4 rounded-lg shadow-sm">
-          <div className="flex items-center">
-            <svg className="w-6 h-6 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <span className="font-semibold">{t('error', 'common')}:</span>
-            <span className="ml-2">{error}</span>
-          </div>
-        </div>
-      )}
 
       {/* Main Content Card */}
       <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">

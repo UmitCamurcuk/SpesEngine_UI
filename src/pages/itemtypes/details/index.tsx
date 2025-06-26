@@ -18,7 +18,7 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/tr';
 import { useTranslation } from '../../../context/i18nContext';
 import { getEntityName, getEntityDescription } from '../../../utils/translationUtils';
-import { toast } from 'react-hot-toast';
+import { useNotification } from '../../../components/notifications';
 
 // UTILITY COMPONENTS
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
@@ -45,6 +45,7 @@ const ItemTypeDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t, currentLanguage } = useTranslation();
+  const { showToast, showCommentModal } = useNotification();
   
   // STATE VARIABLES
   const [itemType, setItemType] = useState<ItemType | null>(null);
@@ -273,17 +274,57 @@ const ItemTypeDetailsPage: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
 
-  // Save changes
-  const handleSave = async () => {
+  // Show comment modal before saving
+  const handleSaveWithComment = () => {
     if (!validateForm()) return;
+
+    // Değişiklikleri hazırla
+    const changes: string[] = [];
     
+    if (itemType) {
+      if (editableFields.code !== itemType.code) {
+        changes.push(`Kod: "${itemType.code}" → "${editableFields.code}"`);
+      }
+      if (editableFields.isActive !== itemType.isActive) {
+        changes.push(`Durum: ${itemType.isActive ? 'Aktif' : 'Pasif'} → ${editableFields.isActive ? 'Aktif' : 'Pasif'}`);
+      }
+      
+      const currentCategoryId = (itemType.category && typeof itemType.category === 'object') ? (itemType.category as any)._id : (itemType.category || '');
+      if (editableFields.category !== currentCategoryId) {
+        const oldCategoryName = category?.name || 'Kategori yok';
+        const newCategory = availableCategories.find(c => c.id === editableFields.category);
+        const newCategoryName = newCategory?.name || 'Kategori yok';
+        changes.push(`Kategori: "${oldCategoryName}" → "${newCategoryName}"`);
+      }
+    }
+
+    if (changes.length === 0) {
+      showToast({
+        type: 'info',
+        title: 'Değişiklik Yok',
+        message: 'Kaydedilecek değişiklik bulunamadı',
+        duration: 3000
+      });
+      return;
+    }
+
+    showCommentModal({
+      title: `${getEntityName(itemType, currentLanguage)} güncelleniyor`,
+      changes,
+      onSave: handleSave
+    });
+  };
+
+  // Save changes with comment
+  const handleSave = async (comment: string) => {
     setIsSaving(true);
     try {
       // Update data oluştur
       const updateData = {
         ...editableFields,
         attributeGroups: attributeGroups.map(g => g.id),
-        attributes: attributes.map(a => a.id)
+        attributes: attributes.map(a => a.id),
+        comment // Yorum ekle
       };
       
       const updatedItemType = await itemTypeService.updateItemType(id!, updateData);
@@ -291,10 +332,21 @@ const ItemTypeDetailsPage: React.FC = () => {
       setIsEditing(false);
       setFormErrors({});
       
-      toast.success(`"${getEntityName(updatedItemType, currentLanguage)}" öğe tipi başarıyla güncellendi.`);
+      // Success notification
+      showToast({
+        type: 'success',
+        title: 'Başarıyla Güncellendi',
+        message: `"${getEntityName(updatedItemType, currentLanguage)}" öğe tipi güncellendi`,
+        duration: 3000
+      });
       
     } catch (err: any) {
-      toast.error(err.message || 'Öğe tipi güncellenirken bir hata oluştu.');
+      showToast({
+        type: 'error',
+        title: 'Güncelleme Hatası',
+        message: err.message || 'Öğe tipi güncellenirken bir hata oluştu',
+        duration: 5000
+      });
     } finally {
       setIsSaving(false);
     }
@@ -335,10 +387,20 @@ const ItemTypeDetailsPage: React.FC = () => {
     if (window.confirm(`"${getEntityName(itemType, currentLanguage)}" öğe tipini silmek istediğinize emin misiniz?`)) {
       try {
         await itemTypeService.deleteItemType(id);
-        toast.success('Öğe tipi başarıyla silindi.');
+        showToast({
+          type: 'success',
+          title: 'Başarıyla Silindi',
+          message: 'Öğe tipi başarıyla silindi',
+          duration: 3000
+        });
         navigate('/itemtypes/list');
       } catch (err: any) {
-        toast.error(err.message || 'Öğe tipi silinirken bir hata oluştu.');
+        showToast({
+          type: 'error',
+          title: 'Silme Hatası',
+          message: err.message || 'Öğe tipi silinirken bir hata oluştu',
+          duration: 5000
+        });
       }
     }
   };
@@ -497,7 +559,7 @@ const ItemTypeDetailsPage: React.FC = () => {
               <Button
                 variant="primary"
                 className="flex items-center"
-                onClick={handleSave}
+                onClick={handleSaveWithComment}
                 disabled={isSaving}
               >
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">

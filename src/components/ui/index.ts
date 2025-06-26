@@ -1,8 +1,6 @@
 // UI Bileşenlerini toplu ihraç et
-export { default as AlertModal } from './AlertModal';
 export { default as Button } from './Button';
 export { default as Modal } from './Modal';
-export { default as ConfirmationModal } from './ConfirmationModal';
 export { default as Toast, ToastContainer } from './Toast';
 export { default as TabView } from './TabView';
 export { default as Table } from './Table';

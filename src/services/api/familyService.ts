@@ -87,6 +87,17 @@ const familyService = {
       console.error(`${id} ID'li aile silinirken hata oluştu:`, error);
       throw error;
     }
+  },
+
+  // Kategoriye göre aileleri getir
+  getFamiliesByCategory: async (categoryId: string): Promise<Family[]> => {
+    try {
+      const response = await api.get<ApiResponse<Family[]>>(`/families/by-category/${categoryId}`);
+      return response.data.data;
+    } catch (error) {
+      console.error(`${categoryId} Kategorisi için aileler getirilirken hata oluştu:`, error);
+      throw error;
+    }
   }
 };
 

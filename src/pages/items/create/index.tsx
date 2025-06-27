@@ -1,49 +1,40 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
 import Stepper from '../../../components/ui/Stepper';
 import Breadcrumb from '../../../components/common/Breadcrumb';
-import TranslationFields from '../../../components/common/TranslationFields';
+import UnifiedTreeView, { TreeNode } from '../../../components/ui/UnifiedTreeView';
 import itemService from '../../../services/api/itemService';
 import itemTypeService from '../../../services/api/itemTypeService';
 import familyService from '../../../services/api/familyService';
 import categoryService from '../../../services/api/categoryService';
-import attributeGroupService from '../../../services/api/attributeGroupService';
 import type { CreateItemDto } from '../../../types/item';
 import type { Attribute } from '../../../types/attribute';
+import type { Family } from '../../../types/family';
 import { useTranslation } from '../../../context/i18nContext';
 import { getEntityName, getEntityDescription } from '../../../utils/translationUtils';
 
 interface ItemTypeOption {
   _id: string;
-  name: string;
-  code: string;
+  name: any;
+  code?: string;
+}
+
+interface CategoryOption {
+  _id: string;
+  name: any;
+  code?: string;
+  parent?: string;
 }
 
 interface FamilyOption {
   _id: string;
   name: string;
-  code: string;
+  code?: string;
+  category: string;
 }
 
-interface CategoryOption {
-  _id: string;
-  name: string;
-  code: string;
-}
-
-interface AttributeFormProps {
-  attributes: Attribute[];
-  values: Record<string, any>;
-  onChange: (attributeId: string, value: any) => void;
-  itemType?: ItemTypeOption | null;
-  family?: FamilyOption | null;
-  category?: CategoryOption | null;
-  attributeGroupNames: Record<string, any>;
-  currentLanguage: string;
-}
-
-// Öznitelik bileşenini oluşturmak için yardımcı fonksiyon
+// Öznitelik form bileşeni
 const AttributeField: React.FC<{
   attribute: Attribute;
   value: any;
@@ -52,1379 +43,616 @@ const AttributeField: React.FC<{
   const { currentLanguage } = useTranslation();
   const [error, setError] = useState<string | null>(null);
   
-  // Validation kurallarını uygula
   const validateField = (value: any): boolean => {
-    // Zorunlu alan kontrolü
     if (attribute.isRequired && (value === undefined || value === null || value === '')) {
       setError(`${getEntityName(attribute, currentLanguage)} alanı zorunludur`);
       return false;
     }
-    
-    // Tip bazlı validasyon
-    if (value !== undefined && value !== null && value !== '') {
-      switch (attribute.type) {
-        case 'number':
-          // Min/Max değer kontrolü
-          if (attribute.validations?.min !== undefined && Number(value) < attribute.validations.min) {
-            setError(`En az ${attribute.validations.min} olmalıdır`);
-            return false;
-          }
-          if (attribute.validations?.max !== undefined && Number(value) > attribute.validations.max) {
-            setError(`En fazla ${attribute.validations.max} olmalıdır`);
-            return false;
-          }
-          break;
-          
-        case 'text':
-          // Min/Max uzunluk kontrolü
-          if (attribute.validations?.minLength !== undefined && String(value).length < attribute.validations.minLength) {
-            setError(`En az ${attribute.validations.minLength} karakter olmalıdır`);
-            return false;
-          }
-          if (attribute.validations?.maxLength !== undefined && String(value).length > attribute.validations.maxLength) {
-            setError(`En fazla ${attribute.validations.maxLength} karakter olmalıdır`);
-            return false;
-          }
-          // Regex pattern kontrolü
-          if (attribute.validations?.pattern && !new RegExp(attribute.validations.pattern).test(String(value))) {
-            setError(`Geçerli bir format girmelisiniz`);
-            return false;
-          }
-          break;
-          
-        case 'date':
-          // Min/Max tarih kontrolü
-          if (attribute.validations?.minDate && new Date(value) < new Date(attribute.validations.minDate)) {
-            setError(`En erken ${new Date(attribute.validations.minDate).toLocaleDateString()} tarihini seçebilirsiniz`);
-            return false;
-          }
-          if (attribute.validations?.maxDate && new Date(value) > new Date(attribute.validations.maxDate)) {
-            setError(`En geç ${new Date(attribute.validations.maxDate).toLocaleDateString()} tarihini seçebilirsiniz`);
-            return false;
-          }
-          break;
-      }
-    }
-    
-    // Hata yoksa error state'i temizle
     setError(null);
     return true;
   };
   
-  // Değer değiştiğinde doğrulama yap
   const handleChange = (newValue: any) => {
     onChange(newValue);
     validateField(newValue);
   };
   
-  // Validasyon kurallarını açıklayan tooltip içeriğini oluştur
-  const getValidationTooltip = () => {
-    const rules: string[] = [];
-    
-    if (attribute.isRequired) {
-      rules.push('Bu alan zorunludur');
-    }
-    
-    if (attribute.validations) {
-      switch (attribute.type) {
-        case 'number':
-          if (attribute.validations.min !== undefined) {
-            rules.push(`En düşük değer: ${attribute.validations.min}`);
-          }
-          if (attribute.validations.max !== undefined) {
-            rules.push(`En yüksek değer: ${attribute.validations.max}`);
-          }
-          if (attribute.validations.isInteger) {
-            rules.push('Sadece tam sayı girilebilir');
-          }
-          if (attribute.validations.isPositive) {
-            rules.push('Sadece pozitif sayı girilebilir');
-          }
-          break;
-          
-        case 'text':
-          if (attribute.validations.minLength !== undefined) {
-            rules.push(`En az ${attribute.validations.minLength} karakter`);
-          }
-          if (attribute.validations.maxLength !== undefined) {
-            rules.push(`En fazla ${attribute.validations.maxLength} karakter`);
-          }
-          if (attribute.validations.pattern) {
-            rules.push('Belirli bir format gerekli');
-          }
-          break;
-          
-        case 'date':
-          if (attribute.validations.minDate) {
-            rules.push(`En erken tarih: ${new Date(attribute.validations.minDate).toLocaleDateString()}`);
-          }
-          if (attribute.validations.maxDate) {
-            rules.push(`En geç tarih: ${new Date(attribute.validations.maxDate).toLocaleDateString()}`);
-          }
-          break;
-          
-        case 'select':
-        case 'multiselect':
-          if (attribute.validations.minSelections !== undefined) {
-            rules.push(`En az ${attribute.validations.minSelections} seçim yapılmalıdır`);
-          }
-          if (attribute.validations.maxSelections !== undefined) {
-            rules.push(`En fazla ${attribute.validations.maxSelections} seçim yapılabilir`);
-          }
-          break;
-      }
-    }
-    
-    return rules.length > 0 ? rules.join('\n') : null;
-  };
-  
-  const tooltipContent = getValidationTooltip();
-  
   return (
-    <div key={attribute._id} className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
-      <div className="flex items-center mb-1">
-        <label 
-          htmlFor={`attr-${attribute._id}`} 
-          className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-        >
-          {getEntityName(attribute, currentLanguage)} {attribute.isRequired && <span className="text-red-500">*</span>}
-        </label>
-        
-        {tooltipContent && (
-          <div className="relative flex ml-2 group">
-            <span className="flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-blue-500 rounded-full hover:bg-blue-600 cursor-help">?</span>
-            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 text-white text-xs rounded shadow-lg z-10 invisible group-hover:visible whitespace-pre-line">
-              <div className="font-semibold mb-1">Geçerlilik Kuralları:</div>
-              {tooltipContent}
-              <div className="h-2 w-2 bg-gray-800 transform rotate-45 absolute -bottom-1 left-1/2 -translate-x-1/2"></div>
-            </div>
-          </div>
-        )}
-      </div>
+    <div className="mb-4">
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        {getEntityName(attribute, currentLanguage)} 
+        {attribute.isRequired && <span className="text-red-500 ml-1">*</span>}
+      </label>
       
       {attribute.type === 'text' && (
-        <div>
-          <input
-            type="text"
-            id={`attr-${attribute._id}`}
-            value={value || ''}
-            onChange={(e) => handleChange(e.target.value)}
-            required={attribute.isRequired}
-            minLength={attribute.validations?.minLength}
-            maxLength={attribute.validations?.maxLength}
-            pattern={attribute.validations?.pattern}
-            placeholder={attribute.validations?.placeholder || `${getEntityName(attribute, currentLanguage)} girin`}
-            className={`bg-gray-50 border ${error ? 'border-red-500' : 'border-gray-300'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
-          />
-        </div>
+        <input
+          type="text"
+          value={value || ''}
+          onChange={(e) => handleChange(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
+          placeholder={getEntityDescription(attribute, currentLanguage) || `${getEntityName(attribute, currentLanguage)} girin`}
+        />
       )}
       
       {attribute.type === 'number' && (
-        <div>
-          <input
-            type="number"
-            id={`attr-${attribute._id}`}
-            value={value || ''}
-            onChange={(e) => handleChange(e.target.value)}
-            required={attribute.isRequired}
-            min={attribute.validations?.min}
-            max={attribute.validations?.max}
-            step={attribute.validations?.step || 1}
-            placeholder={attribute.validations?.placeholder || `${getEntityName(attribute, currentLanguage)} girin`}
-            className={`bg-gray-50 border ${error ? 'border-red-500' : 'border-gray-300'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
-          />
-        </div>
+        <input
+          type="number"
+          value={value || ''}
+          onChange={(e) => handleChange(Number(e.target.value))}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
+          placeholder={getEntityDescription(attribute, currentLanguage) || `${getEntityName(attribute, currentLanguage)} girin`}
+        />
       )}
       
-      {attribute.type === 'date' && (
-        <div>
-          <input
-            type="date"
-            id={`attr-${attribute._id}`}
-            value={value || ''}
-            onChange={(e) => handleChange(e.target.value)}
-            required={attribute.isRequired}
-            min={attribute.validations?.minDate}
-            max={attribute.validations?.maxDate}
-            className={`bg-gray-50 border ${error ? 'border-red-500' : 'border-gray-300'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
-          />
-        </div>
+      {(String(attribute.type).includes('multiline') || String(attribute.type).includes('textarea')) && (
+        <textarea
+          value={value || ''}
+          onChange={(e) => handleChange(e.target.value)}
+          rows={4}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
+          placeholder={getEntityDescription(attribute, currentLanguage) || `${getEntityName(attribute, currentLanguage)} girin`}
+        />
+      )}
+      
+      {attribute.type === 'select' && attribute.options && (
+        <select
+          value={value || ''}
+          onChange={(e) => handleChange(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
+        >
+          <option value="">Seçiniz...</option>
+          {attribute.options.map((option, index) => (
+            <option key={index} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
       )}
       
       {attribute.type === 'boolean' && (
         <div className="flex items-center">
           <input
             type="checkbox"
-            id={`attr-${attribute._id}`}
             checked={value || false}
             onChange={(e) => handleChange(e.target.checked)}
-            className="w-4 h-4 text-primary-light bg-gray-100 border-gray-300 rounded focus:ring-primary-light dark:focus:ring-primary-dark dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+            className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
           />
-          <label htmlFor={`attr-${attribute._id}`} className="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300">
-            {value ? 'Evet' : 'Hayır'}
-          </label>
+          <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+            {getEntityDescription(attribute, currentLanguage) || 'Evet/Hayır'}
+          </span>
         </div>
       )}
       
-      {attribute.type === 'select' && (
-        <div>
-          <select
-            id={`attr-${attribute._id}`}
-            value={value || ''}
-            onChange={(e) => handleChange(e.target.value)}
-            required={attribute.isRequired}
-            className={`bg-gray-50 border ${error ? 'border-red-500' : 'border-gray-300'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
-          >
-            <option value="">Seçim yapın</option>
-            {attribute.options && attribute.options.map((option, index) => (
-              <option key={index} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-      
-      {attribute.type === 'multiselect' && (
-        <div>
-          <select
-            id={`attr-${attribute._id}`}
-            value={value || []}
-            onChange={(e) => {
-              const options = Array.from(e.target.selectedOptions, option => option.value);
-              handleChange(options);
-            }}
-            multiple
-            required={attribute.isRequired}
-            className={`bg-gray-50 border ${error ? 'border-red-500' : 'border-gray-300'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
-            size={Math.min(attribute.options?.length || 3, 5)}
-          >
-            {attribute.options && attribute.options.map((option, index) => (
-              <option key={index} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Birden fazla seçim yapmak için Ctrl (veya Command) tuşuna basılı tutarak tıklayın
-          </div>
-        </div>
+      {attribute.type === 'date' && (
+        <input
+          type="date"
+          value={value || ''}
+          onChange={(e) => handleChange(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
+        />
       )}
       
       {error && (
-        <p className="mt-1 text-xs text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      )}
-      
-      {getEntityDescription(attribute, currentLanguage) && (
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          {getEntityDescription(attribute, currentLanguage)}
-        </p>
+        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>
       )}
     </div>
   );
-};
-
-const AttributeForm: React.FC<AttributeFormProps> = ({ 
-  attributes, 
-  values, 
-  onChange,
-  itemType,
-  family,
-  category,
-  attributeGroupNames,
-  currentLanguage
-}) => {
-  // Öznitelikleri gruplara ayır
-  const groupedAttributes = useMemo(() => {
-    const grouped: Record<string, Attribute[]> = {
-      ungrouped: []
-    };
-    
-    // Her özniteliği uygun gruba ekle
-    attributes.forEach(attr => {
-      const groupId = attr.attributeGroup as string;
-      if (groupId && attributeGroupNames[groupId]) {
-        if (!grouped[groupId]) {
-          grouped[groupId] = [];
-        }
-        grouped[groupId].push(attr);
-      } else {
-        grouped.ungrouped.push(attr);
-      }
-    });
-    
-    return grouped;
-  }, [attributes, attributeGroupNames]);
-  
-  // Grup adını döndür
-  const getGroupName = (groupId: string): string => {
-    const groupNameObj = attributeGroupNames[groupId];
-    if (typeof groupNameObj === 'string') {
-      return groupNameObj;
-    }
-    if (groupNameObj && typeof groupNameObj === 'object') {
-      return getEntityName(groupNameObj, currentLanguage);
-    }
-    return 'Diğer Öznitelikler';
-  };
-  
-  // Öznitelik kaynağına göre başlık rengini belirle
-  const getSourceColor = (attributes: Attribute[]): string => {
-    if (attributes.length === 0) return '';
-    
-    const source = (attributes[0] as any).source;
-    if (source === 'family') return 'text-blue-600 dark:text-blue-400';
-    if (source === 'category') return 'text-green-600 dark:text-green-400';
-    return '';
-  };
-  
-  // Öznitelik kaynağına göre etiket getir
-  const getSourceLabel = (attributes: Attribute[]): string | null => {
-    if (attributes.length === 0) return null;
-    
-    const source = (attributes[0] as any).source;
-    if (source === 'family' && family) return `(${family.name})`;
-    if (source === 'category' && category) return `(${category.name})`;
-    return null;
-  };
-  
-  // Öznitelikler var mı kontrol et
-  if (attributes.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-gray-500 dark:text-gray-400">Bu öğe için tanımlanmış öznitelik bulunamadı.</p>
-      </div>
-    );
-  }
-  
-  return (
-    <div>
-      {/* Gruplar ve içlerindeki attributeları görüntüle */}
-      {Object.keys(groupedAttributes).map(groupId => {
-        const groupAttributes = groupedAttributes[groupId];
-        
-        // Boş grupları gösterme
-        if (groupAttributes.length === 0) return null;
-        
-        const sourceColor = getSourceColor(groupAttributes);
-        const sourceLabel = getSourceLabel(groupAttributes);
-        
-        return (
-          <div key={groupId} className="mb-6">
-            {/* Grup Başlığı */}
-            <div className="flex items-center mb-3">
-              <h3 className={`text-lg font-medium ${sourceColor}`}>
-                {groupId === 'ungrouped' ? 'Genel Öznitelikler' : getGroupName(groupId)}
-              </h3>
-              {sourceLabel && (
-                <span className={`ml-2 text-sm ${sourceColor}`}>{sourceLabel}</span>
-              )}
-            </div>
-            
-            {/* Grup içindeki öznitelikler */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {groupAttributes.map(attribute => (
-                <AttributeField
-                  key={attribute._id}
-                  attribute={attribute}
-                  value={values[attribute._id]}
-                  onChange={(value) => onChange(attribute._id, value)}
-                />
-              ))}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
-// Debug fonksiyonu - geliştirme aşamasında sorunları tespit etmek için
-const DEBUG = true;
-
-const debug = (message: string, data?: any) => {
-  if (DEBUG) {
-    console.log(`🔍 [DEBUG] ${message}`, data || '');
-  }
 };
 
 const ItemCreatePage: React.FC = () => {
   const navigate = useNavigate();
-  const { t, currentLanguage, supportedLanguages } = useTranslation();
+  const { currentLanguage } = useTranslation();
   
   // Form state
   const [formData, setFormData] = useState<CreateItemDto>({
-    name: '',
-    code: '',
-    description: '',
     itemType: '',
-    attributeValues: []
+    category: '',
+    family: '',
+    attributes: {}
   });
-
-  // Translation states
-  const [nameTranslations, setNameTranslations] = useState<Record<string, string>>({});
-  const [descriptionTranslations, setDescriptionTranslations] = useState<Record<string, string>>({});
   
-  // Seçenekler
-  const [itemTypeOptions, setItemTypeOptions] = useState<ItemTypeOption[]>([]);
-  const [familyOptions, setFamilyOptions] = useState<FamilyOption[]>([]);
-  const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
+  // UI state
+  const [currentStep, setCurrentStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Attribute state
+  // Data state
+  const [itemTypes, setItemTypes] = useState<ItemTypeOption[]>([]);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [families, setFamilies] = useState<Family[]>([]);
   const [attributes, setAttributes] = useState<Attribute[]>([]);
-  const [attributeValues, setAttributeValues] = useState<Record<string, any>>({});
-  const [attributeGroupNames, setAttributeGroupNames] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState<boolean>(false);
   
-  // Loading ve error state
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<boolean>(false);
+  // Kategori ve aile tree data
+  const [categoryTreeData, setCategoryTreeData] = useState<TreeNode[]>([]);
+  const [familyTreeData, setFamilyTreeData] = useState<TreeNode[]>([]);
   
-  // Stepper state
-  const [currentStep, setCurrentStep] = useState<number>(0);
-  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  
-  // Seçilen itemType, family ve category öğelerine ait tam bilgiler
+  // Selected entities
   const [selectedItemType, setSelectedItemType] = useState<ItemTypeOption | null>(null);
-  const [selectedFamily, setSelectedFamily] = useState<FamilyOption | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<CategoryOption | null>(null);
-  
-  // Stepper adımları
+  const [selectedFamily, setSelectedFamily] = useState<Family | null>(null);
+
+  // Steps configuration
   const steps = [
-    { title: 'Genel Bilgiler', description: 'Öğe bilgilerini girin' },
-    { title: 'Hiyerarşi', description: 'Tip, aile ve kategori seçin' },
-    { title: 'Öznitelikler', description: 'Öznitelik değerlerini girin' },
+    { title: 'Öğe Tipi Seçimi', description: 'Öğe tipini seçin' },
+    { title: 'Kategori Seçimi', description: 'Kategorinizi seçin' },
+    { title: 'Aile Seçimi', description: 'Aileyi seçin' },
+    { title: 'Öznitelikler', description: 'Öznitelikleri doldurun' },
     { title: 'Önizleme', description: 'Bilgileri kontrol edin' }
   ];
-  
-  // Sadece öğe tiplerini yükle
+
+  // ItemType'ları yükle
   useEffect(() => {
     const fetchItemTypes = async () => {
       try {
-        const itemTypesResult = await itemTypeService.getItemTypes({ limit: 100 });
-        setItemTypeOptions(itemTypesResult.itemTypes.map(type => ({
-          _id: type._id,
-          name: type.name,
-          code: type.code
-        })));
-      } catch (err) {
-        console.error('Öğe tipleri yüklenirken hata oluştu:', err);
-      }
-    };
-    
-    fetchItemTypes();
-  }, []);
-
-  // ItemType, Family ve Category seçildikçe attributeleri yükle
-  useEffect(() => {
-    const fetchAllAttributes = async () => {
-      if (!formData.itemType) return;
-      
-      setLoading(true);
-      try {
-        // Tüm öznitelikleri saklayacak dizi
-        let allAttributes: Attribute[] = [];
-        let attributeGroupNamesMap: Record<string, any> = {};
-        
-        // Tüm öznitelik ID'lerini saklayacak Set
-        const existingIds = new Set<string>();
-        
-        // Yardımcı fonksiyon: Öznitelikleri ekleme
-        const addAttributesToCollection = (attributes: any[], source: string, groupId?: string) => {
-          if (!attributes || !Array.isArray(attributes) || attributes.length === 0) return;
-          
-          for (const attr of attributes) {
-            if (attr && typeof attr === 'object' && '_id' in attr) {
-              if (!existingIds.has(attr._id)) {
-                const newAttr = {
-                  ...attr,
-                  source,
-                  ...(groupId ? { attributeGroup: groupId } : {})
-                };
-                allAttributes.push(newAttr);
-                existingIds.add(attr._id);
-              }
-            }
-          }
-        };
-        
-        // Yardımcı fonksiyon: Öznitelik gruplarını işleme
-        const processAttributeGroups = async (groups: any[], source: string) => {
-          if (!groups || !Array.isArray(groups) || groups.length === 0) return;
-          
-          for (const group of groups) {
-            if (group && typeof group === 'object' && '_id' in group) {
-              // Grup adını kaydet
-              attributeGroupNamesMap[group._id] = group.name;
-              
-              // Grup içindeki attributeları ekle
-              if (group.attributes && Array.isArray(group.attributes) && group.attributes.length > 0) {
-                console.log(`${source} - ${group.name} grubunda ${group.attributes.length} öznitelik var`);
-                addAttributesToCollection(group.attributes, source, group._id);
-              } else {
-                console.log(`${source} - ${group.name} grubunda öznitelik yok veya geçersiz format`);
-                
-                // Grup içinde attributes yoksa veya boşsa, API'den doğrudan kontrol et
-                try {
-                  const groupData = await attributeGroupService.testAttributeGroupAttributes(group._id);
-                  
-                  if (groupData.attributes && groupData.attributes.length > 0) {
-                    console.log(`${source} - ${group.name} grubu API testi: ${groupData.attributesLength} öznitelik bulundu`);
-                    addAttributesToCollection(groupData.attributes, source, group._id);
-                  }
-                } catch (err) {
-                  console.error(`${source} AttributeGroup test API hatası:`, err);
-                }
-              }
-            }
-          }
-        };
-        
-        // -----------------------------------------------
-        // ADIM 1: ItemType attributelerini ve gruplarını getir
-        // -----------------------------------------------
-        const itemTypeDetails = await itemTypeService.getItemTypeById(formData.itemType, { 
-          includeAttributes: true, 
-          includeAttributeGroups: true,
-          populateAttributeGroupsAttributes: true
-        });
-        
-        console.log("İtem Tipi detayları:", itemTypeDetails);
-        
-        // ItemType'ın doğrudan bağlı öznitelikleri
-        addAttributesToCollection(itemTypeDetails.attributes, 'itemType');
-        
-        // ItemType'ın öznitelik grupları
-        await processAttributeGroups(itemTypeDetails.attributeGroups, 'itemType');
-        
-        // -----------------------------------------------
-        // ADIM 2: Family attributelerini ve gruplarını getir
-        // -----------------------------------------------
-        if (formData.family) {
-          try {
-            const familyDetails = await familyService.getFamilyById(formData.family, { 
-              includeAttributes: true, 
-              includeAttributeGroups: true,
-              populateAttributeGroupsAttributes: true 
-            });
-            
-            console.log("Aile detayları:", familyDetails);
-            
-            // Family'nin doğrudan bağlı öznitelikleri
-            addAttributesToCollection(familyDetails.attributes, 'family');
-            
-            // Family'nin öznitelik grupları
-            await processAttributeGroups(familyDetails.attributeGroups, 'family');
-            
-            // ÖNEMLİ: Family'nin category bilgisini işle
-            if (familyDetails.category) {
-              
-              // Category'nin doğrudan bağlı öznitelikleri
-              addAttributesToCollection(familyDetails.category.attributes, 'category');
-              
-              // Category'nin öznitelik grupları
-              await processAttributeGroups(familyDetails.category.attributeGroups, 'category');
-            }
-          } catch (err) {
-            console.error('Aile öznitelikleri yüklenirken hata:', err);
-          }
-        }
-        
-        // -----------------------------------------------
-        // ADIM 3: Category attributelerini ve gruplarını getir
-        // -----------------------------------------------
-        if (formData.category) {
-          try {
-            const categoryDetails = await categoryService.getCategoryById(formData.category, { 
-              includeAttributes: true, 
-              includeAttributeGroups: true,
-              populateAttributeGroupsAttributes: true
-            });
-            
-            
-            // Category'nin doğrudan bağlı öznitelikleri
-            addAttributesToCollection(categoryDetails.attributes, 'category');
-            
-            // Category'nin öznitelik grupları
-            await processAttributeGroups(categoryDetails.attributeGroups, 'category');
-          } catch (err) {
-            console.error('Kategori öznitelikleri yüklenirken hata:', err);
-          }
-        }
-        
-        // State'leri güncelle
-        setAttributes(allAttributes);
-        setAttributeGroupNames(attributeGroupNamesMap);
-      } catch (err) {
-        console.error('Öznitelikler yüklenirken hata oluştu:', err);
+        setLoading(true);
+        const response = await itemTypeService.getItemTypes();
+        setItemTypes(response.itemTypes);
+      } catch (error) {
+        console.error('ItemType\'lar yüklenirken hata:', error);
       } finally {
         setLoading(false);
       }
     };
-    
-    fetchAllAttributes();
-  }, [formData.itemType, formData.family, formData.category]);
-  
-  // ItemType değiştiğinde families listesini güncelle
-  useEffect(() => {
-    const fetchFamilies = async () => {
-      if (!formData.itemType) {
-        setFamilyOptions([]);
-        setFormData(prev => ({ ...prev, family: '', category: '' }));
-        return;
-      }
-      
-      try {
-        const familiesResult = await familyService.getFamilies({ 
-          itemType: formData.itemType,
-          limit: 100
-        });
-        
-        setFamilyOptions(familiesResult.families.map(family => ({
-          _id: family._id,
-          name: family.name,
-          code: family.code
-        })));
-        
-        // Aile değiştiğinde kategori seçimini temizle
-        setFormData(prev => ({ ...prev, family: '', category: '' }));
-        
-        // Seçilen ItemType'ın bilgilerini kaydet
-        const selectedType = itemTypeOptions.find(type => type._id === formData.itemType);
-        setSelectedItemType(selectedType || null);
-      } catch (err) {
-        console.error('Aileler yüklenirken hata oluştu:', err);
-      }
-    };
-    
-    fetchFamilies();
-  }, [formData.itemType, itemTypeOptions]);
-  
-  // Family değiştiğinde categories listesini güncelle
-  useEffect(() => {
-    const fetchCategories = async () => {
-      if (!formData.family) {
-        setCategoryOptions([]);
-        setFormData(prev => ({ ...prev, category: '' }));
-        return;
-      }
-      
-      try {
-        const categoriesResult = await categoryService.getCategories({ 
-          family: formData.family,
-          limit: 100
-        });
-        
-        setCategoryOptions(categoriesResult.categories.map(category => ({
-          _id: category._id,
-          name: category.name,
-          code: category.code
-        })));
-        
-        // Kategori seçimini temizle
-        setFormData(prev => ({ ...prev, category: '' }));
-        
-        // Seçilen Family'nin bilgilerini kaydet
-        const selectedFam = familyOptions.find(family => family._id === formData.family);
-        setSelectedFamily(selectedFam || null);
-      } catch (err) {
-        console.error('Kategoriler yüklenirken hata oluştu:', err);
-      }
-    };
-    
-    fetchCategories();
-  }, [formData.family, familyOptions]);
-  
-  // Form input değişiklik handler
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    
-    // Checkbox için özel işlem
-    if (type === 'checkbox') {
-      const checked = (e.target as HTMLInputElement).checked;
-      setFormData((prev: any) => ({ ...prev, [name]: checked }));
-      return;
-    }
-    
-    setFormData((prev: any) => ({ ...prev, [name]: value }));
-    
-    // Hata mesajını temizle
-    if (formErrors[name]) {
-      setFormErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[name];
-        return newErrors;
-      });
-    }
-  };
 
-  // Öznitelik değeri değişiklik handler
-  const handleAttributeChange = (attributeId: string, value: any) => {
-    setAttributeValues(prev => ({
-      ...prev,
-      [attributeId]: value
-    }));
-  };
-  
-  // Translation change handlers
-  const handleNameTranslationChange = (language: string, value: string) => {
-    setNameTranslations(prev => ({
-      ...prev,
-      [language]: value
-    }));
-  };
+    fetchItemTypes();
+  }, []);
 
-  const handleDescriptionTranslationChange = (language: string, value: string) => {
-    setDescriptionTranslations(prev => ({
-      ...prev,
-      [language]: value
-    }));
-  };
-  
-  // Form gönderme handler
-  const handleSubmit = async () => {
-    // Zorunlu attribute'ların kontrolü
-    const requiredAttributesCheck = validateRequiredAttributes();
-    if (!requiredAttributesCheck.isValid) {
-      setError(`Zorunlu alanları doldurun: ${requiredAttributesCheck.missingFields.join(', ')}`);
-      return;
-    }
-    
-    setIsLoading(true);
-    setError(null);
-    setSuccess(false);
-    
+  // ItemType seçildiğinde kategorileri yükle
+  const handleItemTypeSelect = async (itemTypeId: string) => {
     try {
-      // Attribute değerlerini formData'ya ekle
-      const attributeValuesArray = Object.entries(attributeValues).map(([attributeId, value]) => ({
-        attributeId,
-        value
+      setLoading(true);
+      const selectedType = itemTypes.find(t => t._id === itemTypeId);
+      setSelectedItemType(selectedType || null);
+      
+      // FormData'yı güncelle
+      setFormData(prev => ({
+        ...prev,
+        itemType: itemTypeId,
+        category: '',
+        family: '',
+        attributes: {}
       }));
       
-      const payload = {
-        ...formData,
-        attributeValues: attributeValuesArray
+      // Kategorileri getir ve tree formatına çevir
+      const categoriesData = await categoryService.getCategoriesByItemType(itemTypeId);
+      setCategories(categoriesData);
+      
+      // Tree formatına çevir
+      const treeData: TreeNode[] = categoriesData.map(category => ({
+        id: category._id,
+        name: getEntityName(category, currentLanguage) || 'İsimsiz Kategori',
+        data: category
+      }));
+      
+      setCategoryTreeData(treeData);
+      
+      // Sonraki adımları sıfırla
+      setSelectedCategory(null);
+      setSelectedFamily(null);
+      setFamilies([]);
+      setFamilyTreeData([]);
+      setAttributes([]);
+      
+    } catch (error) {
+      console.error('Kategoriler yüklenirken hata:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Kategori seçildiğinde aileleri yükle
+  const handleCategorySelect = async (categoryNode: TreeNode) => {
+    try {
+      setLoading(true);
+      const category = categoryNode.data as CategoryOption;
+      setSelectedCategory(category);
+      
+      // FormData'yı güncelle
+      setFormData(prev => ({
+        ...prev,
+        category: category._id,
+        family: '',
+        attributes: {}
+      }));
+      
+      // Aileleri getir ve tree formatına çevir
+      const familiesData = await familyService.getFamiliesByCategory(category._id);
+      setFamilies(familiesData);
+      
+      // Tree formatına çevir
+      const treeData: TreeNode[] = familiesData.map(family => ({
+        id: family._id,
+        name: getEntityName(family, currentLanguage) || 'İsimsiz Aile',
+        data: family
+      }));
+      
+      setFamilyTreeData(treeData);
+      
+      // Sonraki adımları sıfırla
+      setSelectedFamily(null);
+      setAttributes([]);
+      
+    } catch (error) {
+      console.error('Aileler yüklenirken hata:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Aile seçildiğinde attributeları yükle
+  const handleFamilySelect = async (familyNode: TreeNode) => {
+    try {
+      setLoading(true);
+      const family = familyNode.data as Family;
+      setSelectedFamily(family);
+      
+      // FormData'yı güncelle
+      setFormData(prev => ({
+        ...prev,
+        family: family._id,
+        attributes: {}
+      }));
+      
+      // Aile detayını getir ve attributeları yükle
+      const familyDetail = await familyService.getFamilyById(family._id, {
+        includeAttributes: true,
+        includeAttributeGroups: true,
+        populateAttributeGroupsAttributes: true
+      });
+      
+      // Attributeları topla
+      const allAttributes: Attribute[] = [];
+      
+      // Direkt attributes
+      if (familyDetail.attributes) {
+        allAttributes.push(...familyDetail.attributes);
+      }
+      
+      // AttributeGroup'lardan gelen attributes
+      if (familyDetail.attributeGroups) {
+        familyDetail.attributeGroups.forEach((group: any) => {
+          if (group.attributes) {
+            allAttributes.push(...group.attributes);
+          }
+        });
+      }
+      
+      // Kategori attributeları
+      if (familyDetail.category && familyDetail.category.attributes) {
+        allAttributes.push(...familyDetail.category.attributes);
+      }
+      
+      // Kategori attributeGroups
+      if (familyDetail.category && familyDetail.category.attributeGroups) {
+        familyDetail.category.attributeGroups.forEach((group: any) => {
+          if (group.attributes) {
+            allAttributes.push(...group.attributes);
+          }
+        });
+      }
+      
+      // Unique yap
+      const uniqueAttributes = allAttributes.filter((attr, index, self) => 
+        index === self.findIndex(a => a._id === attr._id)
+      );
+      
+      setAttributes(uniqueAttributes);
+      
+    } catch (error) {
+      console.error('Attributelar yüklenirken hata:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Attribute değeri değiştiğinde
+  const handleAttributeChange = (attributeId: string, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      attributes: {
+        ...prev.attributes,
+        [attributeId]: value
+      }
+    }));
+  };
+
+  // Validasyon
+  const validateStep = (step: number): boolean => {
+    switch (step) {
+      case 1:
+        return !!formData.itemType;
+      case 2:
+        return !!formData.category;
+      case 3:
+        return !!formData.family;
+      case 4:
+        // Required attribute kontrolü
+        const requiredAttributes = attributes.filter(attr => attr.isRequired);
+        return requiredAttributes.every(attr => 
+          formData.attributes?.[attr._id] !== undefined && 
+          formData.attributes?.[attr._id] !== null && 
+          formData.attributes?.[attr._id] !== ''
+        );
+      default:
+        return true;
+    }
+  };
+
+  // Next step
+  const handleNextStep = () => {
+    if (validateStep(currentStep)) {
+      setCurrentStep(prev => Math.min(prev + 1, steps.length));
+    }
+  };
+
+  // Previous step
+  const handlePrevStep = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 1));
+  };
+
+  // Submit
+  const handleSubmit = async () => {
+    try {
+      setIsSubmitting(true);
+      
+      const itemData: CreateItemDto = {
+        itemType: formData.itemType!,
+        category: formData.category!,
+        family: formData.family!,
+        attributes: formData.attributes || {}
       };
       
-      // API'ye gönder
-      await itemService.createItem(payload);
-      
-      setSuccess(true);
-      
-      // Başarılı olduğunda listeye yönlendir
-      setTimeout(() => {
-        navigate('/items/list');
-      }, 1500);
-    } catch (err: any) {
-      setError(err.message || 'Öğe oluşturulurken bir hata oluştu');
+      await itemService.createItem(itemData);
+      navigate('/items');
+    } catch (error) {
+      console.error('Item oluşturulurken hata:', error);
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
-  
-  // Zorunlu attribute'ların kontrol edilmesi
-  const validateRequiredAttributes = (): { isValid: boolean; missingFields: string[] } => {
-    // Zorunlu olan ama değeri girilmemiş attributelar
-    const missingRequiredAttributes = attributes
-      .filter(attr => attr.isRequired)
-      .filter(attr => {
-        const value = attributeValues[attr._id];
-        return value === undefined || value === null || value === '' || 
-               (Array.isArray(value) && value.length === 0);
-      });
-    
-    // Eksik olan attributeların isimleri
-    const missingFields = missingRequiredAttributes.map(attr => attr.name);
-    
-    return {
-      isValid: missingFields.length === 0,
-      missingFields
-    };
-  };
-  
-  // Adım 1 validasyonu
-  const validateStep1 = (): boolean => {
-    const errors: Record<string, string> = {};
-    
-    // Check if name has at least current language translation
-    if (!nameTranslations[currentLanguage]?.trim()) {
-      errors.name = `${currentLanguage.toUpperCase()} dilinde öğe adı zorunludur`;
-    }
-    
-    if (!formData.code.trim()) {
-      errors.code = 'Öğe kodu zorunludur';
-    }
-    
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-  
-  // Adım 2 validasyonu
-  const validateStep2 = (): boolean => {
-    const errors: Record<string, string> = {};
-    
-    if (!formData.itemType) {
-      errors.itemType = 'Öğe tipi seçimi zorunludur';
-    }
-    
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-  
-  // Adım 3 validasyonu
-  const validateStep3 = (): boolean => {
-    const requiredCheck = validateRequiredAttributes();
-    if (!requiredCheck.isValid) {
-      setError(`Zorunlu öznitelik alanları: ${requiredCheck.missingFields.join(', ')}`);
-      return false;
-    }
-    setError(null);
-    return true;
-  };
-  
-  // İleri adıma geç
-  const handleNextStep = () => {
-    let isValid = false;
-    
-    // Aktif adımın validasyonunu çalıştır
-    switch (currentStep) {
-      case 0:
-        isValid = validateStep1();
-        break;
-      case 1:
-        isValid = validateStep2();
-        break;
-      case 2:
-        isValid = validateStep3();
-        break;
-      default:
-        isValid = true;
-        break;
-    }
-    
-    if (!isValid) return;
-    
-    // Adımı tamamlanmış olarak işaretle
-    if (!completedSteps.includes(currentStep)) {
-      setCompletedSteps(prev => [...prev, currentStep]);
-    }
-    
-    // Sonraki adıma geç
-    setCurrentStep(prev => Math.min(prev + 1, steps.length - 1));
-  };
-  
-  // Önceki adıma dön
-  const handlePrevStep = () => {
-    setCurrentStep(prev => Math.max(prev - 1, 0));
-  };
-  
-  // Adıma göre içerik renderla
+
+  // Render step content
   const renderStepContent = () => {
     switch (currentStep) {
-      case 0:
-        return (
-          <div className="space-y-6">
-            {/* Çok dilli İsim */}
-            <div>
-              <TranslationFields
-                label="Öğe Adı"
-                fieldType="input"
-                translations={nameTranslations}
-                supportedLanguages={supportedLanguages}
-                currentLanguage={currentLanguage}
-                onChange={handleNameTranslationChange}
-                placeholder="Öğe adını girin"
-                required
-                error={formErrors.name}
-              />
-            </div>
-            
-            {/* Kod */}
-            <div>
-              <label htmlFor="code" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Kod <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                id="code"
-                name="code"
-                value={formData.code}
-                onChange={handleChange}
-                required
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-                placeholder="Öğe kodunu girin (örn: ITEM001)"
-              />
-              {formErrors.code && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.code}</p>
-              )}
-            </div>
-            
-            {/* Çok dilli Açıklama */}
-            <div>
-              <TranslationFields
-                label="Açıklama"
-                fieldType="textarea"
-                translations={descriptionTranslations}
-                supportedLanguages={supportedLanguages}
-                currentLanguage={currentLanguage}
-                onChange={handleDescriptionTranslationChange}
-                placeholder="Öğe hakkında açıklama girin"
-                rows={3}
-              />
-            </div>
-            
-            {/* Active/Inactive state */}
-            <div>
-              <div className="flex items-start">
-                <div className="flex items-center h-5">
-                  <input
-                    id="isActive"
-                    name="isActive"
-                    type="checkbox"
-                    checked={formData.isActive === undefined ? true : formData.isActive}
-                    onChange={e => setFormData((prev: any) => ({ ...prev, isActive: e.target.checked }))}
-                    className="w-4 h-4 text-primary-light bg-gray-100 border-gray-300 rounded focus:ring-primary-light dark:focus:ring-primary-dark dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                  />
-                </div>
-                <label htmlFor="isActive" className="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300">
-                  Aktif
-                </label>
-              </div>
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Öğenin aktif olup olmadığını belirler. Pasif öğeler kullanıcı arayüzünde gösterilmez.
-              </p>
-            </div>
-          </div>
-        );
-      
       case 1:
         return (
           <div className="space-y-6">
-            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-md border border-blue-200 dark:border-blue-800 mb-6">
-              <div className="flex items-start">
-                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div>
-                  <p className="text-sm text-blue-700 dark:text-blue-300">
-                    Hiyerarşik seçim yapmanız gerekmektedir. Önce Öğe Tipi, sonra Aile ve en son Kategori seçimi yapılmalıdır. Seçimleriniz, bir sonraki adımda gösterilecek öznitelikleri belirler.
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            {/* Öğe Tipi */}
-            <div className="bg-white dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
-              <label htmlFor="itemType" className="block text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">
-                1. Öğe Tipi <span className="text-red-500">*</span>
-              </label>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                Oluşturmak istediğiniz öğenin ana türünü seçin. Bu seçim, sonraki adımlarda gösterilecek aile ve kategori seçeneklerini belirler.
-              </p>
-              <select
-                id="itemType"
-                name="itemType"
-                value={formData.itemType}
-                onChange={handleChange}
-                required
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-              >
-                <option value="">Öğe tipi seçin</option>
-                {itemTypeOptions.map(type => (
-                  <option key={type._id} value={type._id}>
-                    {type.name} ({type.code})
-                  </option>
-                ))}
-              </select>
-              {formErrors.itemType && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.itemType}</p>
-              )}
-            </div>
-            
-            {/* Aile */}
-            <div className={`bg-white dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600 ${!formData.itemType ? 'opacity-50' : ''}`}>
-              <label htmlFor="family" className="block text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">
-                2. Aile
-              </label>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                Seçtiğiniz öğe tipine ait bir aile seçin. Bu, ürün hiyerarşisindeki yerini belirler.
-              </p>
-              <select
-                id="family"
-                name="family"
-                value={formData.family || ''}
-                onChange={handleChange}
-                disabled={!formData.itemType}
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark disabled:bg-gray-100 disabled:dark:bg-gray-800 disabled:text-gray-400 disabled:cursor-not-allowed"
-              >
-                <option value="">Aile seçin (opsiyonel)</option>
-                {familyOptions.length === 0 && formData.itemType && (
-                  <option value="" disabled>Seçilen öğe tipine ait aile bulunamadı</option>
-                )}
-                {familyOptions.map(family => (
-                  <option key={family._id} value={family._id}>
-                    {family.name} ({family.code})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Kategori */}
-            <div className={`bg-white dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600 ${!formData.family ? 'opacity-50' : ''}`}>
-              <label htmlFor="category" className="block text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">
-                3. Kategori
-              </label>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                Seçtiğiniz aileye ait bir kategori seçin. Bu, öğenin en spesifik sınıflandırmasını belirler.
-              </p>
-              <select
-                id="category"
-                name="category"
-                value={formData.category || ''}
-                onChange={handleChange}
-                disabled={!formData.family}
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark disabled:bg-gray-100 disabled:dark:bg-gray-800 disabled:text-gray-400 disabled:cursor-not-allowed"
-              >
-                <option value="">Kategori seçin (opsiyonel)</option>
-                {categoryOptions.length === 0 && formData.family && (
-                  <option value="" disabled>Seçilen aileye ait kategori bulunamadı</option>
-                )}
-                {categoryOptions.map(category => (
-                  <option key={category._id} value={category._id}>
-                    {category.name} ({category.code})
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        );
-      
-      case 2:
-        return (
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Öznitelik Değerleri</h3>
-            
-            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
-              <div className="flex items-start">
-                <svg className="w-5 h-5 text-gray-500 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Aşağıdaki öznitelikler seçtiğiniz öğe tipi, aile ve kategoriye göre otomatik olarak belirlenmiştir. 
-                    Zorunlu alanları doldurmanız gerekmektedir.
-                  </p>
-                </div>
-              </div>
-            </div>
-            
+            <h3 className="text-lg font-medium">Öğe Tipi Seçin</h3>
             {loading ? (
-              <div className="py-4 flex justify-center">
-                <svg className="animate-spin h-8 w-8 text-primary-light dark:text-primary-dark" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              </div>
-            ) : attributes.length === 0 ? (
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-md border border-yellow-200 dark:border-yellow-800">
-                <div className="flex items-start">
-                  <svg className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <div>
-                    <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                      Seçilen tür, aile ve kategoriye ait öznitelik bulunamadı. Yine de öğeyi oluşturabilirsiniz veya 
-                      farklı bir tür, aile veya kategori seçmek için önceki adıma dönebilirsiniz.
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <div className="text-center py-8">Yükleniyor...</div>
             ) : (
-              <AttributeForm 
-                attributes={attributes} 
-                values={attributeValues} 
-                onChange={handleAttributeChange} 
-                itemType={selectedItemType}
-                family={selectedFamily}
-                category={selectedCategory}
-                attributeGroupNames={attributeGroupNames}
-                currentLanguage={currentLanguage}
-              />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {itemTypes.map(itemType => (
+                  <div
+                    key={itemType._id}
+                    className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                      formData.itemType === itemType._id
+                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                        : 'border-gray-200 dark:border-gray-600 hover:border-primary-300'
+                    }`}
+                    onClick={() => handleItemTypeSelect(itemType._id)}
+                  >
+                    <h4 className="font-medium">{getEntityName(itemType, currentLanguage) || 'İsimsiz Öğe Tipi'}</h4>
+                    {itemType.code && (
+                      <p className="text-sm text-gray-500 mt-1">Kod: {itemType.code}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         );
-      
+
+      case 2:
+        return (
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium">Kategori Seçin</h3>
+            {selectedItemType && (
+              <p className="text-sm text-gray-600">
+                Seçili Öğe Tipi: <strong>{getEntityName(selectedItemType, currentLanguage) || 'İsimsiz'}</strong>
+              </p>
+            )}
+            
+            {loading ? (
+              <div className="text-center py-8">Kategoriler yükleniyor...</div>
+            ) : categoryTreeData.length > 0 ? (
+              <UnifiedTreeView
+                data={categoryTreeData}
+                onNodeClick={handleCategorySelect}
+                activeNodeId={formData.category}
+                mode="view"
+                headerTitle="Kategoriler"
+                maxHeight="400px"
+              />
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                Bu öğe tipi için kategori bulunamadı
+              </div>
+            )}
+          </div>
+        );
+
       case 3:
         return (
           <div className="space-y-6">
-            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-md border border-blue-200 dark:border-blue-800 mb-6">
-              <div className="flex items-start">
-                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div>
-                  <p className="text-sm text-blue-700 dark:text-blue-300">
-                    Öğeyi onaylamak için tüm bilgilerin doğru olduğunu kontrol edin.
-                  </p>
-                </div>
-              </div>
-            </div>
+            <h3 className="text-lg font-medium">Aile Seçin</h3>
+            {selectedCategory && (
+              <p className="text-sm text-gray-600">
+                Seçili Kategori: <strong>{getEntityName(selectedCategory, currentLanguage) || 'İsimsiz'}</strong>
+              </p>
+            )}
             
-            {/* Öğe Bilgileri */}
-            <div className="bg-white dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
-              <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-4">Öğe Bilgileri</h3>
-              
-              <div className="space-y-4">
-                {/* Name Translations */}
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Öğe Adı (Çeviriler)</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {supportedLanguages.map((language) => (
-                      <div key={language} className="bg-gray-50 dark:bg-gray-800 p-3 rounded border">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-xs font-medium text-gray-400 uppercase">{language}</span>
-                        </div>
-                        <p className="text-sm text-gray-900 dark:text-white">
-                          {nameTranslations[language] || '-'}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Code */}
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Öğe Kodu</h4>
-                  <p className="text-sm text-gray-900 dark:text-white font-mono bg-gray-50 dark:bg-gray-800 p-2 rounded border">{formData.code}</p>
-                </div>
-
-                {/* Description Translations */}
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Açıklama (Çeviriler)</h4>
-                  <div className="space-y-3">
-                    {supportedLanguages.map((language) => (
-                      <div key={language} className="bg-gray-50 dark:bg-gray-800 p-3 rounded border">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-xs font-medium text-gray-400 uppercase">{language}</span>
-                        </div>
-                        <p className="text-sm text-gray-900 dark:text-white">
-                          {descriptionTranslations[language] || '-'}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Hierarchy */}
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Hiyerarşi</h4>
-                  <div className="space-y-2">
-                    <div className="bg-gray-50 dark:bg-gray-800 p-2 rounded border">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">Öğe Tipi:</span>
-                      <span className="ml-2 text-sm text-gray-900 dark:text-white">{selectedItemType?.name} ({selectedItemType?.code})</span>
-                    </div>
-                    {selectedFamily && (
-                      <div className="bg-gray-50 dark:bg-gray-800 p-2 rounded border">
-                        <span className="text-xs text-gray-500 dark:text-gray-400">Aile:</span>
-                        <span className="ml-2 text-sm text-gray-900 dark:text-white">{selectedFamily.name} ({selectedFamily.code})</span>
-                      </div>
-                    )}
-                    {selectedCategory && (
-                      <div className="bg-gray-50 dark:bg-gray-800 p-2 rounded border">
-                        <span className="text-xs text-gray-500 dark:text-gray-400">Kategori:</span>
-                        <span className="ml-2 text-sm text-gray-900 dark:text-white">{selectedCategory.name} ({selectedCategory.code})</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Active Status */}
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Durum</h4>
-                  <div className="bg-gray-50 dark:bg-gray-800 p-2 rounded border">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      formData.isActive !== false 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' 
-                        : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
-                    }`}>
-                      {formData.isActive !== false ? 'Aktif' : 'Pasif'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Öznitelik Değerleri */}
-            {attributes.length > 0 && (
-              <div className="bg-white dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
-                <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-4">Öznitelik Değerleri</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {attributes.map(attribute => {
-                    const value = attributeValues[attribute._id];
-                    const hasValue = value !== undefined && value !== null && value !== '';
-                    
-                    return (
-                      <div key={attribute._id} className="bg-gray-50 dark:bg-gray-800 p-3 rounded border">
-                        <div className="flex items-center mb-2">
-                          <h4 className="text-sm font-medium text-gray-900 dark:text-white">
-                            {getEntityName(attribute, currentLanguage)}
-                          </h4>
-                          {attribute.isRequired && (
-                            <span className="ml-1 text-red-500 text-xs">*</span>
-                          )}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                          Tip: {attribute.type}
-                        </div>
-                        <div className="text-sm text-gray-900 dark:text-white">
-                          {hasValue ? (
-                            Array.isArray(value) ? value.join(', ') : String(value)
-                          ) : (
-                            <span className="text-gray-400 italic">Değer girilmedi</span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+            {loading ? (
+              <div className="text-center py-8">Aileler yükleniyor...</div>
+            ) : familyTreeData.length > 0 ? (
+              <UnifiedTreeView
+                data={familyTreeData}
+                onNodeClick={handleFamilySelect}
+                activeNodeId={formData.family}
+                mode="view"
+                headerTitle="Aileler"
+                maxHeight="400px"
+              />
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                Bu kategori için aile bulunamadı
               </div>
             )}
           </div>
         );
-      
+
+      case 4:
+        return (
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium">Öznitelikler</h3>
+            {selectedFamily && (
+              <p className="text-sm text-gray-600">
+                Seçili Aile: <strong>{getEntityName(selectedFamily, currentLanguage) || 'İsimsiz'}</strong>
+              </p>
+            )}
+            
+            {loading ? (
+              <div className="text-center py-8">Öznitelikler yükleniyor...</div>
+            ) : attributes.length > 0 ? (
+              <div className="space-y-4">
+                {attributes.map(attribute => (
+                  <AttributeField
+                    key={attribute._id}
+                    attribute={attribute}
+                    value={formData.attributes?.[attribute._id]}
+                    onChange={(value) => handleAttributeChange(attribute._id, value)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                Bu aile için öznitelik bulunamadı
+              </div>
+            )}
+          </div>
+        );
+
+      case 5:
+        return (
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium">Önizleme</h3>
+            
+            <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-medium mb-2">Hiyerarşi</h4>
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <span className="text-gray-500">Öğe Tipi:</span> 
+                      <span className="ml-2 font-medium">
+                        {selectedItemType ? getEntityName(selectedItemType, currentLanguage) || 'İsimsiz' : '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Kategori:</span> 
+                      <span className="ml-2 font-medium">
+                        {selectedCategory ? getEntityName(selectedCategory, currentLanguage) || 'İsimsiz' : '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Aile:</span> 
+                      <span className="ml-2 font-medium">
+                        {selectedFamily ? getEntityName(selectedFamily, currentLanguage) || 'İsimsiz' : '-'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="font-medium mb-2">Öznitelikler</h4>
+                  <div className="space-y-2 text-sm">
+                    {attributes.map(attribute => (
+                      <div key={attribute._id}>
+                        <span className="text-gray-500">{getEntityName(attribute, currentLanguage) || 'İsimsiz'}:</span>
+                        <span className="ml-2 font-medium">
+                          {formData.attributes?.[attribute._id] || '-'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
       default:
         return null;
     }
   };
-  
-  return (
-    <div className="space-y-6">
-      {/* Breadcrumb */}
-      <Breadcrumb 
-        items={[
-          { label: 'Ana Sayfa', path: '/' },
-          { label: 'Öğeler', path: '/items/list' },
-          { label: 'Yeni Öğe Oluştur' }
-        ]}
-      />
 
-      {/* Başlık */}
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
-              <svg className="w-7 h-7 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Yeni Öğe Oluştur
-            </h1>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              Yeni bir öğe oluşturmak için adımları takip edin
-            </p>
-          </div>
-          
-          <Button
-            variant="outline"
-            onClick={() => navigate('/items/list')}
-            className="flex items-center"
-          >
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Listeye Dön
-          </Button>
-        </div>
-      </div>
-      
-      {/* Form */}
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <Stepper 
-            steps={steps} 
-            activeStep={currentStep} 
-            completedSteps={completedSteps} 
-          />
-        </div>
-        
-        <div className="p-6">
-          {error && (
-            <div className="mb-4 bg-red-50 dark:bg-red-900/20 p-4 rounded-md border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 flex items-start">
-              <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span>{error}</span>
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="container mx-auto px-4 py-8">
+        <Breadcrumb
+          items={[
+            { label: 'Ana Sayfa', path: '/' },
+            { label: 'Öğeler', path: '/items' },
+            { label: 'Yeni Öğe Oluştur' }
+          ]}
+        />
+
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Yeni Öğe Oluştur
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">
+                Sistem hiyerarşisini takip ederek yeni bir öğe oluşturun
+              </p>
             </div>
-          )}
-          
-          {success && (
-            <div className="mb-4 bg-green-50 dark:bg-green-900/20 p-4 rounded-md border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 flex items-start">
-              <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span>Öğe başarıyla oluşturuldu! Yönlendiriliyorsunuz...</span>
-            </div>
-          )}
-          
-          {/* Form içeriği - direkt submit edilmesini engelle */}
-          <div className="space-y-6">
-            {renderStepContent()}
-            
-            {/* Navigation Buttons */}
-            <div className="flex justify-between mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-              <Button
-                variant="outline"
-                type="button"
-                onClick={handlePrevStep}
-                disabled={currentStep === 0}
-                className={`${currentStep === 0 ? 'invisible' : ''}`}
-              >
-                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-                Önceki Adım
-              </Button>
-              
-              {currentStep < steps.length - 1 ? (
+
+            <div className="p-6">
+              <Stepper
+                steps={steps}
+                activeStep={currentStep - 1}
+                completedSteps={Array.from({ length: currentStep - 1 }, (_, i) => i)}
+              />
+
+              <div className="min-h-[400px] mt-8">
+                {renderStepContent()}
+              </div>
+
+              <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
                 <Button
-                  variant="primary"
-                  type="button"
-                  onClick={handleNextStep}
+                  onClick={handlePrevStep}
+                  disabled={currentStep === 1}
+                  variant="secondary"
                 >
-                  Sonraki Adım
-                  <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+                  Önceki
                 </Button>
-              ) : (
-            <Button
-              variant="primary"
-                  type="button"
-                  onClick={handleSubmit}
-              disabled={isLoading}
-                  className="flex items-center"
-            >
-              {isLoading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Oluşturuluyor...
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Kaydet
-                </>
-              )}
-            </Button>
-              )}
+
+                <div className="flex space-x-3">
+                  <Button
+                    onClick={() => navigate('/items')}
+                    variant="secondary"
+                  >
+                    İptal
+                  </Button>
+
+                  {currentStep < steps.length ? (
+                    <Button
+                      onClick={handleNextStep}
+                      disabled={!validateStep(currentStep) || loading}
+                    >
+                      {loading ? 'Yükleniyor...' : 'Sonraki'}
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={!validateStep(currentStep) || isSubmitting}
+                    >
+                      {isSubmitting ? 'Oluşturuluyor...' : 'Oluştur'}
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1433,4 +661,4 @@ const ItemCreatePage: React.FC = () => {
   );
 };
 
-export default ItemCreatePage; 
+export default ItemCreatePage;

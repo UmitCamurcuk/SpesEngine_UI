@@ -134,17 +134,17 @@ export interface NotificationSettings {
 // Attribute modeli
 export interface Attribute {
   _id: string;
-  name: string;
+  name: any; // Localization object veya string
   code: string;
   type: AttributeType;
-  description: string;
+  description: any; // Localization object veya string
   isRequired: boolean;
   options: string[];
   attributeGroup?: string | {
     _id: string;
-    name: string;
+    name: any; // Localization object veya string
     code?: string;
-    description?: string;
+    description?: any; // Localization object veya string
   };
   validations?: AttributeValidation;
   notificationSettings?: NotificationSettings;

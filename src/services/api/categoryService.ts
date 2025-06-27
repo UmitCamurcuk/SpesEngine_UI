@@ -87,6 +87,17 @@ const categoryService = {
       console.error(`${id} ID'li kategori silinirken hata oluştu:`, error);
       throw error;
     }
+  },
+
+  // ItemType'a göre kategorileri getir
+  getCategoriesByItemType: async (itemTypeId: string): Promise<Category[]> => {
+    try {
+      const response = await api.get<ApiResponse<Category[]>>(`/categories/by-itemtype/${itemTypeId}`);
+      return response.data.data;
+    } catch (error) {
+      console.error(`${itemTypeId} ItemType'ı için kategoriler getirilirken hata oluştu:`, error);
+      throw error;
+    }
   }
 };
 

@@ -12,9 +12,9 @@ export interface CategoryApiParams {
 // Category modeli
 export interface Category {
   _id: string;
-  name: string;
+  name: any; // Localization object veya string
   code: string;
-  description: string;
+  description: any; // Localization object veya string
   family?: string;
   parentCategory?: string;
   parent?: any; // API'den gelen parent alanı
@@ -39,9 +39,9 @@ export interface ApiResponse<T> {
 
 // Yeni category için tip tanımı
 export interface CreateCategoryDto {
-  name: string;
+  name: any; // Localization object veya string
   code: string;
-  description: string;
+  description: any; // Localization object veya string
   family?: string;
   parentCategory?: string;
   parent?: any; // API için parent alanı

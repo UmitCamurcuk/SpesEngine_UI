@@ -12,9 +12,9 @@ export interface FamilyApiParams {
 // Family modeli
 export interface Family {
   _id: string;
-  name: string;
+  name: any; // Localization object veya string
   code: string;
-  description: string;
+  description: any; // Localization object veya string
   parentFamily?: string;
   parent?: string;
   itemType?: string;
@@ -39,9 +39,9 @@ export interface ApiResponse<T> {
 
 // Yeni family için tip tanımı
 export interface CreateFamilyDto {
-  name: string;
+  name: any; // Localization object veya string
   code: string;
-  description: string;
+  description: any; // Localization object veya string
   parentFamily?: string;
   parent?: string;
   itemType?: string;

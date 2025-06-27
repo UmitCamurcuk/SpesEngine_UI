@@ -29,13 +29,10 @@ const ItemDetailsPage: React.FC = () => {
   
   // Form state
   const [formData, setFormData] = useState<Partial<Item>>({
-    name: '',
-    code: '',
-    description: '',
     itemType: '',
     family: '',
     category: '',
-    attributeValues: [],
+    attributes: {},
     isActive: true
   });
   
@@ -61,20 +58,18 @@ const ItemDetailsPage: React.FC = () => {
         const itemData = await itemService.getItemById(id);
         setItem(itemData);
         setFormData({
-          name: itemData.name,
-          code: itemData.code,
-          description: itemData.description,
           itemType: itemData.itemType,
           family: itemData.family,
           category: itemData.category,
-          attributeValues: itemData.attributeValues,
+          attributes: itemData.attributes,
           isActive: itemData.isActive
         });
         
         // İlişkili verileri getir
         if (itemData.itemType) {
           try {
-            const itemTypeData = await itemTypeService.getItemTypeById(itemData.itemType._id);
+            const itemTypeId = typeof itemData.itemType === 'string' ? itemData.itemType : itemData.itemType._id;
+            const itemTypeData = await itemTypeService.getItemTypeById(itemTypeId);
             setItemTypeData(itemTypeData);
             setItemTypeName(itemTypeData.name);
           } catch (err) {
@@ -84,7 +79,8 @@ const ItemDetailsPage: React.FC = () => {
         
         if (itemData.family) {
           try {
-            const familyData = await familyService.getFamilyById(itemData.family._id);
+            const familyId = typeof itemData.family === 'string' ? itemData.family : itemData.family._id;
+            const familyData = await familyService.getFamilyById(familyId);
             setFamilyData(familyData);
             setFamilyName(familyData.name);
           } catch (err) {
@@ -93,8 +89,8 @@ const ItemDetailsPage: React.FC = () => {
         }
         
         // Attributeları yükle
-        if (itemData.attributeValues && itemData.attributeValues.length > 0) {
-          const attributeIds = itemData.attributeValues.map(av => av.attributeId);
+        if (itemData.attributes && Object.keys(itemData.attributes).length > 0) {
+          const attributeIds = Object.keys(itemData.attributes);
           
           try {
             const attributesData: Record<string, Attribute> = {};

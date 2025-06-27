@@ -184,9 +184,9 @@ const CategoryDetailsPage: React.FC = () => {
         console.log("Veriden yüklenen familyId:", familyId);
         
         setFormData({
-          name: categoryData.name,
+          name: getEntityName(categoryData, currentLanguage) || '',
           code: categoryData.code,
-          description: categoryData.description,
+          description: getEntityDescription(categoryData, currentLanguage) || '',
           isActive: categoryData.isActive,
           parentId: parentId || undefined,
           family: familyId || undefined
@@ -207,7 +207,7 @@ const CategoryDetailsPage: React.FC = () => {
               console.log("Üst kategori ID:", parentCategoryId);
               const parentCategoryData = await categoryService.getCategoryById(parentCategoryId);
               console.log("Üst kategori verisi:", parentCategoryData);
-              setParentCategoryName(parentCategoryData.name);
+              setParentCategoryName(getEntityName(parentCategoryData, currentLanguage) || '');
             } else {
               console.log("Üst kategori ID bulunamadı");
             }
@@ -225,7 +225,7 @@ const CategoryDetailsPage: React.FC = () => {
               console.log("Parent ID:", parentId);
               const parentData = await categoryService.getCategoryById(parentId);
               console.log("Parent verisi:", parentData);
-              setParentCategoryName(parentData.name);
+              setParentCategoryName(getEntityName(parentData, currentLanguage) || '');
             } else {
               console.log("Parent ID bulunamadı");
             }
@@ -242,7 +242,7 @@ const CategoryDetailsPage: React.FC = () => {
         if (categoryData.family) {
           try {
             const familyData = await familyService.getFamilyById(categoryData.family._id);
-            setFamilyName(familyData.name);
+            setFamilyName(getEntityName(familyData, currentLanguage) || '');
             await fetchFamilyTree(categoryData.family._id);
           } catch (err) {
             console.error('Aile bilgisi yüklenirken hata oluştu:', err);
@@ -257,7 +257,7 @@ const CategoryDetailsPage: React.FC = () => {
               const attributeData = await attributeService.getAttributeById(attributeId._id);
               fetchedAttributes.push({ 
                 id: attributeId, 
-                name: attributeData.name,
+                name: getEntityName(attributeData, currentLanguage) || '',
                 type: attributeData.type
               });
             }
@@ -275,9 +275,9 @@ const CategoryDetailsPage: React.FC = () => {
               // API'den gelen grup verisi direkt olarak kullanılıyor
               fetchedGroups.push({ 
                 id: groupData._id, 
-                name: groupData.name,
+                name: getEntityName(groupData, currentLanguage) || '',
                 code: groupData.code,
-                description: groupData.description,
+                description: getEntityDescription(groupData, currentLanguage) || '',
                 attributes: groupData.attributes || []
               });
             }
@@ -352,7 +352,7 @@ const CategoryDetailsPage: React.FC = () => {
             const children = buildCategoryTree(catId);
             return {
               id: catId,
-              name: cat.name,
+              name: getEntityName(cat, currentLanguage) || '',
               data: cat,
               children: children.length > 0 ? children : undefined
             };
@@ -409,7 +409,7 @@ const CategoryDetailsPage: React.FC = () => {
             const children = buildFamilyTree(familyId);
             return {
               id: familyId,
-              name: family.name,
+              name: getEntityName(family, currentLanguage) || '',
               data: family,
               children: children.length > 0 ? children : undefined
             };
@@ -575,7 +575,7 @@ const CategoryDetailsPage: React.FC = () => {
                   </div>
                 ) : (
                   <p className="mt-2 text-gray-900 dark:text-gray-100">
-                    {category?.description || 'Açıklama bulunmuyor'}
+                    {getEntityDescription(category, currentLanguage) || 'Açıklama bulunmuyor'}
                   </p>
                 )}
               </div>
@@ -903,7 +903,7 @@ const CategoryDetailsPage: React.FC = () => {
                     data={familyTree.map(fam => ({
                       id: fam.id,
                       name: fam.name,
-                      label: fam.name,
+                      label: getEntityName(fam.data, currentLanguage) || fam.name,
                       children: fam.children
                     }))}
                     onSelectionChange={(selectedIds) => {
@@ -1149,9 +1149,9 @@ const CategoryDetailsPage: React.FC = () => {
     console.log("Düzenleme başlatıldı. Parent ID:", parentId, "Family ID:", familyId);
     
     setFormData({
-      name: category?.name || '',
+      name: getEntityName(category, currentLanguage) || '',
       code: category?.code || '',
-      description: category?.description || '',
+      description: getEntityDescription(category, currentLanguage) || '',
       isActive: category?.isActive || true,
       parentId: parentId || undefined,
       family: familyId || undefined
@@ -1169,9 +1169,9 @@ const CategoryDetailsPage: React.FC = () => {
     const familyId = getEntityId(category?.family);
     
     setFormData({
-      name: category?.name || '',
+      name: getEntityName(category, currentLanguage) || '',
       code: category?.code || '',
-      description: category?.description || '',
+      description: getEntityDescription(category, currentLanguage) || '',
       isActive: category?.isActive || true,
       parentId: parentId || undefined,
       family: familyId || undefined
@@ -1247,9 +1247,9 @@ const CategoryDetailsPage: React.FC = () => {
           
           newGroups.push({
             id: groupData._id,
-            name: groupData.name,
+            name: getEntityName(groupData, currentLanguage) || '',
             code: groupData.code,
-            description: groupData.description,
+            description: getEntityDescription(groupData, currentLanguage) || '',
             attributes: groupData.attributes || []
           });
         }
@@ -1293,7 +1293,7 @@ const CategoryDetailsPage: React.FC = () => {
           
           newAttributes.push({
             id: attrData._id,
-            name: attrData.name,
+            name: getEntityName(attrData, currentLanguage) || '',
             type: attrData.type
           });
         }
@@ -1451,7 +1451,7 @@ const CategoryDetailsPage: React.FC = () => {
         <Breadcrumb 
           items={[
             { label: 'Kategoriler', path: '/categories/list' },
-            { label: category ? getEntityName(category, currentLanguage) || category.name : 'Kategori Detayları' }
+            { label: category ? getEntityName(category, currentLanguage) || 'İsimsiz Kategori' : 'Kategori Detayları' }
           ]} 
         />
       </div>
@@ -1490,7 +1490,7 @@ const CategoryDetailsPage: React.FC = () => {
               </div>
             ) : (
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                {category ? getEntityName(category, currentLanguage) || category.name : 'Kategori Detayları'}
+                {category ? getEntityName(category, currentLanguage) || 'İsimsiz Kategori' : 'Kategori Detayları'}
               </h1>
             )}
             <div className="flex items-center mt-1">
@@ -1699,7 +1699,7 @@ const CategoryDetailsPage: React.FC = () => {
           >
             <div className="flex items-center">
               <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
               </svg>
               API Referansı
             </div>
@@ -1887,7 +1887,7 @@ const CategoryDetailsPage: React.FC = () => {
                               data={categoryTree.map(cat => ({
                                 id: cat.id,
                                 name: cat.name,
-                                label: cat.name,
+                                label: getEntityName(cat.data, currentLanguage) || cat.name,
                                 children: cat.children
                               }))}
                               onSelectionChange={(selectedIds) => {

@@ -21,13 +21,10 @@ export interface AttributeValue {
 // Item modeli
 export interface Item {
   _id: string;
-  name: string;
-  code: string;
-  description: string;
   itemType: string;
   family?: string;
   category?: string;
-  attributeValues: AttributeValue[];
+  attributes: Record<string, any>;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -46,12 +43,10 @@ export interface ApiResponse<T> {
 
 // Yeni Item için tip tanımı
 export interface CreateItemDto {
-  name: string;
-  code: string;
-  description: string;
   itemType: string;
   family?: string;
   category?: string;
+  attributes?: Record<string, any>;
   attributeValues?: AttributeValue[];
   isActive?: boolean;
 } 

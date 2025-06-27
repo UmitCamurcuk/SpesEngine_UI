@@ -164,8 +164,8 @@ const ItemsListPage: React.FC = () => {
   };
   
   // Silme işlemi handler
-  const handleDeleteItem = async (id: string, name: string) => {
-    if (window.confirm(`"${name}" öğesini silmek istediğinize emin misiniz?`)) {
+  const handleDeleteItem = async (id: string) => {
+    if (window.confirm('Bu öğeyi silmek istediğinize emin misiniz?')) {
       try {
         await itemService.deleteItem(id);
         // Silme başarılı olduğunda listeyi yenile
@@ -178,39 +178,6 @@ const ItemsListPage: React.FC = () => {
   
   // Tablo sütunları
   const columns: TableColumn<Item>[] = [
-    {
-      key: 'name',
-      header: 'Ad',
-      sortable: true,
-      filterable: true,
-      render: (row) => (
-        <div className="flex items-center">
-          <div className="font-medium text-gray-900 dark:text-white truncate max-w-[200px]" title={row.name}>
-            {row.name}
-          </div>
-        </div>
-      )
-    },
-    {
-      key: 'code',
-      header: 'Kod',
-      sortable: true,
-      filterable: true,
-      render: (row) => (
-        <div className="font-mono text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded truncate max-w-[150px]" title={row.code}>
-          {row.code}
-        </div>
-      )
-    },
-    {
-      key: 'description',
-      header: 'Açıklama',
-      render: (row) => (
-        <div className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={row.description}>
-          {row.description || <span className="text-gray-400 italic">Açıklama yok</span>}
-        </div>
-      )
-    },
     {
       key: 'itemType',
       header: 'Öğe Tipi',
@@ -294,7 +261,7 @@ const ItemsListPage: React.FC = () => {
         className="p-1 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900 rounded-md"
         onClick={(e) => {
           e.stopPropagation();
-          handleDeleteItem(item._id, item.name);
+          handleDeleteItem(item._id);
         }}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">

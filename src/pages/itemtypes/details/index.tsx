@@ -13,7 +13,7 @@ import itemTypeService from '../../../services/api/itemTypeService';
 import attributeService from '../../../services/api/attributeService';
 import attributeGroupService from '../../../services/api/attributeGroupService';
 import categoryService from '../../../services/api/categoryService';
-import type { ItemType } from '../../../types/itemType';
+import type { ItemType, NotificationSettings } from '../../../types/itemType';
 import dayjs from 'dayjs';
 import 'dayjs/locale/tr';
 import { useTranslation } from '../../../context/i18nContext';
@@ -79,6 +79,10 @@ const ItemTypeDetailsPage: React.FC = () => {
   const [availableCategories, setAvailableCategories] = useState<{id: string, name: string, code: string}[]>([]);
   const [availableAttributeGroups, setAvailableAttributeGroups] = useState<{id: string, name: string, code: string}[]>([]);
   const [availableAttributes, setAvailableAttributes] = useState<{id: string, name: string, type: string}[]>([]);
+  
+  // Permissions and notification settings state
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({});
+  const [tempNotificationSettings, setTempNotificationSettings] = useState<NotificationSettings>({});
 
   // HELPER FUNCTIONS
   const formatDate = (dateString?: string) => {
@@ -174,6 +178,11 @@ const ItemTypeDetailsPage: React.FC = () => {
             isActive: data.isActive ?? true,
             category: (data.category && typeof data.category === 'object') ? (data.category as any)._id : (data.category || '')
           });
+          
+          // Initialize notification settings
+          const currentNotificationSettings = data.settings?.notifications?.settings || {};
+          setNotificationSettings(currentNotificationSettings);
+          setTempNotificationSettings(currentNotificationSettings);
 
           // İlişkili kategoriyi set et - Backend'den populate olmuş halde geliyor
           if (data.category && typeof data.category === 'object') {
@@ -230,8 +239,13 @@ const ItemTypeDetailsPage: React.FC = () => {
       fetchAvailableCategories();
       fetchAvailableAttributeGroups();
       fetchAvailableAttributes();
+      // Reset temp notification settings to current values
+      setTempNotificationSettings(notificationSettings);
+    } else {
+      // Reset temp notification settings when exiting edit mode
+      setTempNotificationSettings(notificationSettings);
     }
-  }, [isEditing, currentLanguage]);
+  }, [isEditing, currentLanguage, notificationSettings]);
 
   // Form input change handler
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -295,6 +309,29 @@ const ItemTypeDetailsPage: React.FC = () => {
         const newCategory = availableCategories.find(c => c.id === editableFields.category);
         const newCategoryName = newCategory?.name || 'Kategori yok';
         changes.push(`Kategori: "${oldCategoryName}" → "${newCategoryName}"`);
+      }
+      
+      // Öznitelik grupları değişiklik kontrolü
+      const currentAttributeGroupIds = attributeGroups.map(g => g.id);
+      const originalAttributeGroupIds = itemType.attributeGroups ? 
+        (Array.isArray(itemType.attributeGroups) ? itemType.attributeGroups.map((ag: any) => ag._id || ag) : []) : [];
+      
+      if (JSON.stringify(currentAttributeGroupIds.sort()) !== JSON.stringify(originalAttributeGroupIds.sort())) {
+        changes.push(`Öznitelik Grupları: ${originalAttributeGroupIds.length} → ${currentAttributeGroupIds.length} grup`);
+      }
+      
+      // Öznitelikler değişiklik kontrolü
+      const currentAttributeIds = attributes.map(a => a.id);
+      const originalAttributeIds = itemType.attributes ? 
+        (Array.isArray(itemType.attributes) ? itemType.attributes.map((attr: any) => attr._id || attr) : []) : [];
+      
+      if (JSON.stringify(currentAttributeIds.sort()) !== JSON.stringify(originalAttributeIds.sort())) {
+        changes.push(`Öznitelikler: ${originalAttributeIds.length} → ${currentAttributeIds.length} öznitelik`);
+      }
+      
+      // Notification settings değişiklik kontrolü
+      if (JSON.stringify(tempNotificationSettings) !== JSON.stringify(notificationSettings)) {
+        changes.push(`Bildirim ayarları güncellendi`);
       }
     }
 
@@ -361,9 +398,25 @@ const ItemTypeDetailsPage: React.FC = () => {
         if (comment && comment.trim()) {
           updateData.comment = comment.trim();
         }
+        
+        // Notification settings değişmişse ekle
+        if (JSON.stringify(tempNotificationSettings) !== JSON.stringify(notificationSettings)) {
+          updateData.settings = {
+            ...itemType.settings,
+            notifications: {
+              ...itemType.settings?.notifications,
+              settings: tempNotificationSettings
+            }
+          };
+        }
       }
       
       const updatedItemType = await itemTypeService.updateItemType(id!, updateData);
+      
+      // Update notification settings if changed
+      if (JSON.stringify(tempNotificationSettings) !== JSON.stringify(notificationSettings)) {
+        setNotificationSettings(tempNotificationSettings);
+      }
       setItemType(updatedItemType);
       setIsEditing(false);
       setFormErrors({});
@@ -398,6 +451,9 @@ const ItemTypeDetailsPage: React.FC = () => {
       isActive: itemType.isActive ?? true,
       category: (itemType.category && typeof itemType.category === 'object') ? (itemType.category as any)._id : (itemType.category || '')
     });
+    
+    // Reset notification settings
+    setTempNotificationSettings(notificationSettings);
     
     setFormErrors({});
     setIsEditing(false);
@@ -1075,6 +1131,37 @@ const ItemTypeDetailsPage: React.FC = () => {
           <PermissionsTab 
             entityId={id!}
             entityType="itemType"
+            isEditing={isEditing}
+            notificationSettings={notificationSettings}
+            tempNotificationSettings={tempNotificationSettings}
+            onEditRole={(roleId) => {
+              console.log('Edit role:', roleId);
+              // Role edit logic buraya gelecek
+            }}
+            onCreateRole={() => {
+              console.log('Create new role');
+              // Role creation logic buraya gelecek
+            }}
+            onDeleteRole={(roleId) => {
+              console.log('Delete role:', roleId);
+              // Role deletion logic buraya gelecek
+            }}
+            onUpdateNotifications={(settings) => {
+              setNotificationSettings(settings);
+              showToast({
+                type: 'success',
+                title: 'Bildirim Ayarları Güncellendi',
+                message: 'Bildirim ayarları başarıyla kaydedildi',
+                duration: 3000
+              });
+            }}
+            onNotificationSettingsChange={(settings) => {
+              setTempNotificationSettings(settings);
+            }}
+            onUpdatePermissions={(roleId, permissions) => {
+              console.log('Update permissions for role:', roleId, permissions);
+              // Permission update logic buraya gelecek
+            }}
           />
         )}
 

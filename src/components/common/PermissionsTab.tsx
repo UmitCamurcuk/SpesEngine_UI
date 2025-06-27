@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Button from '../ui/Button';
 import { useTranslation } from '../../context/i18nContext';
 import { useSlackIntegration } from '../../hooks/useSlackIntegration';
-import { NotificationSettings } from '../../types/attribute';
+import { NotificationSettings } from '../../types/itemType';
 
 interface Permission {
   id: string;
@@ -25,13 +25,16 @@ interface PermissionsTabProps {
   entityType: 'attribute' | 'attributeGroup' | 'category' | 'family' | 'itemType' | 'item';
   roles?: Role[];
   notificationSettings?: NotificationSettings;
+  tempNotificationSettings?: NotificationSettings;
   onUpdatePermissions?: (roleId: string, permissions: string[]) => void;
   onCreateRole?: () => void;
   onDeleteRole?: (roleId: string) => void;
   onManageUsers?: (roleId: string) => void;
   onUpdateNotifications?: (settings: NotificationSettings) => void;
+  onNotificationSettingsChange?: (settings: NotificationSettings) => void;
   isEditing?: boolean;
   isLoading?: boolean;
+  onEditRole?: (roleId: string) => void;
 }
 
 const PermissionsTab: React.FC<PermissionsTabProps> = ({
@@ -39,11 +42,14 @@ const PermissionsTab: React.FC<PermissionsTabProps> = ({
   entityType,
   roles = [],
   notificationSettings = {},
+  tempNotificationSettings: propTempNotificationSettings,
   onUpdatePermissions,
   onCreateRole,
   onDeleteRole,
   onManageUsers,
   onUpdateNotifications,
+  onNotificationSettingsChange,
+  onEditRole,
   isEditing = false,
   isLoading = false
 }) => {
@@ -51,37 +57,15 @@ const PermissionsTab: React.FC<PermissionsTabProps> = ({
   const { isSlackEnabled } = useSlackIntegration();
   const [activeSection, setActiveSection] = useState<'roles' | 'matrix' | 'audit' | 'notifications'>('roles');
   
-  // Notification settings için editing state
-  const [isEditingNotifications, setIsEditingNotifications] = useState(false);
-  const [tempNotificationSettings, setTempNotificationSettings] = useState<NotificationSettings>(notificationSettings);
-
-  // NotificationSettings prop değiştiğinde temp state'i güncelle
-  useEffect(() => {
-    setTempNotificationSettings(notificationSettings);
-  }, [notificationSettings]);
-
-  // Notification settings handlers
-  const handleEditNotifications = () => {
-    console.log('Current notificationSettings:', notificationSettings);
-    setIsEditingNotifications(true);
-    setTempNotificationSettings({ ...notificationSettings });
-  };
-
-  const handleSaveNotifications = () => {
-    onUpdateNotifications?.(tempNotificationSettings);
-    setIsEditingNotifications(false);
-  };
-
-  const handleCancelNotifications = () => {
-    setTempNotificationSettings(notificationSettings);
-    setIsEditingNotifications(false);
-  };
+  // Notification settings prop'tan gelir veya yerel state
+  const tempNotificationSettings = propTempNotificationSettings || notificationSettings;
 
   const handleNotificationToggle = (key: keyof NotificationSettings) => {
-    setTempNotificationSettings(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
+    const newSettings = {
+      ...tempNotificationSettings,
+      [key]: !tempNotificationSettings[key]
+    };
+    onNotificationSettingsChange?.(newSettings);
   };
 
   const getDefaultRoles = (): Role[] => {
@@ -124,82 +108,137 @@ const PermissionsTab: React.FC<PermissionsTabProps> = ({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Tab Navigation */}
-      <div className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-        <nav className="-mb-px flex space-x-8 px-4">
-          <button
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeSection === 'roles'
-                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-            }`}
-            onClick={() => setActiveSection('roles')}
-          >
-            Roller
-          </button>
-          <button
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeSection === 'matrix'
-                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-            }`}
-            onClick={() => setActiveSection('matrix')}
-          >
-            İzin Matrisi
-          </button>
-          <button
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeSection === 'audit'
-                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-            }`}
-            onClick={() => setActiveSection('audit')}
-          >
-            Denetim Günlüğü
-          </button>
-          {isSlackEnabled && (
+    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+      {/* Header */}
+      <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <div className="h-10 w-10 rounded-lg bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center mr-3">
+              <svg className="h-5 w-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-lg font-medium text-gray-900 dark:text-white">
+                İzin Yönetimi
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Roller, izinler ve erişim kontrolü
+              </p>
+            </div>
+          </div>
+{isEditing && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={onCreateRole}
+              className="flex items-center"
+            >
+              <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Yeni Rol
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <div className="border-b border-gray-200 dark:border-gray-700">
+        <nav className="flex space-x-8 px-6">
+          {[
+            { id: 'roles', label: 'Roller', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
+            { id: 'matrix', label: 'İzin Matrisi', icon: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z' },
+            { id: 'audit', label: 'Denetim Günlüğü', icon: 'M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+            ...(isSlackEnabled ? [{ id: 'notifications', label: 'Bildirimler', icon: 'M15 17h5l-5 5v-5zM4.868 7.75L6.5 9.5l1.632-1.75m0 0L10 6l-1.868 1.75M9.5 12.5V17' }] : [])
+          ].map((tab) => (
             <button
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeSection === 'notifications'
+              key={tab.id}
+              className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center ${
+                activeSection === tab.id
                   ? 'border-primary-500 text-primary-600 dark:text-primary-400'
                   : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
-              onClick={() => setActiveSection('notifications')}
+              onClick={() => setActiveSection(tab.id as any)}
             >
-              Bildirimler
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={tab.icon} />
+              </svg>
+              {tab.label}
             </button>
-          )}
+          ))}
         </nav>
       </div>
 
-      {/* Tab Content */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 space-y-6">
+      {/* Content */}
+      <div className="p-6">
         {activeSection === 'roles' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Rol Yönetimi</h3>
-              <Button variant="primary" size="sm" onClick={onCreateRole}>
-                Yeni Rol Ekle
-              </Button>
-            </div>
             
             <div className="grid gap-4">
               {displayRoles.map((role) => (
                 <div key={role.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900 dark:text-white">{role.name}</h4>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{role.description}</p>
-                      {role.userCount && (
-                        <span className="text-xs text-gray-400 dark:text-gray-500">{role.userCount} kullanıcı</span>
-                      )}
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Button variant="outline" size="sm">Düzenle</Button>
-                      {!role.isSystem && (
-                        <Button variant="secondary" size="sm">Sil</Button>
-                      )}
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-900 dark:text-white">{role.name}</h4>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">{role.description}</p>
+                          {role.userCount && (
+                            <span className="text-xs text-gray-400 dark:text-gray-500">{role.userCount} kullanıcı</span>
+                          )}
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {isEditing && (
+                            <>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => onEditRole?.(role.id)}
+                              >
+                                Düzenle
+                              </Button>
+                              {!role.isSystem && (
+                                <Button 
+                                  variant="secondary" 
+                                  size="sm"
+                                  onClick={() => onDeleteRole?.(role.id)}
+                                >
+                                  Sil
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Permission Checkboxes */}
+                      <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {['read', 'write', 'delete', 'admin'].map((permission) => (
+                          <label key={permission} className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={role.permissions.includes(permission)}
+                              onChange={(e) => {
+                                if (isEditing) {
+                                  const newPermissions = e.target.checked
+                                    ? [...role.permissions, permission]
+                                    : role.permissions.filter(p => p !== permission);
+                                  onUpdatePermissions?.(role.id, newPermissions);
+                                }
+                              }}
+                              disabled={!isEditing}
+                              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded disabled:opacity-50"
+                            />
+                            <span className="ml-2 text-sm text-gray-700 dark:text-gray-300 capitalize">
+                              {permission === 'read' && 'Okuma'}
+                              {permission === 'write' && 'Yazma'}
+                              {permission === 'delete' && 'Silme'}
+                              {permission === 'admin' && 'Yönetici'}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -210,9 +249,6 @@ const PermissionsTab: React.FC<PermissionsTabProps> = ({
 
         {activeSection === 'matrix' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">İzin Matrisi</h3>
-            </div>
             
             <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
               <div className="text-center py-8">
@@ -229,9 +265,6 @@ const PermissionsTab: React.FC<PermissionsTabProps> = ({
 
         {activeSection === 'audit' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Denetim Günlüğü</h3>
-            </div>
             
             <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
               <div className="text-center py-8">
@@ -248,54 +281,6 @@ const PermissionsTab: React.FC<PermissionsTabProps> = ({
 
         {activeSection === 'notifications' && isSlackEnabled && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Bildirim Ayarları</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Bu {entityType === 'attribute' ? 'öznitelik' : entityType} ile ilgili olaylarda bildirim almak için aşağıdaki seçenekleri işaretleyebilirsiniz.
-                </p>
-              </div>
-              <div className="flex items-center space-x-2">
-                {isEditingNotifications ? (
-                  <>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={handleSaveNotifications}
-                      className="flex items-center"
-                    >
-                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Kaydet
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleCancelNotifications}
-                      className="flex items-center"
-                    >
-                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                      İptal
-                    </Button>
-                  </>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleEditNotifications}
-                    className="flex items-center"
-                  >
-                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                    Düzenle
-                  </Button>
-                )}
-              </div>
-            </div>
               
             <div className="space-y-6">
               {/* Temel İşlemler */}
@@ -311,9 +296,9 @@ const PermissionsTab: React.FC<PermissionsTabProps> = ({
                   <label className="flex items-center">
                     <input
                       type="checkbox"
-                      checked={isEditingNotifications ? (tempNotificationSettings.onUpdate || false) : (notificationSettings.onUpdate || false)}
-                      onChange={() => isEditingNotifications && handleNotificationToggle('onUpdate')}
-                      disabled={!isEditingNotifications}
+                      checked={isEditing ? (tempNotificationSettings.onUpdate || false) : (notificationSettings.onUpdate || false)}
+                      onChange={() => isEditing && handleNotificationToggle('onUpdate')}
+                      disabled={!isEditing}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
                     />
                     <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
@@ -323,9 +308,9 @@ const PermissionsTab: React.FC<PermissionsTabProps> = ({
                   <label className="flex items-center">
                     <input
                       type="checkbox"
-                      checked={isEditingNotifications ? (tempNotificationSettings.onDelete || false) : (notificationSettings.onDelete || false)}
-                      onChange={() => isEditingNotifications && handleNotificationToggle('onDelete')}
-                      disabled={!isEditingNotifications}
+                      checked={isEditing ? (tempNotificationSettings.onDelete || false) : (notificationSettings.onDelete || false)}
+                      onChange={() => isEditing && handleNotificationToggle('onDelete')}
+                      disabled={!isEditing}
                       className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded disabled:opacity-50"
                     />
                     <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
@@ -350,9 +335,9 @@ const PermissionsTab: React.FC<PermissionsTabProps> = ({
                   <label className="flex items-center">
                     <input
                       type="checkbox"
-                      checked={isEditingNotifications ? (tempNotificationSettings.onUsedInCategory || false) : (notificationSettings.onUsedInCategory || false)}
-                      onChange={() => isEditingNotifications && handleNotificationToggle('onUsedInCategory')}
-                      disabled={!isEditingNotifications}
+                      checked={isEditing ? (tempNotificationSettings.onUsedInCategory || false) : (notificationSettings.onUsedInCategory || false)}
+                      onChange={() => isEditing && handleNotificationToggle('onUsedInCategory')}
+                      disabled={!isEditing}
                       className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded disabled:opacity-50"
                     />
                     <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
@@ -362,9 +347,9 @@ const PermissionsTab: React.FC<PermissionsTabProps> = ({
                   <label className="flex items-center">
                     <input
                       type="checkbox"
-                      checked={isEditingNotifications ? (tempNotificationSettings.onUsedInFamily || false) : (notificationSettings.onUsedInFamily || false)}
-                      onChange={() => isEditingNotifications && handleNotificationToggle('onUsedInFamily')}
-                      disabled={!isEditingNotifications}
+                      checked={isEditing ? (tempNotificationSettings.onUsedInFamily || false) : (notificationSettings.onUsedInFamily || false)}
+                      onChange={() => isEditing && handleNotificationToggle('onUsedInFamily')}
+                      disabled={!isEditing}
                       className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50"
                     />
                     <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
@@ -374,9 +359,9 @@ const PermissionsTab: React.FC<PermissionsTabProps> = ({
                   <label className="flex items-center">
                     <input
                       type="checkbox"
-                      checked={isEditingNotifications ? (tempNotificationSettings.onUsedInAttributeGroup || false) : (notificationSettings.onUsedInAttributeGroup || false)}
-                      onChange={() => isEditingNotifications && handleNotificationToggle('onUsedInAttributeGroup')}
-                      disabled={!isEditingNotifications}
+                      checked={isEditing ? (tempNotificationSettings.onUsedInAttributeGroup || false) : (notificationSettings.onUsedInAttributeGroup || false)}
+                      onChange={() => isEditing && handleNotificationToggle('onUsedInAttributeGroup')}
+                      disabled={!isEditing}
                       className="h-4 w-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 rounded disabled:opacity-50"
                     />
                     <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
@@ -386,9 +371,9 @@ const PermissionsTab: React.FC<PermissionsTabProps> = ({
                   <label className="flex items-center">
                     <input
                       type="checkbox"
-                      checked={isEditingNotifications ? (tempNotificationSettings.onUsedInItemType || false) : (notificationSettings.onUsedInItemType || false)}
-                      onChange={() => isEditingNotifications && handleNotificationToggle('onUsedInItemType')}
-                      disabled={!isEditingNotifications}
+                      checked={isEditing ? (tempNotificationSettings.onUsedInItemType || false) : (notificationSettings.onUsedInItemType || false)}
+                      onChange={() => isEditing && handleNotificationToggle('onUsedInItemType')}
+                      disabled={!isEditing}
                       className="h-4 w-4 text-pink-600 focus:ring-pink-500 border-gray-300 rounded disabled:opacity-50"
                     />
                     <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
@@ -398,9 +383,9 @@ const PermissionsTab: React.FC<PermissionsTabProps> = ({
                   <label className="flex items-center">
                     <input
                       type="checkbox"
-                      checked={isEditingNotifications ? (tempNotificationSettings.onUsedInItem || false) : (notificationSettings.onUsedInItem || false)}
-                      onChange={() => isEditingNotifications && handleNotificationToggle('onUsedInItem')}
-                      disabled={!isEditingNotifications}
+                      checked={isEditing ? (tempNotificationSettings.onUsedInItem || false) : (notificationSettings.onUsedInItem || false)}
+                      onChange={() => isEditing && handleNotificationToggle('onUsedInItem')}
+                      disabled={!isEditing}
                       className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded disabled:opacity-50"
                     />
                     <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">

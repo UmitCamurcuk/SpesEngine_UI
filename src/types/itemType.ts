@@ -11,6 +11,54 @@ export interface ItemTypeApiParams {
   [key: string]: any;
 }
 
+// Notification Settings
+export interface NotificationSettings {
+  onUpdate?: boolean;
+  onDelete?: boolean;
+  onUsedInCategory?: boolean;
+  onUsedInFamily?: boolean;
+  onUsedInAttributeGroup?: boolean;
+  onUsedInItemType?: boolean;
+  onUsedInItem?: boolean;
+}
+
+// Notification Channels
+export interface NotificationChannels {
+  slack?: {
+    enabled: boolean;
+    webhook?: string;
+    channel?: string;
+  };
+  email?: {
+    enabled: boolean;
+    recipients?: string[];
+  };
+  whatsapp?: {
+    enabled: boolean;
+    phoneNumbers?: string[];
+  };
+  teams?: {
+    enabled: boolean;
+    webhook?: string;
+  };
+}
+
+// ItemType Settings
+export interface ItemTypeSettings {
+  notifications?: {
+    settings?: NotificationSettings;
+    channels?: NotificationChannels;
+  };
+  permissions?: {
+    allowPublicAccess?: boolean;
+    restrictedFields?: string[];
+  };
+  workflow?: {
+    requireApproval?: boolean;
+    autoPublish?: boolean;
+  };
+}
+
 // ItemType modeli
 export interface ItemType {
   _id: string;
@@ -20,6 +68,7 @@ export interface ItemType {
   category?: any; // Category objesi olarak populate edilmiş
   attributeGroups?: any[]; // AttributeGroup objeleri olarak populate edilmiş
   attributes?: any[]; // Attribute objeleri olarak populate edilmiş
+  settings?: ItemTypeSettings;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

@@ -1,26 +1,17 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Table from '../../../components/ui/Table';
-import type { TableColumn, SortParams, FilterParams, PaginationParams } from '../../../components/ui/Table';
+import type { TableColumn } from '../../../components/ui/Table';
 import Button from '../../../components/ui/Button';
-import Breadcrumb from '../../../components/common/Breadcrumb';
 import categoryService from '../../../services/api/categoryService';
-import type { Category, CategoryApiParams } from '../../../types/category';
+import type { Category } from '../../../types/category';
 import { useTranslation } from '../../../context/i18nContext';
 import { getEntityName, getEntityDescription } from '../../../utils/translationUtils';
-
-// Debounce utility
-const debounce = (func: Function, wait: number) => {
-  let timeout: ReturnType<typeof setTimeout>;
-  return function executedFunction(...args: any[]) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
-};
+import ModalNotification from '../../../components/notifications/ModalNotification';
+import { useNotification } from '../../../components/notifications';
+import ListPageLayout from '../../../components/layout/ListPageLayout';
+import SearchForm from '../../../components/common/SearchForm';
+import useListPage from '../../../hooks/useListPage';
 
 // UTILITY COMPONENTS
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
@@ -29,183 +20,129 @@ const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ chi
   </div>
 );
 
-const CardBody: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
-  <div className={`p-6 ${className}`}>
-    {children}
-  </div>
-);
-
+// MAIN COMPONENT
 const CategoriesListPage: React.FC = () => {
+  // HOOKS
   const navigate = useNavigate();
   const { t, currentLanguage } = useTranslation();
-  
-  // State tanımlamaları
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  
-  // Pagination state
-  const [pagination, setPagination] = useState<PaginationParams>({
-    page: 1,
-    limit: 10,
-    total: 0
-  });
-  
-  // Sıralama state
-  const [sort, setSort] = useState<SortParams | null>(null);
-  
-  // Filtre state
-  const [filters, setFilters] = useState<FilterParams[]>([]);
-  
-  // İstatistikler
-  const [stats, setStats] = useState({
-    total: 0,
-    active: 0,
-    onThisPage: 0
-  });
+  const { showToast } = useNotification();
 
-  // Debounced search
-  const debouncedSearch = useCallback(
-    debounce((term: string) => {
-      setSearchTerm(term);
-      setPagination(prev => ({ ...prev, page: 1 }));
-    }, 500),
-    []
-  );
+  // API service wrapper for useListPage hook
+  const fetchCategories = useCallback(async (params: any) => {
+    const result = await categoryService.getCategories(params);
+    return {
+      data: result.categories || [],
+      page: result.page || 1,
+      limit: result.limit || 10,
+      total: result.total || 0
+    };
+  }, []);
 
-  // Kategorileri getir
-  const fetchCategories = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      // API parametrelerini hazırla
-      const params: CategoryApiParams = {
-        page: pagination.page,
-        limit: pagination.limit
-      };
-      
-      // Arama terimi varsa ekle
-      if (searchTerm.trim()) {
-        params.search = searchTerm.trim();
-      }
-      
-      // Sıralama parametreleri
-      if (sort) {
-        params.sort = sort.field;
-        params.direction = sort.direction;
-      }
-      
-      // Filtre parametreleri
-      filters.forEach(filter => {
-        params[filter.field] = filter.value;
+  const deleteCategory = useCallback(async (id: string) => {
+    await categoryService.deleteCategory(id);
+  }, []);
+
+  // Use our custom hook
+  const {
+    data: categories,
+    isLoading,
+    error,
+    pagination,
+    handlePageChange,
+    handleSearchInput,
+    handleSearch,
+    sort,
+    handleSort,
+    handleFilter,
+    deleteModal,
+    handleDeleteClick,
+    confirmDelete,
+    cancelDelete,
+  } = useListPage<Category>({
+    fetchFunction: fetchCategories,
+    deleteFunction: deleteCategory,
+    onDeleteSuccess: (deletedItem) => {
+      showToast({
+        title: 'Başarılı!',
+        message: `"${getEntityName(deletedItem, currentLanguage)}" kategori başarıyla silindi.`,
+        type: 'success'
       });
-      
-      // API'den veri al
-      const result = await categoryService.getCategories(params);
-      
-      setCategories(result.categories);
-      setPagination({
-        page: result.page,
-        limit: result.limit,
-        total: result.total
+    },
+    onDeleteError: (error) => {
+      showToast({
+        title: 'Hata!',
+        message: error,
+        type: 'error'
       });
-      
-      // İstatistikleri hesapla
-      if (result.categories.length > 0) {
-        let activeCount = 0;
-        
-        result.categories.forEach(category => {
-          if (category.isActive) {
-            activeCount++;
-          }
-        });
-        
-        setStats({
-          total: result.total,
-          active: activeCount,
-          onThisPage: result.categories.length
-        });
-      } else {
-        setStats({
-          total: result.total,
-          active: 0,
-          onThisPage: 0
-        });
-      }
-    } catch (err: any) {
-      setError(err.message || t('categories_fetch_error', 'categories'));
-    } finally {
-      setIsLoading(false);
     }
-  }, [pagination.page, pagination.limit, sort, filters, searchTerm, t]);
-  
-  // Bağımlılıklar değiştiğinde yeniden veri çek
-  useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
+  });
 
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      fetchCategories();
-    }, 100);
-    
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
-  
-  // Sayfa değişim handler
-  const handlePageChange = (page: number) => {
-    setPagination(prev => ({ ...prev, page }));
-  };
-  
-  // Sıralama değişim handler
-  const handleSort = (sort: SortParams) => {
-    setSort(sort);
-  };
-  
-  // Filtre değişim handler
-  const handleFilter = (filters: FilterParams[]) => {
-    setFilters(filters);
-    // Filtreleme yapıldığında ilk sayfaya dön
-    setPagination(prev => ({ ...prev, page: 1 }));
-  };
-  
-  // Arama handler
-  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setPagination(prev => ({ ...prev, page: 1 }));
-  };
-  
-  // Satır tıklama handler - detay sayfasına yönlendir
+  // HELPER FUNCTIONS
   const handleRowClick = (category: Category) => {
     navigate(`/categories/details/${category._id}`);
   };
-  
-  // Kategori oluştur handler
+
   const handleCreateCategory = () => {
     navigate('/categories/create');
   };
-  
-  // Silme işlemi handler
-  const handleDeleteCategory = async (id: string, name: string) => {
-    if (window.confirm(`"${name}" ${t('delete_confirm', 'categories')}`)) {
-      try {
-        await categoryService.deleteCategory(id);
-        fetchCategories();
-      } catch (err: any) {
-        setError(err.message || t('category_delete_error', 'categories'));
+
+  // STATISTICS
+  const stats = useMemo(() => {
+    const activeCount = categories.filter(category => category?.isActive).length;
+    const withParentCount = categories.filter(category => category?.parentCategory).length;
+    const leafCount = categories.filter(category => category && !(category as any)?.hasChildren).length;
+    
+    return [
+      {
+        title: 'Toplam Kategoriler',
+        value: pagination.total,
+        icon: (
+          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2V5a2 2 0 012-2h14a2 2 0 012 2v2a2 2 0 00-2 2z" />
+          </svg>
+        ),
+        color: 'purple' as const
+      },
+      {
+        title: 'Aktif Kategoriler',
+        value: activeCount,
+        icon: (
+          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        ),
+        color: 'green' as const
+      },
+      {
+        title: 'Alt Kategoriler',
+        value: withParentCount,
+        icon: (
+          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+        ),
+        color: 'blue' as const
+      },
+      {
+        title: 'Son Seviye',
+        value: leafCount,
+        icon: (
+          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+          </svg>
+        ),
+        color: 'yellow' as const
       }
-    }
-  };
-  
-  // Tablo sütunları
-  const columns: TableColumn<Category>[] = [
+    ];
+  }, [categories, pagination.total, currentLanguage]);
+
+  // TABLE COLUMNS
+  const columns: TableColumn<Category>[] = useMemo(() => [
     {
       key: 'name',
-      header: t('name', 'categories'),
+      header: 'Ad',
       sortable: true,
-      filterable: false,
+      filterable: true,
       render: (row) => (
         <div className="flex items-center">
           <div className="font-medium text-gray-900 dark:text-white truncate max-w-[200px]" title={getEntityName(row, currentLanguage)}>
@@ -216,9 +153,9 @@ const CategoriesListPage: React.FC = () => {
     },
     {
       key: 'code',
-      header: t('code', 'categories'),
+      header: 'Kod',
       sortable: true,
-      filterable: false,
+      filterable: true,
       render: (row) => (
         <div className="font-mono text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded truncate max-w-[150px]" title={row.code}>
           {row.code}
@@ -226,27 +163,24 @@ const CategoriesListPage: React.FC = () => {
       )
     },
     {
-      key: 'description',
-      header: t('description', 'categories'),
-      render: (row) => (
-        <div className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={getEntityDescription(row, currentLanguage)}>
-          {getEntityDescription(row, currentLanguage) || <span className="text-gray-400 italic">{t('no_description', 'categories')}</span>}
-        </div>
-      )
-    },
-    {
       key: 'parentCategory',
-      header: t('parent_category', 'categories'),
+      header: 'Üst Kategori',
+      sortable: true,
+      filterable: true,
       render: (row) => (
         <div className="text-sm text-gray-600 dark:text-gray-400">
-          {row.parent ? getEntityName(row.parent, currentLanguage) : <span className="text-gray-400 italic">{t('main_category', 'categories')}</span>}
+          {row.parentCategory ? 
+            (typeof row.parentCategory === 'object' ? (row.parentCategory as any).name : row.parentCategory) : 
+            <span className="text-gray-400 italic">Ana Kategori</span>
+          }
         </div>
       )
     },
     {
       key: 'isActive',
-      header: t('status', 'categories'),
+      header: 'Durum',
       sortable: true,
+      filterable: true,
       render: (row) => (
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
           row.isActive 
@@ -262,13 +196,22 @@ const CategoriesListPage: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           )}
-          {row.isActive ? t('active', 'categories') : t('inactive', 'categories')}
+          {row.isActive ? 'Aktif' : 'Pasif'}
         </span>
       )
     },
     {
+      key: 'description',
+      header: 'Açıklama',
+      render: (row) => (
+        <div className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={getEntityDescription(row, currentLanguage)}>
+          {getEntityDescription(row, currentLanguage) || <span className="text-gray-400 italic">Açıklama yok</span>}
+        </div>
+      )
+    },
+    {
       key: 'updatedAt',
-      header: t('last_update', 'categories'),
+      header: 'Son Güncelleme',
       sortable: true,
       render: (row) => (
         <div className="text-sm text-gray-500 dark:text-gray-400">
@@ -282,7 +225,7 @@ const CategoriesListPage: React.FC = () => {
         </div>
       )
     }
-  ];
+  ], [currentLanguage]);
 
   // Tablo için işlem butonları
   const renderActions = (category: Category) => (
@@ -294,7 +237,7 @@ const CategoriesListPage: React.FC = () => {
           e.stopPropagation();
           navigate(`/categories/details/${category._id}`);
         }}
-        title={t('view', 'categories')}
+        title="Detayları Görüntüle"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -306,9 +249,9 @@ const CategoriesListPage: React.FC = () => {
         className="p-1 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900 rounded-md"
         onClick={(e) => {
           e.stopPropagation();
-          handleDeleteCategory(category._id, getEntityName(category, currentLanguage));
+          handleDeleteClick(category._id, getEntityName(category, currentLanguage));
         }}
-        title={t('delete', 'categories')}
+        title="Sil"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -317,167 +260,90 @@ const CategoriesListPage: React.FC = () => {
     </div>
   );
 
+  // SEARCH COMPONENT
+  const searchComponent = (
+    <SearchForm
+      onSearchInput={handleSearchInput}
+      onSubmit={handleSearch}
+      placeholder="Kategori adı, kod veya açıklama ara..."
+      searchButtonText="Ara"
+    />
+  );
+
+  // MAIN RENDER
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <Breadcrumb 
-          items={[
-            { label: t('categories_title', 'categories') }
-          ]} 
-        />
-      </div>
-
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center">
-          <div className="h-10 w-10 rounded-lg bg-primary-100 dark:bg-primary-900/50 
-                         flex items-center justify-center mr-3">
-            <svg className="h-5 w-5 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14-4l-6-6-6 6m12 8l-6 6-6-6" />
-            </svg>
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('categories_title', 'categories')}</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {t('manage_categories', 'categories')}
-            </p>
-          </div>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="primary"
-            className="flex items-center"
-            onClick={handleCreateCategory}
-          >
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            {t('new_category', 'categories')}
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardBody className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 dark:border-blue-500">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-8 w-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14-4l-6-6-6 6m12 8l-6 6-6-6" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <div className="text-sm font-medium text-blue-500 dark:text-blue-400">{t('total_categories', 'categories')}</div>
-                <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{stats.total}</div>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-        
-        <Card>
-          <CardBody className="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-400 dark:border-green-500">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-8 w-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <div className="text-sm font-medium text-green-500 dark:text-green-400">{t('active_categories', 'categories')}</div>
-                <div className="text-2xl font-bold text-green-700 dark:text-green-300">{stats.active}</div>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-        
-        <Card>
-          <CardBody className="bg-purple-50 dark:bg-purple-900/20 border-l-4 border-purple-400 dark:border-purple-500">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-8 w-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <div className="text-sm font-medium text-purple-500 dark:text-purple-400">{t('on_this_page', 'categories')}</div>
-                <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">{stats.onThisPage}</div>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-      </div>
-      
-      <Card>
-        <CardBody>
-          <form className="flex w-full max-w-lg" onSubmit={handleSearch}>
-            <div className="relative flex-grow">
-              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-              <input
-                type="text"
-                className="block w-full p-2 pl-10 text-sm border border-gray-300 rounded-l-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                placeholder={t('search_categories', 'categories')}
-                onChange={(e) => debouncedSearch(e.target.value)}
-              />
-            </div>
-            <Button
-              type="submit"
-              variant="primary"
-              className="rounded-l-none"
-            >
-              {t('search', 'categories')}
-            </Button>
-          </form>
-        </CardBody>
-      </Card>
-
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 flex items-start">
-          <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <>
+      <ListPageLayout
+        title="Kategoriler"
+        description="Tüm kategorileri görüntüleyin, düzenleyin ve yönetin"
+        icon={
+          <svg className="h-5 w-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2V5a2 2 0 012-2h14a2 2 0 012 2v2a2 2 0 00-2 2z" />
           </svg>
-          <span>{error}</span>
-        </div>
-      )}
-
-      <Card>
-        <Table
-          columns={columns}
-          data={categories}
-          keyField="_id"
-          isLoading={isLoading}
-          pagination={pagination}
-          onPageChange={handlePageChange}
-          onSort={handleSort}
-          onFilter={handleFilter}
-          onRowClick={handleRowClick}
-          renderActions={renderActions}
-          emptyMessage={
-            <div className="text-center py-12">
-              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14-4l-6-6-6 6m12 8l-6 6-6-6" />
-              </svg>
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{t('no_categories_found', 'categories')}</p>
-              <div className="mt-4">
-                <Button
-                  variant="primary"
-                  className="inline-flex items-center"
-                  onClick={handleCreateCategory}
-                >
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  {t('add_first_category', 'categories')}
-                </Button>
+        }
+        breadcrumbItems={[
+          { label: 'Kategoriler' }
+        ]}
+        onCreateClick={handleCreateCategory}
+        createButtonText="Yeni Kategori Oluştur"
+        stats={stats}
+        searchComponent={searchComponent}
+        error={error}
+      >
+        <Card>
+          <Table
+            columns={columns}
+            data={categories || []}
+            keyField="_id"
+            isLoading={isLoading}
+            pagination={pagination}
+            onPageChange={handlePageChange}
+            onSort={handleSort}
+            onFilter={handleFilter}
+            renderActions={renderActions}
+            onRowClick={handleRowClick}
+            emptyMessage={
+              <div className="text-center py-12">
+                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2V5a2 2 0 012-2h14a2 2 0 012 2v2a2 2 0 00-2 2z" />
+                </svg>
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Henüz hiç kategori oluşturulmamış</p>
+                <div className="mt-4">
+                  <Button
+                    variant="primary"
+                    className="inline-flex items-center"
+                    onClick={handleCreateCategory}
+                  >
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    İlk Kategori Oluştur
+                  </Button>
+                </div>
               </div>
-            </div>
-          }
-        />
-      </Card>
-    </div>
+            }
+          />
+        </Card>
+      </ListPageLayout>
+
+      {/* Delete Confirmation Modal */}
+      <ModalNotification
+        isOpen={deleteModal.isOpen}
+        type="warning"
+        title="Kategori Sil"
+        message={`"${deleteModal.name}" kategorisini silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`}
+        onClose={cancelDelete}
+        primaryButton={{
+          text: "Sil",
+          onClick: confirmDelete,
+          variant: "error"
+        }}
+        secondaryButton={{
+          text: "İptal",
+          onClick: cancelDelete
+        }}
+      />
+    </>
   );
 };
 

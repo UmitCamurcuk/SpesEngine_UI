@@ -12,6 +12,7 @@ import { useTranslationForm } from '../../../hooks/useTranslationForm';
 import { Attribute } from '../../../types/attribute';
 import { getEntityName, getEntityDescription } from '../../../utils/translationUtils';
 import AttributesSelect from '../../../components/attributes/AttributesSelect';
+import ModalNotification from '../../../components/notifications/ModalNotification';
 
 // INTERFACES
 interface CreateAttributeGroupDto {
@@ -64,6 +65,15 @@ const AttributeGroupCreatePage: React.FC = () => {
     type: 'info',
     title: '',
     message: ''
+  });
+
+  // Success modal state
+  const [successModal, setSuccessModal] = useState<{
+    isOpen: boolean;
+    createdGroupId: string | null;
+  }>({
+    isOpen: false,
+    createdGroupId: null
   });
 
   // Stepper adımları
@@ -201,15 +211,13 @@ const AttributeGroupCreatePage: React.FC = () => {
         isActive: formData.isActive
       };
       
-      await attributeGroupService.createAttributeGroup(attributeGroupData);
+      const createdGroup = await attributeGroupService.createAttributeGroup(attributeGroupData);
       
-      // Başarılı oluşturma alert'ı
-      showAlert('success', 'Öznitelik Grubu Oluşturuldu', 'Öznitelik grubu başarıyla oluşturuldu. Liste sayfasına yönlendiriliyorsunuz...');
-      
-      // 2 saniye sonra yönlendir
-      setTimeout(() => {
-        navigate('/attributeGroups/list');
-      }, 2000);
+      // Success modal'ını göster
+      setSuccessModal({
+        isOpen: true,
+        createdGroupId: createdGroup._id
+      });
       
     } catch (err: any) {
       showAlert('error', 'Oluşturma Hatası', err.message || t('attribute_group_create_error', 'attribute_groups'));
@@ -422,6 +430,24 @@ const AttributeGroupCreatePage: React.FC = () => {
     setAlertModal(prev => ({ ...prev, isOpen: false }));
   };
 
+  // Success modal helper fonksiyonları
+  const handleGoToDetails = () => {
+    if (successModal.createdGroupId) {
+      navigate(`/attributeGroups/details/${successModal.createdGroupId}`);
+    }
+  };
+
+  const handleBackToList = () => {
+    navigate('/attributeGroups/list');
+  };
+
+  const closeSuccessModal = () => {
+    setSuccessModal({
+      isOpen: false,
+      createdGroupId: null
+    });
+  };
+
   // MAIN RENDER
   return (
     <div className="space-y-6">
@@ -536,7 +562,31 @@ const AttributeGroupCreatePage: React.FC = () => {
       </div>
 
       {/* Alert Modal */}
+      <ModalNotification
+        isOpen={alertModal.isOpen}
+        type={alertModal.type}
+        title={alertModal.title}
+        message={alertModal.message}
+        onClose={closeAlert}
+      />
 
+      {/* Success Modal */}
+      <ModalNotification
+        isOpen={successModal.isOpen}
+        type="success"
+        title="Öznitelik Grubu Başarıyla Oluşturuldu!"
+        message="Öznitelik grubunuz başarıyla oluşturuldu. Şimdi ne yapmak istiyorsunuz?"
+        onClose={closeSuccessModal}
+        primaryButton={{
+          text: "Detaya Git",
+          onClick: handleGoToDetails,
+          variant: "success"
+        }}
+        secondaryButton={{
+          text: "Listeye Dön",
+          onClick: handleBackToList
+        }}
+      />
     </div>
   );
 };

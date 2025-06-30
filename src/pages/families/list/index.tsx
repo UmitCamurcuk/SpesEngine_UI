@@ -1,213 +1,143 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Table from '../../../components/ui/Table';
-import type { TableColumn, SortParams, FilterParams, PaginationParams } from '../../../components/ui/Table';
+import type { TableColumn } from '../../../components/ui/Table';
 import Button from '../../../components/ui/Button';
-import Breadcrumb from '../../../components/common/Breadcrumb';
 import familyService from '../../../services/api/familyService';
-import type { Family, FamilyApiParams } from '../../../types/family';
+import type { Family } from '../../../types/family';
 import { useTranslation } from '../../../context/i18nContext';
 import { getEntityName } from '../../../utils/translationUtils';
+import ModalNotification from '../../../components/notifications/ModalNotification';
+import { useNotification } from '../../../components/notifications';
+import ListPageLayout from '../../../components/layout/ListPageLayout';
+import SearchForm from '../../../components/common/SearchForm';
+import useListPage from '../../../hooks/useListPage';
 
-// Card bileşenleri
+// UTILITY COMPONENTS
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
   <div className={`bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden ${className}`}>
     {children}
   </div>
 );
 
-const CardHeader: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
-  <div className={`px-6 py-4 border-b border-gray-200 dark:border-gray-700 ${className}`}>
-    {children}
-  </div>
-);
-
-const CardBody: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
-  <div className={`p-6 ${className}`}>
-    {children}
-  </div>
-);
-
-// Debounce utility function
-function debounce<T extends (...args: any[]) => any>(func: T, delay: number): (...args: Parameters<T>) => void {
-  let timeoutId: ReturnType<typeof setTimeout>;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => func(...args), delay);
-  };
-}
-
+// MAIN COMPONENT
 const FamiliesListPage: React.FC = () => {
+  // HOOKS
   const navigate = useNavigate();
   const { t, currentLanguage } = useTranslation();
-  
-  // State tanımlamaları
-  const [families, setFamilies] = useState<Family[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  
-  // Pagination state
-  const [pagination, setPagination] = useState<PaginationParams>({
-    page: 1,
-    limit: 10,
-    total: 0
-  });
-  
-  // Sıralama state
-  const [sort, setSort] = useState<SortParams | null>(null);
-  
-  // Filtre state
-  const [filters, setFilters] = useState<FilterParams[]>([]);
-  
-  // İstatistikler
-  const [stats, setStats] = useState({
-    total: 0,
-    active: 0,
-    withParent: 0,
-    withAttributeGroups: 0
-  });
+  const { showToast } = useNotification();
 
-  // Aileleri getir
-  const fetchFamilies = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      // API parametrelerini hazırla
-      const params: FamilyApiParams = {
-        page: pagination.page,
-        limit: pagination.limit
-      };
-      
-      // Arama terimi varsa ekle
-      if (searchTerm.trim()) {
-        params.search = searchTerm.trim();
-      }
-      
-      // Sıralama parametreleri
-      if (sort) {
-        params.sort = sort.field;
-        params.direction = sort.direction;
-      }
-      
-      // Filtre parametreleri
-      filters.forEach(filter => {
-        params[filter.field] = filter.value;
+  // API service wrapper for useListPage hook
+  const fetchFamilies = useCallback(async (params: any) => {
+    const result = await familyService.getFamilies(params);
+    return {
+      data: result.families || [],
+      page: result.page || 1,
+      limit: result.limit || 10,
+      total: result.total || 0
+    };
+  }, []);
+
+  const deleteFamily = useCallback(async (id: string) => {
+    await familyService.deleteFamily(id);
+  }, []);
+
+  // Use our custom hook
+  const {
+    data: families,
+    isLoading,
+    error,
+    pagination,
+    handlePageChange,
+    handleSearchInput,
+    handleSearch,
+    sort,
+    handleSort,
+    handleFilter,
+    deleteModal,
+    handleDeleteClick,
+    confirmDelete,
+    cancelDelete,
+  } = useListPage<Family>({
+    fetchFunction: fetchFamilies,
+    deleteFunction: deleteFamily,
+    onDeleteSuccess: (deletedItem) => {
+      showToast({
+        title: 'Başarılı!',
+        message: `"${getEntityName(deletedItem, currentLanguage) || deletedItem.name}" aile başarıyla silindi.`,
+        type: 'success'
       });
-      
-      // API'den veri al
-      const result = await familyService.getFamilies(params);
-      
-      setFamilies(result.families);
-      setPagination({
-        page: result.page,
-        limit: result.limit,
-        total: result.total
+    },
+    onDeleteError: (error) => {
+      showToast({
+        title: 'Hata!',
+        message: error,
+        type: 'error'
       });
-      
-      // İstatistikleri hesapla
-      if (result.families.length > 0) {
-        let activeCount = 0;
-        let withParentCount = 0;
-        let withAttributeGroupsCount = 0;
-        
-        result.families.forEach(family => {
-          if (family.isActive) {
-            activeCount++;
-          }
-          if (family.parentFamily) {
-            withParentCount++;
-          }
-          if (family.attributeGroups && family.attributeGroups.length > 0) {
-            withAttributeGroupsCount++;
-          }
-        });
-        
-        setStats({
-          total: result.total,
-          active: activeCount,
-          withParent: withParentCount,
-          withAttributeGroups: withAttributeGroupsCount
-        });
-      }
-    } catch (err: any) {
-      setError(err.message || 'Aileler getirilirken bir hata oluştu');
-    } finally {
-      setIsLoading(false);
     }
-  }, [pagination.page, pagination.limit, sort, filters, searchTerm]);
+  });
 
-  // Debounced search
-  const debouncedSearch = useCallback(
-    debounce((term: string) => {
-      setSearchTerm(term);
-      setPagination(prev => ({ ...prev, page: 1 }));
-    }, 500),
-    []
-  );
-
-  // Bağımlılıklar değiştiğinde yeniden veri çek
-  useEffect(() => {
-    fetchFamilies();
-  }, [fetchFamilies]);
-
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      fetchFamilies();
-    }, 100);
-    
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
-  
-  // Sayfa değişim handler
-  const handlePageChange = (page: number) => {
-    setPagination(prev => ({ ...prev, page }));
-  };
-  
-  // Sıralama değişim handler
-  const handleSort = (sort: SortParams) => {
-    setSort(sort);
-  };
-  
-  // Filtre değişim handler
-  const handleFilter = (filters: FilterParams[]) => {
-    setFilters(filters);
-    // Filtreleme yapıldığında ilk sayfaya dön
-    setPagination(prev => ({ ...prev, page: 1 }));
-  };
-  
-  // Arama handler
-  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setPagination(prev => ({ ...prev, page: 1 }));
-  };
-  
-  // Satır tıklama handler - detay sayfasına yönlendir
+  // HELPER FUNCTIONS
   const handleRowClick = (family: Family) => {
     navigate(`/families/details/${family._id}`);
   };
   
-  // Aile oluştur handler
   const handleCreateFamily = () => {
     navigate('/families/create');
   };
   
-  // Silme işlemi handler
-  const handleDeleteFamily = async (id: string, name: string) => {
-    if (window.confirm(`"${name}" ailesini silmek istediğinize emin misiniz?`)) {
-      try {
-        await familyService.deleteFamily(id);
-        // Silme başarılı olduğunda listeyi yenile
-        fetchFamilies();
-      } catch (err: any) {
-        setError(err.message || 'Aile silinirken bir hata oluştu');
+  // STATISTICS
+  const stats = useMemo(() => {
+    const activeCount = families.filter(family => family?.isActive).length;
+    const withParentCount = families.filter(family => family?.parentFamily).length;
+    const withAttributeGroupsCount = families.filter(family => family?.attributeGroups && family.attributeGroups.length > 0).length;
+    
+    return [
+      {
+        title: 'Toplam Aileler',
+        value: pagination.total,
+        icon: (
+          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+          </svg>
+        ),
+        color: 'purple' as const
+      },
+      {
+        title: 'Aktif Aileler',
+        value: activeCount,
+        icon: (
+          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        ),
+        color: 'green' as const
+      },
+      {
+        title: 'Alt Aileler',
+        value: withParentCount,
+        icon: (
+          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+        ),
+        color: 'blue' as const
+      },
+      {
+        title: 'Öznitelik Gruplu',
+        value: withAttributeGroupsCount,
+        icon: (
+          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+          </svg>
+        ),
+        color: 'yellow' as const
       }
-    }
-  };
-  
-  // Tablo sütunları
-  const columns: TableColumn<Family>[] = [
+    ];
+  }, [families, pagination.total, currentLanguage]);
+
+  // TABLE COLUMNS
+  const columns: TableColumn<Family>[] = useMemo(() => [
     {
       key: 'name',
       header: 'Ad',
@@ -253,6 +183,7 @@ const FamiliesListPage: React.FC = () => {
     {
       key: 'isActive',
       header: 'Durum',
+      sortable: true,
       render: (row) => (
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
           row.isActive 
@@ -288,7 +219,7 @@ const FamiliesListPage: React.FC = () => {
         </div>
       )
     }
-  ];
+  ], [currentLanguage]);
 
   // Tablo için işlem butonları
   const renderActions = (family: Family) => (
@@ -300,6 +231,7 @@ const FamiliesListPage: React.FC = () => {
           e.stopPropagation();
           navigate(`/families/details/${family._id}`);
         }}
+        title="Detayları Görüntüle"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -311,8 +243,9 @@ const FamiliesListPage: React.FC = () => {
         className="p-1 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900 rounded-md"
         onClick={(e) => {
           e.stopPropagation();
-          handleDeleteFamily(family._id, family.name);
+          handleDeleteClick(family._id, getEntityName(family, currentLanguage) || family.name);
         }}
+        title="Sil"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -321,99 +254,40 @@ const FamiliesListPage: React.FC = () => {
     </div>
   );
 
+  // SEARCH COMPONENT
+  const searchComponent = (
+    <SearchForm
+      onSearchInput={handleSearchInput}
+      onSubmit={handleSearch}
+      placeholder="Aile adı, kod veya açıklama ara..."
+      searchButtonText="Ara"
+    />
+  );
+
+  // MAIN RENDER
   return (
-    <div className="space-y-6">
-      {/* BREADCRUMB */}
-      <Breadcrumb 
-        items={[
+    <>
+      <ListPageLayout
+        title="Ürün Aileleri"
+        description="Tüm ürün ailelerini görüntüleyin, düzenleyin ve yönetin"
+        icon={
+          <svg className="h-5 w-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+          </svg>
+        }
+        breadcrumbItems={[
           { label: 'Aileler' }
         ]} 
-      />
-
-      {/* HEADER CARD */}
+        onCreateClick={handleCreateFamily}
+        createButtonText="Yeni Aile Oluştur"
+        stats={stats}
+        searchComponent={searchComponent}
+        error={error}
+      >
       <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
-                <svg className="w-7 h-7 mr-2 text-primary-light dark:text-primary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
-                </svg>
-                Ürün Aileleri
-              </h1>
-              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                Tüm ürün ailelerini görüntüleyin, düzenleyin ve yönetin
-              </p>
-              
-              {/* Basit istatistikler */}
-              <div className="flex mt-2 space-x-4 text-xs">
-                <div className="text-gray-500 dark:text-gray-400">
-                  <span className="font-semibold text-gray-900 dark:text-white">{stats.total}</span> Toplam
-                </div>
-                <div className="text-gray-500 dark:text-gray-400">
-                  <span className="font-semibold text-green-600 dark:text-green-400">{stats.active}</span> Aktif
-                </div>
-                <div className="text-gray-500 dark:text-gray-400">
-                  <span className="font-semibold text-red-600 dark:text-red-400">{stats.total - stats.active}</span> Pasif
-                </div>
-              </div>
-            </div>
-            
-            <Button
-              className="mt-4 md:mt-0 flex items-center"
-              onClick={handleCreateFamily}
-            >
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Yeni Aile Oluştur
-            </Button>
-          </div>
-        </CardHeader>
-      </Card>
-      
-      {/* SEARCH CARD */}
-      <Card>
-        <CardBody className="py-4">
-          <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-              <input 
-                type="text" 
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full pl-10 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark" 
-                placeholder="Aile adı, kod veya açıklama ara..." 
-                value={searchTerm}
-                onChange={(e) => {
-                  e.preventDefault();
-                  debouncedSearch(e.target.value);
-                }}
-              />
-            </div>
-            <Button type="submit" className="md:w-auto">
-              Ara
-            </Button>
-          </form>
-        </CardBody>
-      </Card>
-      
-      {/* DATA TABLE CARD */}
-      <Card>
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 p-4 border-b border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 flex items-start">
-            <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{error}</span>
-          </div>
-        )}
-        
         <Table
           columns={columns}
-          data={families}
+            data={families || []}
           keyField="_id"
           isLoading={isLoading}
           pagination={pagination}
@@ -422,10 +296,48 @@ const FamiliesListPage: React.FC = () => {
           onFilter={handleFilter}
           renderActions={renderActions}
           onRowClick={handleRowClick}
-          emptyMessage="Henüz hiç aile oluşturulmamış"
+            emptyMessage={
+              <div className="text-center py-12">
+                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+                </svg>
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Henüz hiç aile oluşturulmamış</p>
+                <div className="mt-4">
+                  <Button
+                    variant="primary"
+                    className="inline-flex items-center"
+                    onClick={handleCreateFamily}
+                  >
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    İlk Aile Oluştur
+                  </Button>
+                </div>
+              </div>
+            }
         />
       </Card>
-    </div>
+      </ListPageLayout>
+
+      {/* Delete Confirmation Modal */}
+      <ModalNotification
+        isOpen={deleteModal.isOpen}
+        type="warning"
+        title="Aile Sil"
+        message={`"${deleteModal.name}" ailesini silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`}
+        onClose={cancelDelete}
+        primaryButton={{
+          text: "Sil",
+          onClick: confirmDelete,
+          variant: "error"
+        }}
+        secondaryButton={{
+          text: "İptal",
+          onClick: cancelDelete
+        }}
+      />
+    </>
   );
 };
 

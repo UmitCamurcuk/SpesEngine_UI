@@ -1,186 +1,148 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Table from '../../../components/ui/Table';
-import type { TableColumn, SortParams, FilterParams, PaginationParams } from '../../../components/ui/Table';
+import type { TableColumn } from '../../../components/ui/Table';
 import Button from '../../../components/ui/Button';
-import Breadcrumb from '../../../components/common/Breadcrumb';
 import itemService from '../../../services/api/itemService';
-import type { Item, ItemApiParams } from '../../../types/item';
+import type { Item } from '../../../types/item';
 import { useTranslation } from '../../../context/i18nContext';
-import { getEntityName, getEntityDescription } from '../../../utils/translationUtils';
+import { getEntityName } from '../../../utils/translationUtils';
+import ModalNotification from '../../../components/notifications/ModalNotification';
+import { useNotification } from '../../../components/notifications';
+import ListPageLayout from '../../../components/layout/ListPageLayout';
+import SearchForm from '../../../components/common/SearchForm';
+import useListPage from '../../../hooks/useListPage';
 
+// UTILITY COMPONENTS
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
   <div className={`bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden ${className}`}>
     {children}
   </div>
 );
 
-const CardHeader: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
-  <div className={`px-6 py-4 border-b border-gray-200 dark:border-gray-700 ${className}`}>
-    {children}
-  </div>
-);
-
-const CardBody: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
-  <div className={`p-6 ${className}`}>
-    {children}
-  </div>
-);
-
+// MAIN COMPONENT
 const ItemsListPage: React.FC = () => {
+  // HOOKS
   const navigate = useNavigate();
   const { t, currentLanguage } = useTranslation();
-  
-  // State tanımlamaları
-  const [items, setItems] = useState<Item[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  
-  // Pagination state
-  const [pagination, setPagination] = useState<PaginationParams>({
-    page: 1,
-    limit: 10,
-    total: 0
-  });
-  
-  // Sıralama state
-  const [sort, setSort] = useState<SortParams | null>(null);
-  
-  // Filtre state
-  const [filters, setFilters] = useState<FilterParams[]>([]);
-  
-  // İstatistikler
-  const [stats, setStats] = useState({
-    total: 0,
-    active: 0
-  });
+  const { showToast } = useNotification();
 
-  // Öğeleri getir
-  const fetchItems = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      // API parametrelerini hazırla
-      const params: ItemApiParams = {
-        page: pagination.page,
-        limit: pagination.limit
-      };
-      
-      // Arama terimi varsa ekle
-      if (searchTerm.trim()) {
-        params.search = searchTerm.trim();
-      }
-      
-      // Sıralama parametreleri
-      if (sort) {
-        params.sort = sort.field;
-        params.direction = sort.direction;
-      }
-      
-      // Filtre parametreleri
-      filters.forEach(filter => {
-        params[filter.field] = filter.value;
+  // API service wrapper for useListPage hook
+  const fetchItems = useCallback(async (params: any) => {
+    const result = await itemService.getItems(params);
+    return {
+      data: result.items || [],
+      page: result.page || 1,
+      limit: result.limit || 10,
+      total: result.total || 0
+    };
+  }, []);
+
+  const deleteItem = useCallback(async (id: string) => {
+    await itemService.deleteItem(id);
+  }, []);
+
+  // Use our custom hook
+  const {
+    data: items,
+    isLoading,
+    error,
+    pagination,
+    handlePageChange,
+    handleSearchInput,
+    handleSearch,
+    sort,
+    handleSort,
+    handleFilter,
+    deleteModal,
+    handleDeleteClick,
+    confirmDelete,
+    cancelDelete,
+  } = useListPage<Item>({
+    fetchFunction: fetchItems,
+    deleteFunction: deleteItem,
+    onDeleteSuccess: (deletedItem) => {
+      showToast({
+        title: 'Başarılı!',
+        message: `Öğe başarıyla silindi.`,
+        type: 'success'
       });
-      
-      // API'den veri al
-      const result = await itemService.getItems(params);
-      
-      setItems(result.items);
-      setPagination({
-        page: result.page,
-        limit: result.limit,
-        total: result.total
+    },
+    onDeleteError: (error) => {
+      showToast({
+        title: 'Hata!',
+        message: error,
+        type: 'error'
       });
-      
-      // İstatistikleri hesapla
-      if (result.items.length > 0) {
-        let activeCount = 0;
-        
-        result.items.forEach(item => {
-          if (item.isActive) {
-            activeCount++;
-          }
-        });
-        
-        setStats({
-          total: result.total,
-          active: activeCount
-        });
-      }
-    } catch (err: any) {
-      setError(err.message || t('items_fetch_error', 'items'));
-    } finally {
-      setIsLoading(false);
     }
-  }, [pagination.page, pagination.limit, sort, filters, searchTerm, t]);
+  });
 
-  // Debounced search
-  const debouncedSearch = useCallback(
-    debounce((term: string) => {
-      setSearchTerm(term);
-      setPagination(prev => ({ ...prev, page: 1 }));
-    }, 500),
-    []
-  );
-  
-  // Bağımlılıklar değiştiğinde yeniden veri çek
-  useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
-  
-  // Sayfa değişim handler
-  const handlePageChange = (page: number) => {
-    setPagination(prev => ({ ...prev, page }));
-  };
-  
-  // Sıralama değişim handler
-  const handleSort = (sort: SortParams) => {
-    setSort(sort);
-  };
-  
-  // Filtre değişim handler
-  const handleFilter = (filters: FilterParams[]) => {
-    setFilters(filters);
-    // Filtreleme yapıldığında ilk sayfaya dön
-    setPagination(prev => ({ ...prev, page: 1 }));
-  };
-  
-  // Arama handler
-  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setPagination(prev => ({ ...prev, page: 1 }));
-  };
-  
-  // Satır tıklama handler - detay sayfasına yönlendir
+  // HELPER FUNCTIONS
   const handleRowClick = (item: Item) => {
     navigate(`/items/details/${item._id}`);
   };
-  
-  // Öğe oluştur handler
+
   const handleCreateItem = () => {
     navigate('/items/create');
   };
-  
-  // Silme işlemi handler
-  const handleDeleteItem = async (id: string) => {
-    if (window.confirm('Bu öğeyi silmek istediğinize emin misiniz?')) {
-      try {
-        await itemService.deleteItem(id);
-        // Silme başarılı olduğunda listeyi yenile
-        fetchItems();
-      } catch (err: any) {
-        setError(err.message || 'Öğe silinirken bir hata oluştu');
+
+  // STATISTICS
+  const stats = useMemo(() => {
+    const activeCount = items.filter(item => item?.isActive).length;
+    const itemTypeCount = items.filter(item => item?.itemType).length;
+    const familyCount = items.filter(item => item?.family).length;
+    
+    return [
+      {
+        title: 'Toplam Öğeler',
+        value: pagination.total,
+        icon: (
+          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          </svg>
+        ),
+        color: 'purple' as const
+      },
+      {
+        title: 'Aktif Öğeler',
+        value: activeCount,
+        icon: (
+          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        ),
+        color: 'green' as const
+      },
+      {
+        title: 'Tipli Öğeler',
+        value: itemTypeCount,
+        icon: (
+          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+          </svg>
+        ),
+        color: 'blue' as const
+      },
+      {
+        title: 'Aile Atanmış',
+        value: familyCount,
+        icon: (
+          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+          </svg>
+        ),
+        color: 'yellow' as const
       }
-    }
-  };
-  
-  // Tablo sütunları
-  const columns: TableColumn<Item>[] = [
+    ];
+  }, [items, pagination.total, currentLanguage]);
+
+  // TABLE COLUMNS
+  const columns: TableColumn<Item>[] = useMemo(() => [
     {
       key: 'itemType',
       header: 'Öğe Tipi',
+      sortable: true,
+      filterable: true,
       render: (row) => (
         <div className="text-sm text-gray-600 dark:text-gray-400">
           {typeof row.itemType === 'object' && row.itemType && 'name' in row.itemType
@@ -192,6 +154,8 @@ const ItemsListPage: React.FC = () => {
     {
       key: 'family',
       header: 'Aile',
+      sortable: true,
+      filterable: true,
       render: (row) => (
         <div className="text-sm text-gray-600 dark:text-gray-400">
           {typeof row.family === 'object' && row.family && 'name' in row.family
@@ -203,6 +167,7 @@ const ItemsListPage: React.FC = () => {
     {
       key: 'isActive',
       header: 'Durum',
+      sortable: true,
       render: (row) => (
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
           row.isActive 
@@ -238,7 +203,7 @@ const ItemsListPage: React.FC = () => {
         </div>
       )
     }
-  ];
+  ], [currentLanguage]);
 
   // Tablo için işlem butonları
   const renderActions = (item: Item) => (
@@ -250,6 +215,7 @@ const ItemsListPage: React.FC = () => {
           e.stopPropagation();
           navigate(`/items/details/${item._id}`);
         }}
+        title="Detayları Görüntüle"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -261,8 +227,9 @@ const ItemsListPage: React.FC = () => {
         className="p-1 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900 rounded-md"
         onClick={(e) => {
           e.stopPropagation();
-          handleDeleteItem(item._id);
+          handleDeleteClick(item._id, `${item.itemType ? (typeof item.itemType === 'object' ? (item.itemType as any).name : item.itemType) : 'Öğe'}`);
         }}
+        title="Sil"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -271,86 +238,91 @@ const ItemsListPage: React.FC = () => {
     </div>
   );
 
+  // SEARCH COMPONENT
+  const searchComponent = (
+    <SearchForm
+      onSearchInput={handleSearchInput}
+      onSubmit={handleSearch}
+      placeholder="Öğe tipi, aile veya özellik ara..."
+      searchButtonText="Ara"
+    />
+  );
+
+  // MAIN RENDER
   return (
-    <div className="p-6">
-      <div className="flex flex-col space-y-6">
-        {/* Breadcrumb */}
-        <Breadcrumb 
-          items={[
-            { label: t('home', 'common') },
-            { label: t('items', 'items') }
-          ]}
-        />
-
-        {/* Başlık */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-              {t('items', 'items')}
-            </h1>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              {t('items_list_description', 'items')}
-            </p>
-          </div>
-          <Button 
-            variant="primary" 
-            onClick={handleCreateItem}
-            className="flex items-center space-x-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            <span>{t('create_item', 'items')}</span>
-          </Button>
-        </div>
-
-        {/* Ana içerik */}
+    <>
+      <ListPageLayout
+        title="Öğeler"
+        description="Tüm öğeleri görüntüleyin, düzenleyin ve yönetin"
+        icon={
+          <svg className="h-5 w-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          </svg>
+        }
+        breadcrumbItems={[
+          { label: 'Öğeler' }
+        ]}
+        onCreateClick={handleCreateItem}
+        createButtonText="Yeni Öğe Oluştur"
+        stats={stats}
+        searchComponent={searchComponent}
+        error={error}
+      >
         <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-medium text-gray-900 dark:text-white">
-                {t('all_items', 'items')}
-              </h2>
-              {stats.total > 0 && (
-                <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
-                  <span>{t('total', 'common')}: {stats.total}</span>
-                  <span>{t('active', 'common')}: {stats.active}</span>
-                </div>
-              )}
-            </div>
-          </CardHeader>
-          <CardBody className="p-0">
-            {error && (
-              <div className="bg-red-50 dark:bg-red-900/20 p-4 border-b border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 flex items-start">
-                <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <Table
+            columns={columns}
+            data={items || []}
+            keyField="_id"
+            isLoading={isLoading}
+            pagination={pagination}
+            onPageChange={handlePageChange}
+            onSort={handleSort}
+            onFilter={handleFilter}
+            renderActions={renderActions}
+            onRowClick={handleRowClick}
+            emptyMessage={
+              <div className="text-center py-12">
+                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
-                <span>{error}</span>
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Henüz hiç öğe oluşturulmamış</p>
+                <div className="mt-4">
+                  <Button
+                    variant="primary"
+                    className="inline-flex items-center"
+                    onClick={handleCreateItem}
+                  >
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    İlk Öğe Oluştur
+                  </Button>
+                </div>
               </div>
-            )}
-            <Table
-              data={items}
-              columns={columns}
-              isLoading={isLoading}
-              pagination={pagination}
-              onPageChange={handlePageChange}
-              onRowClick={handleRowClick}
-              emptyMessage={t('no_items_found', 'items')}
-            />
-          </CardBody>
+            }
+          />
         </Card>
-      </div>
-    </div>
+      </ListPageLayout>
+
+      {/* Delete Confirmation Modal */}
+      <ModalNotification
+        isOpen={deleteModal.isOpen}
+        type="warning"
+        title="Öğe Sil"
+        message={`"${deleteModal.name}" öğesini silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`}
+        onClose={cancelDelete}
+        primaryButton={{
+          text: "Sil",
+          onClick: confirmDelete,
+          variant: "error"
+        }}
+        secondaryButton={{
+          text: "İptal",
+          onClick: cancelDelete
+        }}
+      />
+    </>
   );
 };
-
-// Debounce utility
-function debounce<T extends (...args: any[]) => any>(func: T, delay: number): (...args: Parameters<T>) => void {
-  let timeoutId: ReturnType<typeof setTimeout>;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => func.apply(null, args), delay);
-  };
-}
 
 export default ItemsListPage; 

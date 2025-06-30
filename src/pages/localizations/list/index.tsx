@@ -1,326 +1,151 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Table from '../../../components/ui/Table';
-import type { TableColumn, SortParams, FilterParams, PaginationParams } from '../../../components/ui/Table';
-import Button from '../../../components/ui/Button';
-import Breadcrumb from '../../../components/common/Breadcrumb';
+import { useNotification } from '../../../components/notifications';
+import { useListPage } from '../../../hooks/useListPage';
+import { ListPageLayout } from '../../../components/layout';
+import { SearchForm } from '../../../components/common';
+import { Table, Button } from '../../../components/ui';
+import { TableColumn } from '../../../components/ui/Table';
 import localizationService from '../../../services/api/localizationService';
-import { toast } from 'react-hot-toast';
 
-// Lokalizasyon tipi
-interface Localization {
+interface ProcessedTranslation {
   _id: string;
-  key: string;
   namespace: string;
+  key: string;
   translations: Record<string, string>;
-  createdAt: string;
-  updatedAt: string;
+  languageCount: number;
+  totalValues: number;
 }
 
 const LocalizationsListPage: React.FC = () => {
   const navigate = useNavigate();
-  
-  // State tanımlamaları
-  const [localizations, setLocalizations] = useState<Localization[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  
-  // Dil seçenekleri
-  const [languages, setLanguages] = useState<string[]>(['tr', 'en']);
-  
-  // Pagination state
-  const [pagination, setPagination] = useState<PaginationParams>({
-    page: 1,
-    limit: 10,
-    total: 0
-  });
-  
-  // Sıralama state
-  const [sort, setSort] = useState<SortParams | null>(null);
-  
-  // Filtre state
-  const [filters, setFilters] = useState<FilterParams[]>([]);
-  
-  // İstatistikler
-  const [stats, setStats] = useState({
-    total: 0,
-    namespaces: {} as Record<string, number>
-  });
+  const { showToast } = useNotification();
 
-  // Desteklenen dilleri getir
-  const fetchSupportedLanguages = async () => {
-    try {
-      const result = await localizationService.getSupportedLanguages();
-      if (result.success && Array.isArray(result.data)) {
-        setLanguages(result.data);
-      }
-    } catch (error) {
-      console.error('Desteklenen diller getirilirken hata oluştu:', error);
-    }
-  };
-
-  // Çevirileri getir
-  const fetchLocalizations = async () => {
-    setIsLoading(true);
-    setError(null);
+  // Wrapper function to adapt localization service to useListPage interface
+  const fetchLocalizationsWrapper = useCallback(async (params: any) => {
+    const result = await localizationService.getLocalizations(params);
     
-    try {
-      // Tüm diller için çevirileri paralel olarak getir
-      const translationPromises = languages.map(lang => 
-        localizationService.getTranslations(lang)
-      );
-      
-      const results = await Promise.all(translationPromises);
-      
-      // Her dilin çevirilerini birleştir
-      const allLocalizations: Localization[] = [];
-      const translationMap = new Map<string, Record<string, string>>();
-      
-      // Her dil için çevirileri işle
-      results.forEach((result, index) => {
-        const lang = languages[index];
+    // Process the localization data
+    const translationMap = new Map<string, ProcessedTranslation>();
+    const localizations = result.localizations || result.data || result;
+    
+    if (Array.isArray(localizations)) {
+      localizations.forEach((localization: any) => {
+        const key = `${localization.namespace || 'default'}.${localization.key}`;
         
-        if (result.success && result.data) {
-          // Her namespace için
-          Object.entries(result.data).forEach(([namespace, translations]) => {
-            // Her anahtar-değer çifti için
-            Object.entries(translations as Record<string, string>).forEach(([key, value]) => {
-              const localizationKey = `${namespace}:${key}`;
-              
-              // Eğer bu çeviri daha önce eklendiyse, sadece yeni dili ekle
-              if (translationMap.has(localizationKey)) {
-                const existingTranslations = translationMap.get(localizationKey)!;
-                translationMap.set(localizationKey, {
-                  ...existingTranslations,
-                  [lang]: value
-                });
-              } else {
-                // Yeni çeviri oluştur
-                translationMap.set(localizationKey, { [lang]: value });
-                
-                allLocalizations.push({
-                  _id: localizationKey,
-                  key,
-                  namespace,
-                  translations: { [lang]: value },
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString()
-                });
-              }
-            });
+        if (!translationMap.has(key)) {
+          translationMap.set(key, {
+            _id: localization._id || key,
+            namespace: localization.namespace || 'default',
+            key: localization.key,
+            translations: {},
+            languageCount: 0,
+            totalValues: 0
           });
         }
+        
+        const translation = translationMap.get(key)!;
+        translation.translations[localization.language] = localization.value;
+        translation.languageCount++;
+        translation.totalValues++;
       });
-      
-      // Çevirileri güncelle
-      allLocalizations.forEach(loc => {
-        loc.translations = translationMap.get(loc._id) || loc.translations;
-      });
-      
-      // Filtreleme, arama ve sıralama işlemlerini uygula
-      let filteredLocalizations = [...allLocalizations];
-      
-      // Arama terimini uygula
-      if (searchTerm) {
-        const lowerSearch = searchTerm.toLowerCase();
-        filteredLocalizations = filteredLocalizations.filter(
-          item => item.key.toLowerCase().includes(lowerSearch) ||
-                 item.namespace.toLowerCase().includes(lowerSearch) ||
-                 Object.values(item.translations).some(translation => 
-                   translation.toLowerCase().includes(lowerSearch)
-                 )
-        );
-      }
-      
-      // Filtreleri uygula
-      if (filters.length > 0) {
-        filteredLocalizations = filteredLocalizations.filter(item => {
-          return filters.every(filter => {
-            if (filter.field === 'namespace') {
-              return item.namespace === filter.value;
-            }
-            return true;
-          });
-        });
-      }
-      
-      // Sıralamayı uygula
-      if (sort) {
-        filteredLocalizations.sort((a, b) => {
-          if (sort.field === 'key') {
-            return sort.direction === 'asc' 
-              ? a.key.localeCompare(b.key)
-              : b.key.localeCompare(a.key);
-          }
-          if (sort.field === 'namespace') {
-            return sort.direction === 'asc'
-              ? a.namespace.localeCompare(b.namespace)
-              : b.namespace.localeCompare(a.namespace);
-          }
-          if (sort.field.startsWith('translation_')) {
-            const lang = sort.field.replace('translation_', '');
-            const aValue = a.translations[lang] || '';
-            const bValue = b.translations[lang] || '';
-            return sort.direction === 'asc'
-              ? aValue.localeCompare(bValue)
-              : bValue.localeCompare(aValue);
-          }
-          return 0;
-        });
-      }
-      
-      // Pagination işlemleri
-      const startIndex = (pagination.page - 1) * pagination.limit;
-      const endIndex = startIndex + pagination.limit;
-      const paginatedLocalizations = filteredLocalizations.slice(startIndex, endIndex);
-      
-      setLocalizations(paginatedLocalizations);
-      setPagination(prev => ({
-        ...prev,
-        total: filteredLocalizations.length
-      }));
-      
-      // İstatistikleri hesapla
-      const namespaces: Record<string, number> = {};
-      allLocalizations.forEach(item => {
-        namespaces[item.namespace] = (namespaces[item.namespace] || 0) + 1;
-      });
-      
-      setStats({
-        total: allLocalizations.length,
-        namespaces
-      });
-    } catch (err: any) {
-      setError(err.message || 'Çeviriler getirilirken bir hata oluştu');
-      toast.error('Çeviriler getirilirken bir hata oluştu');
-    } finally {
-      setIsLoading(false);
     }
-  };
-  
-  // Bağımlılıklar değiştiğinde yeniden veri çek
-  useEffect(() => {
-    fetchLocalizations();
-  }, [pagination.page, pagination.limit, sort, filters, searchTerm]);
-  
-  // Desteklenen dilleri ilk yüklemede getir
-  useEffect(() => {
-    fetchSupportedLanguages();
+    
+    const processedData = Array.from(translationMap.values());
+    
+    return {
+      data: processedData,
+      page: result.pagination?.currentPage || params?.page || 1,
+      limit: params?.limit || 10,
+      total: result.total || processedData.length
+    };
   }, []);
-  
-  // Sayfa değişim handler
-  const handlePageChange = (page: number) => {
-    setPagination(prev => ({ ...prev, page }));
-  };
-  
-  // Sıralama değişim handler
-  const handleSort = (sort: SortParams) => {
-    setSort(sort);
-  };
-  
-  // Filtre değişim handler
-  const handleFilter = (filters: FilterParams[]) => {
-    setFilters(filters);
-    // Filtreleme yapıldığında ilk sayfaya dön
-    setPagination(prev => ({ ...prev, page: 1 }));
-  };
-  
-  // Arama handler
-  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    // Aramayı uygula ve ilk sayfaya dön
-    setPagination(prev => ({ ...prev, page: 1 }));
-  };
-  
-  // Satır tıklama handler - detay sayfasına yönlendir
-  const handleRowClick = (localization: Localization) => {
-    console.log('handleRowClick called with:', localization);
-    console.log('Navigating to:', `/localizations/details/${encodeURIComponent(localization.namespace)}/${encodeURIComponent(localization.key)}`);
-    navigate(`/localizations/details/${encodeURIComponent(localization.namespace)}/${encodeURIComponent(localization.key)}`);
-  };
-  
-  // Çeviri oluştur handler
-  const handleCreateLocalization = () => {
-    navigate('/localizations/create');
-  };
-  
-  // Silme işlemi handler
-  const handleDeleteLocalization = async (key: string, namespace: string) => {
-    if (window.confirm(`"${namespace}:${key}" çevirisini silmek istediğinize emin misiniz?`)) {
-      try {
-        // API tamamlandığında burası güncellenecek
-        // await localizationService.deleteLocalization(key, namespace);
-        alert('Silme işlemi için API henüz tamamlanmadı.');
-        // Silme başarılı olduğunda listeyi yenile
-        // fetchLocalizations();
-      } catch (err: any) {
-        setError(err.message || 'Çeviri silinirken bir hata oluştu');
-      }
-    }
-  };
-  
-  // Tablo sütunları
-  const columns: TableColumn<Localization>[] = [
-    {
-      key: 'key',
-      header: 'Anahtar',
-      sortable: true,
-      filterable: true,
-      render: (row) => (
-        <div className="flex items-center">
-          <div className="font-medium text-gray-900 dark:text-white truncate max-w-[200px]" title={row.key}>
-            {row.key}
-          </div>
-        </div>
-      )
+
+  const {
+    data: localizations = [],
+    isLoading,
+    error,
+    pagination,
+    searchTerm,
+    handleSearchInput,
+    handleSearch,
+    handlePageChange,
+    deleteModal,
+    handleDeleteClick,
+    confirmDelete,
+    cancelDelete
+  } = useListPage({
+    fetchFunction: fetchLocalizationsWrapper,
+    deleteFunction: localizationService.deleteLocalization,
+    onDeleteSuccess: (localization) => {
+      showToast({
+        type: 'success',
+        title: 'Başarılı',
+        message: `${localization.namespace}.${localization.key} başarıyla silindi`
+      });
     },
+    onDeleteError: (error) => {
+      showToast({
+        type: 'error',
+        title: 'Hata',
+        message: 'Çeviri silinirken hata oluştu: ' + error
+      });
+    }
+  });
+
+  // Safe array operations
+  const safeLocalizations = Array.isArray(localizations) ? localizations : [];
+
+  // Tablo sütunları
+  const columns: TableColumn<ProcessedTranslation>[] = [
     {
       key: 'namespace',
       header: 'Namespace',
-      sortable: true,
-      filterable: true,
-      render: (row) => (
-        <div className="font-mono text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded truncate max-w-[150px]" title={row.namespace}>
-          {row.namespace}
+      render: (localization: ProcessedTranslation) => (
+        <div className="font-medium text-gray-900 dark:text-white">
+          {localization.namespace}
         </div>
       )
     },
-    ...languages.map(lang => ({
-      key: `translation_${lang}`,
-      header: lang === 'tr' ? 'Türkçe' : lang === 'en' ? 'İngilizce' : lang.toUpperCase(),
-      sortable: true,
-      render: (row: Localization) => (
-        <div className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={row.translations[lang]}>
-          {row.translations[lang] || '-'}
+    {
+      key: 'key',
+      header: 'Anahtar',
+      render: (localization: ProcessedTranslation) => (
+        <div className="text-sm text-gray-600 dark:text-gray-400 font-mono">
+          {localization.key}
         </div>
       )
-    })),
+    },
     {
-      key: 'actions',
+      key: '_id',
       header: 'İşlemler',
-      render: (row) => (
-        <div className="flex space-x-2">
+      render: (localization: ProcessedTranslation) => (
+        <div className="flex justify-end space-x-2">
           <Button
+            variant="outline"
             size="sm"
-            variant="primary"
             onClick={(e) => {
               e.stopPropagation();
-              console.log('Detay button clicked for:', row);
-              console.log('Navigating to:', `/localizations/details/${encodeURIComponent(row.namespace)}/${encodeURIComponent(row.key)}`);
-              navigate(`/localizations/details/${encodeURIComponent(row.namespace)}/${encodeURIComponent(row.key)}`);
+              navigate(`/localizations/details/${localization._id}`);
             }}
           >
-            Detay
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            <span className="ml-1">Detay</span>
           </Button>
           <Button
-            size="sm"
             variant="danger"
+            size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              handleDeleteLocalization(row.key, row.namespace);
+              handleDeleteClick(localization._id);
             }}
           >
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
             Sil
           </Button>
         </div>
@@ -329,134 +154,44 @@ const LocalizationsListPage: React.FC = () => {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Breadcrumb */}
-      <div className="flex items-center justify-between mb-6">
-        <Breadcrumb 
-          items={[
-            { label: 'Çeviriler' }
-          ]} 
+    <ListPageLayout
+      title="Çeviriler"
+      description="Sistem çevirilerini görüntüleyin ve yönetin"
+      icon={
+        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M7 2a1 1 0 011 1v1h3a1 1 0 110 2H9.578a18.87 18.87 0 01-1.724 4.78c.29.354.596.696.914 1.026a1 1 0 11-1.44 1.389c-.188-.196-.373-.396-.554-.6a19.098 19.098 0 01-3.107 3.567 1 1 0 01-1.334-1.49 17.087 17.087 0 003.13-3.733 18.992 18.992 0 01-1.487-2.494 1 1 0 111.79-.89c.234.47.489.928.764 1.372.417-.934.752-1.913.997-2.927H3a1 1 0 110-2h3V3a1 1 0 011-1zm6 6a1 1 0 01.894.553l2.991 5.982a.869.869 0 01.02.037l.99 1.98a1 1 0 11-1.79.895L15.383 16h-4.764l-.724 1.447a1 1 0 11-1.788-.894l.99-1.98.019-.038 2.99-5.982A1 1 0 0113 8zm-1.382 6h2.764L13 11.236 11.618 14z" clipRule="evenodd" />
+        </svg>
+      }
+      breadcrumbItems={[
+        { label: 'Ana Sayfa', path: '/' },
+        { label: 'Çeviriler' }
+      ]}
+      onCreateClick={() => navigate('/localizations/create')}
+      createButtonText="Yeni Çeviri"
+      searchComponent={
+        <SearchForm
+          onSearchInput={handleSearchInput}
+          onSubmit={handleSearch}
+          placeholder="Çeviri ara..."
+          searchButtonText="Ara"
         />
-      </div>
-
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Çeviriler</h1>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Sistemdeki tüm çevirileri yönetin
-          </p>
-        </div>
-        <div className="mt-4 md:mt-0">
-          <Button
-            onClick={handleCreateLocalization}
-            className="flex items-center"
-          >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-            </svg>
-            Yeni Çeviri Ekle
-          </Button>
-        </div>
-      </div>
-      
-      {/* İstatistikler */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-4">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 mr-4">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path>
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Toplam Çeviri</p>
-              <p className="text-lg font-semibold text-gray-700 dark:text-gray-200">{stats.total}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-4">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300 mr-4">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Namespace Sayısı</p>
-              <p className="text-lg font-semibold text-gray-700 dark:text-gray-200">{Object.keys(stats.namespaces).length}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-4">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-300 mr-4">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path>
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Dil Sayısı</p>
-              <p className="text-lg font-semibold text-gray-700 dark:text-gray-200">{languages.length}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Arama formu */}
-      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6">
-        <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1">
-            <label htmlFor="search" className="sr-only">Ara</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                </svg>
-              </div>
-              <input
-                id="search"
-                name="search"
-                type="search"
-                placeholder="Anahtar veya namespace ara..."
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </div>
-          <div>
-            <Button type="submit">Ara</Button>
-          </div>
-        </form>
-      </div>
-      
-      {/* Tablo */}
-      <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
-        {error && (
-          <div className="p-4 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 dark:border-red-500 text-red-700 dark:text-red-400 mb-4">
-            <p>{error}</p>
-          </div>
-        )}
-        
-        <Table
-          columns={columns}
-          data={localizations}
-          isLoading={isLoading}
-          pagination={{
-            page: pagination.page,
-            limit: pagination.limit,
-            total: pagination.total
-          }}
-          onPageChange={handlePageChange}
-          onSort={handleSort}
-          onFilter={handleFilter}
-          onRowClick={handleRowClick}
-          emptyMessage="Hiç çeviri bulunamadı."
-        />
-      </div>
-    </div>
+      }
+      error={error}
+    >
+      <Table
+        columns={columns}
+        data={safeLocalizations}
+        isLoading={isLoading}
+        emptyMessage="Gösterilecek çeviri bulunamadı"
+        onRowClick={(localization) => navigate(`/localizations/details/${localization._id}`)}
+        pagination={{
+          page: pagination.page,
+          limit: pagination.limit,
+          total: pagination.total || 0
+        }}
+        onPageChange={handlePageChange}
+      />
+    </ListPageLayout>
   );
 };
 

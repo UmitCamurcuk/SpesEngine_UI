@@ -5,50 +5,55 @@ import Sidebar from './Sidebar';
 import { NotificationProvider } from '../notifications';
 
 const AppLayout: React.FC = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768);
   const location = useLocation();
 
+  // Ekran boyutu değişikliklerini takip et
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setSidebarOpen(true);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const toggleSidebar = () => {
-    console.log('Sidebar toggle çağrıldı. Mevcut durum:', sidebarOpen, '-> Yeni durum:', !sidebarOpen);
-    setSidebarOpen(!sidebarOpen);
+    setSidebarOpen(prev => !prev);
   };
   
   const closeSidebar = () => {
-    console.log('Sidebar kapatılıyor');
+    console.log('closeSidebar called, current state:', sidebarOpen);
     setSidebarOpen(false);
+    console.log('setSidebarOpen(false) called');
   };
-
-  // Sayfa değiştiğinde sidebar'ı otomatik kapat (mobil görünüm için)
-  useEffect(() => {
-    if (window.innerWidth < 768) { // md breakpoint
-      closeSidebar();
-    }
-  }, [location.pathname]);
 
   return (
     <NotificationProvider>
-      <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-        {/* Navbar - Sabit olarak üstte */}
-        <div className="fixed top-0 left-0 right-0 z-40">
-          <Navbar toggleSidebar={toggleSidebar} />
-        </div>
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+        {/* Navbar */}
+        <Navbar toggleSidebar={toggleSidebar} />
         
-        {/* Sidebar */}
-        <Sidebar isOpen={sidebarOpen} closeSidebar={closeSidebar} />
-        
-        {/* Ana içerik - sidebardan bağımsız */}
-        <div className="flex-1 pt-14 md:pl-64">
-          <main className="h-full overflow-y-auto bg-gray-100 dark:bg-gray-900">
-            <div className="container mx-auto px-6 py-8">
+        <div className="flex pt-14">
+          {/* Sidebar */}
+          <Sidebar isOpen={sidebarOpen} closeSidebar={closeSidebar} />
+          
+          {/* Ana içerik */}
+          <main className={`
+            flex-1
+            transition-all duration-300
+            ${sidebarOpen ? 'ml-64' : ''}
+          `}>
+            <div className="p-4 md:p-6">
               <Outlet />
             </div>
           </main>
         </div>
-        
-
       </div>
     </NotificationProvider>
   );
 };
 
-export default AppLayout; 
+export default AppLayout;

@@ -1,12 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Table from '../../../components/ui/Table';
-import type { TableColumn, SortParams, FilterParams, PaginationParams } from '../../../components/ui/Table';
+import type { TableColumn } from '../../../components/ui/Table';
 import Button from '../../../components/ui/Button';
-import Breadcrumb from '../../../components/common/Breadcrumb';
 import attributeGroupService from '../../../services/api/attributeGroupService';
 import { useTranslation } from '../../../context/i18nContext';
 import { getEntityName, getEntityDescription } from '../../../utils/translationUtils';
+import ModalNotification from '../../../components/notifications/ModalNotification';
+import { useNotification } from '../../../components/notifications';
+import ListPageLayout from '../../../components/layout/ListPageLayout';
+import SearchForm from '../../../components/common/SearchForm';
+import useListPage from '../../../hooks/useListPage';
 
 // INTERFACES
 interface AttributeGroup {
@@ -30,30 +34,9 @@ interface AttributeGroup {
   };
 }
 
-interface AttributeGroupApiParams {
-  page?: number;
-  limit?: number;
-  search?: string;
-  sort?: string;
-  direction?: 'asc' | 'desc';
-  [key: string]: any;
-}
-
 // UTILITY COMPONENTS
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
   <div className={`bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden ${className}`}>
-    {children}
-  </div>
-);
-
-const CardHeader: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
-  <div className={`px-6 py-4 border-b border-gray-200 dark:border-gray-700 ${className}`}>
-    {children}
-  </div>
-);
-
-const CardBody: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
-  <div className={`p-6 ${className}`}>
     {children}
   </div>
 );
@@ -63,122 +46,59 @@ const AttributeGroupsListPage: React.FC = () => {
   // HOOKS
   const navigate = useNavigate();
   const { t, currentLanguage } = useTranslation();
-  
-  // STATE VARIABLES
-  const [attributeGroups, setAttributeGroups] = useState<AttributeGroup[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  
-  const [pagination, setPagination] = useState<PaginationParams>({
-    page: 1,
-    limit: 10,
-    total: 0
-  });
-  
-  const [sort, setSort] = useState<SortParams | null>(null);
-  const [filters, setFilters] = useState<FilterParams[]>([]);
-  
-  const [stats, setStats] = useState({
-    total: 0,
-    active: 0,
-    onThisPage: 0
-  });
+  const { showToast } = useNotification();
 
-  // Filter states
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [dateRangeFilter, setDateRangeFilter] = useState<{
-    field: string;
-    startDate: string;
-    endDate: string;
-  } | null>(null);
-  const [userFilter, setUserFilter] = useState<{
-    field: string;
-    userId: string;
-  } | null>(null);
-  const [showFilters, setShowFilters] = useState<boolean>(false);
+  // API service wrapper for useListPage hook
+  const fetchAttributeGroups = useCallback(async (params: any) => {
+    const result = await attributeGroupService.getAttributeGroups(params);
+    return {
+      data: result.attributeGroups || [],
+      page: result.page || 1,
+      limit: result.limit || 10,
+      total: result.total || 0
+    };
+  }, []);
+
+  const deleteAttributeGroup = useCallback(async (id: string) => {
+    await attributeGroupService.deleteAttributeGroup(id);
+  }, []);
+
+  // Use our custom hook
+  const {
+    data: attributeGroups,
+    isLoading,
+    error,
+    pagination,
+    handlePageChange,
+    handleSearchInput,
+    handleSearch,
+    sort,
+    handleSort,
+    handleFilter,
+    deleteModal,
+    handleDeleteClick,
+    confirmDelete,
+    cancelDelete,
+  } = useListPage<AttributeGroup>({
+    fetchFunction: fetchAttributeGroups,
+    deleteFunction: deleteAttributeGroup,
+    onDeleteSuccess: (deletedItem) => {
+      showToast({
+        title: 'Başarılı!',
+        message: `"${getEntityName(deletedItem, currentLanguage)}" öznitelik grubu başarıyla silindi.`,
+        type: 'success'
+      });
+    },
+    onDeleteError: (error) => {
+      showToast({
+        title: 'Hata!',
+        message: error,
+        type: 'error'
+      });
+    }
+  });
 
   // HELPER FUNCTIONS
-  const fetchAttributeGroups = async () => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const params: AttributeGroupApiParams = {
-        page: pagination.page,
-        limit: pagination.limit
-      };
-      
-      if (searchTerm.trim()) {
-        params.search = searchTerm.trim();
-      }
-      
-      if (sort) {
-        params.sort = sort.field;
-        params.direction = sort.direction;
-      }
-      
-      filters.forEach(filter => {
-        params[filter.field] = filter.value;
-      });
-      
-      const result = await attributeGroupService.getAttributeGroups(params);
-      
-      // Güvenli erişim sağla
-      const attributeGroups = result?.attributeGroups || [];
-      setAttributeGroups(attributeGroups);
-      setPagination({
-        page: result?.page || 1,
-        limit: result?.limit || 10,
-        total: result?.total || 0 // API'de total field'i var
-      });
-      
-      // İstatistikleri hesapla - güvenli filter işlemi
-      const activeCount = attributeGroups.filter(group => group?.isActive).length;
-      
-      setStats({
-        total: result?.total || 0,
-        active: activeCount,
-        onThisPage: attributeGroups.length
-      });
-    } catch (err: any) {
-      console.error('AttributeGroups fetch hatası:', err);
-      setError(err.message || t('attribute_groups_fetch_error', 'attribute_groups'));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const debouncedSearch = useCallback(
-    debounce((term: string) => {
-      setSearchTerm(term);
-      // setPagination(prev => ({ ...prev, page: 1 })); // Sayfa sıfırlamayı kaldırıyoruz
-    }, 500),
-    []
-  );
-
-  const handleSearchInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    debouncedSearch(e.target.value);
-  };
-
-  const handlePageChange = (page: number) => {
-    setPagination(prev => ({ ...prev, page }));
-  };
-
-  const handleSort = (sort: SortParams) => {
-    setSort(sort);
-  };
-
-  const handleFilter = (filters: FilterParams[]) => {
-    setFilters(filters);
-    setPagination(prev => ({ ...prev, page: 1 }));
-  };
-
-  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setPagination(prev => ({ ...prev, page: 1 }));
-  };
-
   const handleRowClick = (group: AttributeGroup) => {
     navigate(`/attributeGroups/details/${group._id}`);
   };
@@ -187,36 +107,46 @@ const AttributeGroupsListPage: React.FC = () => {
     navigate('/attributeGroups/create');
   };
 
-  const handleDeleteAttributeGroup = async (id: string, name: string) => {
-    if (window.confirm(t('confirm_delete_attribute_group', 'attribute_groups').replace('{{name}}', name))) {
-      try {
-        await attributeGroupService.deleteAttributeGroup(id);
-        fetchAttributeGroups();
-      } catch (err: any) {
-        setError(err.message || t('attribute_group_delete_error', 'attribute_groups'));
+  // STATISTICS
+  const stats = useMemo(() => {
+    const activeCount = attributeGroups.filter(group => group?.isActive).length;
+    
+    return [
+      {
+        title: t('total_attribute_groups', 'attribute_groups'),
+        value: pagination.total,
+        icon: (
+          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          </svg>
+        ),
+        color: 'purple' as const
+      },
+      {
+        title: t('active_attribute_groups', 'attribute_groups'),
+        value: activeCount,
+        icon: (
+          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        ),
+        color: 'green' as const
+      },
+      {
+        title: t('on_this_page', 'attribute_groups'),
+        value: attributeGroups.length,
+        icon: (
+          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+        ),
+        color: 'blue' as const
       }
-    }
-  };
-
-  // EFFECTS
-  useEffect(() => {
-    fetchAttributeGroups();
-  }, [pagination.page, pagination.limit, sort, filters]);
-
-  // Search term değiştiğinde otomatik fetch - dependency cycle'ını kırmak için ayrı
-  useEffect(() => {
-    // İlk yüklemede search yapma
-    if (searchTerm === '') return;
-    
-    const timeoutId = setTimeout(() => {
-      fetchAttributeGroups();
-    }, 300); // Debounce süresi
-    
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm]); // fetchAttributeGroups dependency'sini kaldırıyoruz
+    ];
+  }, [attributeGroups, pagination.total, t, currentLanguage]);
 
   // TABLE COLUMNS
-  const columns: TableColumn<AttributeGroup>[] = [
+  const columns: TableColumn<AttributeGroup>[] = useMemo(() => [
     {
       key: 'name',
       header: t('name', 'attribute_groups'),
@@ -319,42 +249,8 @@ const AttributeGroupsListPage: React.FC = () => {
           )}
         </div>
       )
-    },
-    {
-      key: 'createdAt',
-      header: t('created', 'attribute_groups'),
-      sortable: true,
-      render: (row) => (
-        <div className="text-sm text-gray-500 dark:text-gray-400">
-          {new Date(row.createdAt).toLocaleDateString('tr-TR', { 
-            day: '2-digit', 
-            month: '2-digit', 
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-          })}
-        </div>
-      )
-    },
-    {
-      key: 'createdBy',
-      header: t('created_by', 'attribute_groups'),
-      render: (row) => (
-        <div className="text-sm text-gray-600 dark:text-gray-400">
-          {row.createdBy ? (
-            <div className="flex items-center">
-              <div className="w-6 h-6 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center mr-2 text-xs font-medium">
-                {row.createdBy.name.charAt(0).toUpperCase()}
-              </div>
-              <span title={row.createdBy.email}>{row.createdBy.name}</span>
-            </div>
-          ) : (
-            <span className="text-gray-400 italic">{t('unknown', 'attribute_groups')}</span>
-          )}
-        </div>
-      )
     }
-  ];
+  ], [t, currentLanguage]);
 
   const renderActions = (group: AttributeGroup) => (
     <div className="flex space-x-2">
@@ -377,7 +273,7 @@ const AttributeGroupsListPage: React.FC = () => {
         className="p-1 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900 rounded-md"
         onClick={(e) => {
           e.stopPropagation();
-          handleDeleteAttributeGroup(group._id, getEntityName(group, currentLanguage));
+          handleDeleteClick(group._id, getEntityName(group, currentLanguage));
         }}
         title={t('delete', 'attribute_groups')}
       >
@@ -388,184 +284,91 @@ const AttributeGroupsListPage: React.FC = () => {
     </div>
   );
 
+  // SEARCH COMPONENT
+  const searchComponent = (
+    <SearchForm
+      onSearchInput={handleSearchInput}
+      onSubmit={handleSearch}
+      placeholder={t('search_attribute_groups', 'attribute_groups')}
+      searchButtonText={t('search', 'attribute_groups')}
+    />
+  );
+
   // MAIN RENDER
   return (
-    <div className="space-y-6">
-      {/* BREADCRUMB */}
-      <div className="flex items-center justify-between">
-        <Breadcrumb 
-          items={[
-            { label: t('attribute_groups_title', 'attribute_groups') }
-          ]} 
-        />
-      </div>
-
-      {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center">
-          <div className="h-10 w-10 rounded-lg bg-purple-100 dark:bg-purple-900/50 
-                         flex items-center justify-center mr-3">
-            <svg className="h-5 w-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('attribute_groups_title', 'attribute_groups')}</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {t('manage_attribute_groups', 'attribute_groups')}
-            </p>
-          </div>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="primary"
-            className="flex items-center"
-            onClick={handleCreateAttributeGroup}
-          >
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            {t('new_attribute_group', 'attribute_groups')}
-          </Button>
-        </div>
-      </div>
-
-      {/* STATISTICS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <>
+      <ListPageLayout
+        title={t('attribute_groups_title', 'attribute_groups')}
+        description={t('manage_attribute_groups', 'attribute_groups')}
+        icon={
+          <svg className="h-5 w-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          </svg>
+        }
+        breadcrumbItems={[
+          { label: t('attribute_groups_title', 'attribute_groups') }
+        ]}
+        onCreateClick={handleCreateAttributeGroup}
+        createButtonText={t('new_attribute_group', 'attribute_groups')}
+        stats={stats}
+        searchComponent={searchComponent}
+        error={error}
+      >
         <Card>
-          <CardBody className="bg-purple-50 dark:bg-purple-900/20 border-l-4 border-purple-400 dark:border-purple-500">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-8 w-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <Table
+            columns={columns}
+            data={attributeGroups || []}
+            keyField="_id"
+            isLoading={isLoading}
+            pagination={pagination}
+            onPageChange={handlePageChange}
+            onSort={handleSort}
+            onFilter={handleFilter}
+            onRowClick={handleRowClick}
+            renderActions={renderActions}
+            emptyMessage={
+              <div className="text-center py-12">
+                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{t('no_attribute_groups_found', 'attribute_groups')}</p>
+                <div className="mt-4">
+                  <Button
+                    variant="primary"
+                    className="inline-flex items-center"
+                    onClick={handleCreateAttributeGroup}
+                  >
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    {t('add_first_attribute_group', 'attribute_groups')}
+                  </Button>
+                </div>
               </div>
-              <div className="ml-4">
-                <div className="text-sm font-medium text-purple-500 dark:text-purple-400">{t('total_attribute_groups', 'attribute_groups')}</div>
-                <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">{stats.total}</div>
-              </div>
-            </div>
-          </CardBody>
+            }
+          />
         </Card>
-        
-        <Card>
-          <CardBody className="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-400 dark:border-green-500">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-8 w-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <div className="text-sm font-medium text-green-500 dark:text-green-400">{t('active_attribute_groups', 'attribute_groups')}</div>
-                <div className="text-2xl font-bold text-green-700 dark:text-green-300">{stats.active}</div>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-        
-        <Card>
-          <CardBody className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 dark:border-blue-500">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-8 w-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <div className="text-sm font-medium text-blue-500 dark:text-blue-400">{t('on_this_page', 'attribute_groups')}</div>
-                <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{stats.onThisPage}</div>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-      </div>
-      
-      {/* SEARCH */}
-      <Card>
-        <CardBody>
-          <form className="flex w-full max-w-lg" onSubmit={handleSearch}>
-            <div className="relative flex-grow">
-              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-              <input
-                type="text"
-                className="block w-full p-2 pl-10 text-sm border border-gray-300 rounded-l-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                placeholder={t('search_attribute_groups', 'attribute_groups')}
-                onChange={handleSearchInput}
-              />
-            </div>
-            <Button
-              type="submit"
-              variant="primary"
-              className="rounded-l-none"
-            >
-              {t('search', 'attribute_groups')}
-            </Button>
-          </form>
-        </CardBody>
-      </Card>
+      </ListPageLayout>
 
-      {/* ERROR MESSAGE */}
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 flex items-start">
-          <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span>{error}</span>
-        </div>
-      )}
-
-      {/* TABLE */}
-      <Card>
-        <Table
-          columns={columns}
-          data={attributeGroups || []}
-          keyField="_id"
-          isLoading={isLoading}
-          pagination={pagination}
-          onPageChange={handlePageChange}
-          onSort={handleSort}
-          onFilter={handleFilter}
-          onRowClick={handleRowClick}
-          renderActions={renderActions}
-          emptyMessage={
-            <div className="text-center py-12">
-              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{t('no_attribute_groups_found', 'attribute_groups')}</p>
-              <div className="mt-4">
-                <Button
-                  variant="primary"
-                  className="inline-flex items-center"
-                  onClick={handleCreateAttributeGroup}
-                >
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  {t('add_first_attribute_group', 'attribute_groups')}
-                </Button>
-              </div>
-            </div>
-          }
-        />
-      </Card>
-    </div>
+      {/* Delete Confirmation Modal */}
+      <ModalNotification
+        isOpen={deleteModal.isOpen}
+        type="warning"
+        title="Öznitelik Grubunu Sil"
+        message={`"${deleteModal.name}" öznitelik grubunu silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`}
+        onClose={cancelDelete}
+        primaryButton={{
+          text: "Sil",
+          onClick: confirmDelete,
+          variant: "error"
+        }}
+        secondaryButton={{
+          text: "İptal",
+          onClick: cancelDelete
+        }}
+      />
+    </>
   );
 };
-
-// DEBOUNCE FUNCTION
-function debounce<T extends (...args: any[]) => any>(func: T, delay: number): (...args: Parameters<T>) => void {
-  let timeoutId: number;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => func(...args), delay);
-  };
-}
 
 export default AttributeGroupsListPage; 

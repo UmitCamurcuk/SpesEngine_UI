@@ -4,6 +4,7 @@ import relationshipService from './api/relationshipService';
 import roleService from './api/roleService';
 import permissionService from './api/permissionService';
 import permissionGroupService from './api/permissionGroupService';
+import userService from './api/userService';
 
 export {
   api,
@@ -11,5 +12,6 @@ export {
   relationshipService,
   roleService,
   permissionService,
-  permissionGroupService
+  permissionGroupService,
+  userService
 }; 

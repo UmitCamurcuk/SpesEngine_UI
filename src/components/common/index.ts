@@ -10,4 +10,6 @@ export { default as PermissionsTab } from './PermissionsTab';
 export { default as RelationshipsTab } from './RelationshipsTab';
 export { default as SearchForm } from './SearchForm';
 export { default as StatisticsTab } from './StatisticsTab';
-export { default as TranslationFields } from './TranslationFields'; 
+export { default as TranslationFields } from './TranslationFields';
+export { default as UsersTab } from './UsersTab';
+export { default as SystemPermissionsTab } from './SystemPermissionsTab'; 

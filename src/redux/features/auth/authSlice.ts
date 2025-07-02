@@ -110,6 +110,18 @@ export const getCurrentUser = createAsyncThunk(
   }
 );
 
+// İzinleri yenile
+export const refreshPermissions = createAsyncThunk(
+  'auth/refreshPermissions',
+  async (_, { rejectWithValue }) => {
+    try {
+      return await authService.refreshPermissions();
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'İzinler yenilenemedi');
+    }
+  }
+);
+
 // Auth slice
 const authSlice = createSlice({
   name: 'auth',
@@ -209,6 +221,19 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = null;
         state.isAuthenticated = false;
+      })
+      
+      // Refresh Permissions
+      .addCase(refreshPermissions.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(refreshPermissions.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload;
+      })
+      .addCase(refreshPermissions.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
       });
   },
 });

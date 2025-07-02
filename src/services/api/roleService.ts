@@ -51,6 +51,33 @@ const roleService = {
   },
 
   /**
+   * Sistem izinlerini güncelle - SystemPermissionsTab için
+   */
+  updateSystemPermissions: async (
+    roleId: string, 
+    permissionIds: string[]
+  ): Promise<Role> => {
+    // Önce role'ün mevcut permission group'larını al
+    const role = await roleService.getRoleById(roleId);
+    
+    // Permission ID'lerini group yapısına dönüştür
+    const permissionGroups = role.permissionGroups.map(pg => ({
+      permissionGroup: pg.permissionGroup._id,
+      permissions: pg.permissions.map(p => ({
+        permission: p.permission._id,
+        granted: permissionIds.includes(p.permission._id)
+      }))
+    }));
+
+    // Role'ü güncelle
+    const response = await api.put(`/roles/${roleId}`, {
+      permissionGroups
+    });
+    
+    return response.data.role;
+  },
+
+  /**
    * Bir rolü sil
    */
   deleteRole: async (id: string): Promise<void> => {

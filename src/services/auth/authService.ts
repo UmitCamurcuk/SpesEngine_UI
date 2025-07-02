@@ -105,6 +105,12 @@ const authService = {
   isAuthenticated: (): boolean => {
     return localStorage.getItem('accessToken') !== null;
   },
+  
+  // İzinleri yenile
+  refreshPermissions: async () => {
+    const response = await api.get('/auth/refresh-permissions');
+    return response.data.user;
+  }
 };
 
 export default authService; 

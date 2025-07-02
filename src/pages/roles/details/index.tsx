@@ -221,14 +221,19 @@ const RoleDetailsPage: React.FC = () => {
 
     // Değişiklikleri tespit et
     const changes: string[] = [];
+    const updateData: any = {};
+    
     if (role?.name !== formData.name) {
       changes.push(`İsim: "${role?.name}" → "${formData.name}"`);
+      updateData.name = formData.name;
     }
     if (role?.description !== formData.description) {
       changes.push(`Açıklama: "${role?.description}" → "${formData.description}"`);
+      updateData.description = formData.description;
     }
     if (role?.isActive !== formData.isActive) {
       changes.push(`Durum: ${role?.isActive ? 'Aktif' : 'Pasif'} → ${formData.isActive ? 'Aktif' : 'Pasif'}`);
+      updateData.isActive = formData.isActive;
     }
     
     // Permission değişikliklerini kontrol et
@@ -239,14 +244,29 @@ const RoleDetailsPage: React.FC = () => {
       return [...acc, ...grantedPermissions];
     }, []) || [];
     
-    const addedPermissions = formData.permissions?.filter(p => !currentPermissionIds.includes(p)) || [];
-    const removedPermissions = currentPermissionIds.filter(p => !formData.permissions?.includes(p));
+    const newPermissionIds = formData.permissions || [];
+    const addedPermissions = newPermissionIds.filter(p => !currentPermissionIds.includes(p));
+    const removedPermissions = currentPermissionIds.filter(p => !newPermissionIds.includes(p));
     
-    if (addedPermissions.length > 0) {
-      changes.push(`Eklenen izinler: ${addedPermissions.length} adet`);
+    if (addedPermissions.length > 0 || removedPermissions.length > 0) {
+      if (addedPermissions.length > 0) {
+        changes.push(`Eklenen izinler: ${addedPermissions.length} adet`);
+      }
+      if (removedPermissions.length > 0) {
+        changes.push(`Kaldırılan izinler: ${removedPermissions.length} adet`);
+      }
+      updateData.permissions = newPermissionIds;
     }
-    if (removedPermissions.length > 0) {
-      changes.push(`Kaldırılan izinler: ${removedPermissions.length} adet`);
+
+    // Eğer hiç değişiklik yoksa uyarı ver
+    if (changes.length === 0) {
+      showToast({
+        type: 'info',
+        title: 'Bilgi',
+        message: 'Hiçbir değişiklik yapılmadı',
+        duration: 3000
+      });
+      return;
     }
 
     // Comment modal göster
@@ -258,11 +278,14 @@ const RoleDetailsPage: React.FC = () => {
         setError(null);
         
         try {
-          // API'ye gönder
-          const updatedRole = await roleService.updateRole(id, formData);
+          // Comment'i update data'ya ekle
+          updateData.comment = comment;
+          
+          // Sadece değişen verileri gönder
+          await roleService.updateRole(id, updateData);
           
           // Güncel veriyi yeniden yükle
-          setRole(updatedRole);
+          await fetchRoleDetails();
           
           setIsEditing(false);
           
@@ -337,23 +360,6 @@ const RoleDetailsPage: React.FC = () => {
   // Tab değiştirme
   const handleTabChange = (tab: string) => {
     setActiveTab(tab as 'details' | 'permissions' | 'users' | 'system' | 'documentation' | 'api' | 'statistics' | 'history');
-  };
-
-  // Sistem izinlerini kaydet
-  const handleSystemPermissionsSave = async (permissions: string[], comment?: string) => {
-    if (!id) return;
-    
-    try {
-      // Sistem izinlerini güncellemek için özel service fonksiyonunu kullan
-      await roleService.updateSystemPermissions(id, permissions);
-      
-      // Role verilerini yeniden yükle
-      await fetchRoleDetails();
-      
-      return Promise.resolve();
-    } catch (error) {
-      throw error;
-    }
   };
 
   // Action buttons

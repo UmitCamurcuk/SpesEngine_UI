@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
 import roleService from '../../../services/api/roleService';
 import permissionService from '../../../services/api/permissionService';
-import type { CreateRoleDto } from '../../../services/api/roleService';
-import type { Permission } from '../../../services/api/permissionService';
+import { CreateRoleDto } from '../../../types/role';
+import { Permission } from '../../../types/permission';
 
 const RoleCreatePage: React.FC = () => {
   const navigate = useNavigate();
@@ -46,33 +46,32 @@ const RoleCreatePage: React.FC = () => {
     fetchPermissions();
   }, []);
   
-  // Form input değişiklik handler
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target;
-    
-    // Checkbox için özel işlem
-    if (type === 'checkbox') {
-      const checked = (e.target as HTMLInputElement).checked;
-      setFormData(prev => ({ ...prev, [name]: checked }));
-      return;
-    }
-    
-    setFormData(prev => ({ ...prev, [name]: value }));
+  // Form state değişikliklerini yönet
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
-  
-  // İzin seçimi değişiklik handler
-  const handlePermissionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const options = e.target.options;
-    const selectedValues: string[] = [];
-    
-    for (let i = 0; i < options.length; i++) {
-      if (options[i].selected) {
-        selectedValues.push(options[i].value);
-      }
-    }
-    
-    setSelectedPermissions(selectedValues);
-    setFormData(prev => ({ ...prev, permissions: selectedValues }));
+
+  // Checkbox değişikliklerini yönet
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: checked
+    }));
+  };
+
+  // Select değişikliklerini yönet
+  const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+    setFormData(prev => ({
+      ...prev,
+      permissions: selectedOptions
+    }));
+    setSelectedPermissions(selectedOptions);
   };
   
   // Form gönderme handler
@@ -171,7 +170,7 @@ const RoleCreatePage: React.FC = () => {
                 id="name"
                 name="name"
                 value={formData.name}
-                onChange={handleChange}
+                onChange={handleFormChange}
                 required
                 className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
                 placeholder="Rol adını girin"
@@ -189,7 +188,7 @@ const RoleCreatePage: React.FC = () => {
                 multiple
                 size={5}
                 value={selectedPermissions}
-                onChange={handlePermissionChange}
+                onChange={handleSelectChange}
                 className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
               >
                 {isFetchingOptions ? (
@@ -197,7 +196,7 @@ const RoleCreatePage: React.FC = () => {
                 ) : permissionOptions.length > 0 ? (
                   permissionOptions.map(permission => (
                     <option key={permission._id} value={permission._id}>
-                      {permission.name} ({permission.code})
+                      {permission.name.tr} ({permission.code})
                     </option>
                   ))
                 ) : (
@@ -218,7 +217,7 @@ const RoleCreatePage: React.FC = () => {
                 id="description"
                 name="description"
                 value={formData.description}
-                onChange={handleChange}
+                onChange={handleFormChange}
                 required
                 rows={3}
                 className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
@@ -235,7 +234,7 @@ const RoleCreatePage: React.FC = () => {
                     name="isActive"
                     type="checkbox"
                     checked={formData.isActive === undefined ? true : formData.isActive}
-                    onChange={e => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                    onChange={handleCheckboxChange}
                     className="w-4 h-4 text-primary-light bg-gray-100 border-gray-300 rounded focus:ring-primary-light dark:focus:ring-primary-dark dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                   />
                 </div>

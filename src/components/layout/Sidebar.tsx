@@ -212,25 +212,24 @@ const Sidebar = ({ isOpen, closeSidebar }: SidebarProps) => {
   const activeClass = "bg-gray-100 dark:bg-gray-700 text-primary-light dark:text-primary-dark";
   const inactiveClass = "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700";
 
-  const shouldShowSidebar = isOpen || window.innerWidth >= 768;
-  console.log('Should show sidebar:', shouldShowSidebar);
+  const isMobile = window.innerWidth < 768;
+  const shouldShowSidebar = isOpen || (!isMobile && isOpen);
 
   return (
     <>
-      {isOpen && (
+      {isOpen && isMobile && (
         <div
           className="fixed inset-0 bg-gray-900 bg-opacity-50 z-30 md:hidden"
-          onClick={() => {
-            console.log('Overlay clicked, closing sidebar');
-            closeSidebar();
-          }}
+          onClick={closeSidebar}
         />
       )}
 
       {shouldShowSidebar && (
         <aside
-          className="fixed top-14 left-0 z-40 w-64 h-[calc(100vh-3.5rem)] 
-            bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700"
+          className={`fixed top-14 left-0 z-40 w-64 h-[calc(100vh-3.5rem)] 
+            bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
+            transition-transform duration-300 ease-in-out
+            ${!isOpen && isMobile ? '-translate-x-full' : 'translate-x-0'}`}
         >
           <nav className="h-full px-3 py-4 overflow-y-auto">
             {navItems.map((item) => (
@@ -247,7 +246,7 @@ const Sidebar = ({ isOpen, closeSidebar }: SidebarProps) => {
                         <span>{item.name}</span>
                       </div>
                       <svg
-                        className="w-4 h-4"
+                        className={`w-4 h-4 transition-transform duration-200 ${openDropdowns[item.path] ? 'rotate-180' : ''}`}
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -265,8 +264,9 @@ const Sidebar = ({ isOpen, closeSidebar }: SidebarProps) => {
                           key={child.path}
                           to={child.path}
                           onClick={() => {
-                            console.log('Child NavLink clicked, closing sidebar');
-                            closeSidebar();
+                            if (isMobile) {
+                              closeSidebar();
+                            }
                           }}
                           className={({ isActive }) =>
                             `flex items-center p-2 text-xs font-medium rounded-lg ${isActive ? activeClass : inactiveClass}`
@@ -282,8 +282,9 @@ const Sidebar = ({ isOpen, closeSidebar }: SidebarProps) => {
                     to={item.path}
                     end={item.path === '/'}
                     onClick={() => {
-                      console.log('Main NavLink clicked, closing sidebar');
-                      closeSidebar();
+                      if (isMobile) {
+                        closeSidebar();
+                      }
                     }}
                     className={({ isActive }) =>
                       `flex items-center p-2 text-sm font-medium rounded-lg ${isActive ? activeClass : inactiveClass}`
@@ -302,4 +303,4 @@ const Sidebar = ({ isOpen, closeSidebar }: SidebarProps) => {
   );
 };
 
-export default Sidebar; 
+export default Sidebar;

@@ -50,7 +50,6 @@ export const usePermissions = () => {
   const refreshPermissions = async () => {
     try {
       await dispatch(refreshPermissionsAction()).unwrap();
-      console.log('Permissions refreshed successfully');
     } catch (error) {
       console.error('Failed to refresh permissions:', error);
     }

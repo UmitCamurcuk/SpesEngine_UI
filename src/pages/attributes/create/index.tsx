@@ -6,7 +6,7 @@ import Breadcrumb from '../../../components/common/Breadcrumb';
 import Stepper from '../../../components/ui/Stepper';
 import attributeService from '../../../services/api/attributeService';
 
-import { CreateAttributeDto, AttributeValidation } from '../../../types/attribute';
+import { CreateAttributeDto, AttributeValidation, Attribute } from '../../../types/attribute';
 import attributeGroupService from '../../../services/api/attributeGroupService';
 import { AttributeGroup } from '../../../types/attributeGroup';
 import { AttributeType, AttributeTypeLabels } from '../../../types/attribute';
@@ -33,7 +33,7 @@ interface Step2FormData {
 
 // Adım 3: Tip özelliklerine göre
 interface Step3FormData {
-  options: string; // Sadece SELECT ve MULTISELECT tipleri için
+  options: string[]; // Sadece SELECT ve MULTISELECT tipleri için
 }
 
 // Adım 4: Validasyonlar
@@ -51,7 +51,7 @@ const initialFormData: FormData = {
   attributeGroup: undefined,
   type: AttributeType.TEXT,
   isRequired: false,
-  options: '',
+  options: [],
   validations: {}
 };
 
@@ -86,7 +86,8 @@ const AttributeCreatePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-
+  // SELECT/MULTISELECT için READONLY attribute'ları getir
+  const [readonlyAttributes, setReadonlyAttributes] = useState<Attribute[]>([]);
 
   // Stepper adımları
   const steps = useMemo(() => [
@@ -199,7 +200,7 @@ const AttributeCreatePage: React.FC = () => {
     
     if (
       (formData.type === AttributeType.SELECT || formData.type === AttributeType.MULTISELECT) && 
-      !formData.options.trim()
+      formData.options.length === 0
     ) {
       errors.options = t('options_required', 'attributes');
     }
@@ -326,6 +327,24 @@ const AttributeCreatePage: React.FC = () => {
     }
   };
   
+  // Type seçimi değiştiğinde options'ları sıfırla
+  const handleTypeChange = (newType: AttributeType) => {
+    setFormData(prev => ({
+      ...prev,
+      type: newType,
+      options: [], // Options'ları sıfırla
+      validations: {} // Validasyonları da sıfırla
+    }));
+  };
+
+  // Options seçimi için yeni handler
+  const handleOptionsChange = (selectedOptions: string[]) => {
+    setFormData(prev => ({
+      ...prev,
+      options: selectedOptions
+    }));
+  };
+  
   // Form gönderimi
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -347,29 +366,20 @@ const AttributeCreatePage: React.FC = () => {
         type: formData.type,
         description: descriptionId,
         isRequired: formData.isRequired,
+        options: formData.type === AttributeType.SELECT || formData.type === AttributeType.MULTISELECT 
+          ? formData.options 
+          : undefined,
         validations: formData.validations && Object.keys(formData.validations).length > 0 
           ? formData.validations 
           : undefined
       };
       
-      // TCKNO validasyon debug logu
-      console.log('API\'ye gönderilecek form verisi:', JSON.stringify(formData, null, 2));
-      console.log('API\'ye gönderilecek veri (attributeData):', JSON.stringify(attributeData, null, 2));
-      console.log('Validasyon değerleri:', JSON.stringify(formData.validations, null, 2));
-      
       // Öznitelik grubu varsa ekle
       if (formData.attributeGroup) {
         attributeData.attributeGroup = formData.attributeGroup;
-        console.log('[FRONTEND DEBUG] AttributeGroup seçildi:', formData.attributeGroup);
-      } else {
-        console.log('[FRONTEND DEBUG] AttributeGroup seçilmedi');
       }
       
-      console.log('[FRONTEND DEBUG] Final attributeData:', JSON.stringify(attributeData, null, 2));
-      
       const createdAttribute = await attributeService.createAttribute(attributeData);
-      
-      console.log('[FRONTEND DEBUG] Oluşturulan attribute:', createdAttribute);
       
       showToast({
         type: 'success',
@@ -378,22 +388,22 @@ const AttributeCreatePage: React.FC = () => {
         duration: 3000
       });
       
-             showModal({
-         type: 'success',
-         title: 'Attribute Oluşturuldu',
-         message: 'Yeni attribute başarıyla oluşturuldu.',
-         primaryButton: {
-           text: 'Attribute\'a Git',
-           onClick: () => navigate(`/attributes/${createdAttribute._id}`)
-         },
-         secondaryButton: {
-           text: 'Liste\'ye Dön',
-           onClick: () => navigate('/attributes/list')
-         }
-       });
+      showModal({
+        type: 'success',
+        title: 'Attribute Oluşturuldu',
+        message: 'Yeni attribute başarıyla oluşturuldu.',
+        primaryButton: {
+          text: 'Attribute\'a Git',
+          onClick: () => navigate(`/attributes/${createdAttribute._id}`)
+        },
+        secondaryButton: {
+          text: 'Liste\'ye Dön',
+          onClick: () => navigate('/attributes/list')
+        }
+      });
       
     } catch (err: any) {
-      console.error('[FRONTEND DEBUG] Attribute create hatası:', err);
+      console.error('Attribute create hatası:', err);
       setError(err.message || t('attribute_create_error', 'attributes'));
       showToast({
         type: 'error',
@@ -651,60 +661,54 @@ const AttributeCreatePage: React.FC = () => {
       case 1:
         return (
           <div className="space-y-6">
-            <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">{t('type_selection', 'attributes')}</h3>
+            <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">
+              {t('type_selection', 'attributes')}
+            </h3>
             
-            {/* Öznitelik Tipi */}
-            <div>
-              <label htmlFor="type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                {t('attribute_type', 'attributes')} <span className="text-red-500">*</span>
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-                {Object.values(AttributeType).map((type) => (
-                  <div 
-                    key={`${type}-${currentLanguage}`}
-                    className={`flex flex-col items-center p-3 rounded-lg border-2 cursor-pointer transition-colors
-                      ${formData.type === type 
-                        ? 'border-primary-light dark:border-primary-dark bg-primary-light/10 dark:bg-primary-dark/10' 
-                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                      }
-                    `}
-                    onClick={() => {
-                      setFormData(prev => ({ ...prev, type }));
-                      
-                      // Bağımlı alanları sıfırla
-                      if (type !== AttributeType.SELECT && type !== AttributeType.MULTISELECT) {
-                        setFormData(prev => ({ ...prev, options: '' }));
-                      }
-                    }}
-                  >
-                    <AttributeBadge type={type} showLabel={false} />
-                    <span className="mt-2 text-sm font-medium text-center">
-                      {t(AttributeTypeLabels[type].key, AttributeTypeLabels[type].namespace, { use: true })}
-                    </span>
+            {/* Tip seçimi */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Object.values(AttributeType).map((type) => (
+                <div
+                  key={type}
+                  className={`relative p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                    formData.type === type
+                      ? 'border-primary-light bg-primary-50 dark:border-primary-dark dark:bg-primary-900/20'
+                      : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'
+                  }`}
+                  onClick={() => handleTypeChange(type)}
+                >
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <AttributeBadge type={type} />
+                    </div>
+                    <div className="ml-3">
+                      <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                        {t(AttributeTypeLabels[type].key, AttributeTypeLabels[type].namespace, { use: true })}
+                      </h4>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        {typeDescriptions[type]}
+                      </p>
+                    </div>
                   </div>
-                ))}
-              </div>
-              <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
-                {typeDescriptions[formData.type]}
-              </p>
+                </div>
+              ))}
             </div>
             
-            {/* Zorunlu mu? */}
-            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+            {/* Zorunluluk */}
+            <div className="mt-6">
               <div className="flex items-center">
                 <input
                   type="checkbox"
                   id="isRequired"
-                  name="isRequired"
                   checked={formData.isRequired}
-                  onChange={handleChange}
-                  className="h-4 w-4 text-primary-light dark:text-primary-dark focus:ring-primary-light dark:focus:ring-primary-dark rounded border-gray-300 dark:border-gray-600"
+                  onChange={(e) => setFormData(prev => ({ ...prev, isRequired: e.target.checked }))}
+                  className="h-4 w-4 text-primary-light focus:ring-primary-light border-gray-300 rounded dark:border-gray-600"
                 />
-                <label htmlFor="isRequired" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                  {t('is_required_description', 'attributes')}
+                <label htmlFor="isRequired" className="ml-2 block text-sm text-gray-900 dark:text-white">
+                  {t('is_required', 'attributes')}
                 </label>
               </div>
-              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 ml-6">
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 {t('is_required_help', 'attributes')}
               </p>
             </div>
@@ -714,55 +718,65 @@ const AttributeCreatePage: React.FC = () => {
       case 2:
         return (
           <div className="space-y-6">
-            <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">{t('type_properties', 'attributes')}</h3>
+            <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">
+              {t('type_properties', 'attributes')}
+            </h3>
             
-            {/* Seçenekler (SELECT veya MULTISELECT tipi için) */}
             {(formData.type === AttributeType.SELECT || formData.type === AttributeType.MULTISELECT) ? (
               <div>
-                <label htmlFor="options" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('options', 'attributes')} <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  id="options"
-                  name="options"
-                  value={formData.options}
-                  onChange={handleChange}
-                  rows={4}
-                  className={`w-full px-3 py-2 border ${
-                    formErrors.options ? 'border-red-500 dark:border-red-700' : 'border-gray-300 dark:border-gray-600'
-                  } rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light dark:bg-gray-700 dark:text-white`}
-                  placeholder={t('options_placeholder', 'attributes')}
-                ></textarea>
-                {formErrors.options && (
-                  <p className="mt-1 text-sm text-red-500">{formErrors.options}</p>
-                )}
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  {t('options_info', 'attributes')}
-                </p>
-                
-                {/* Seçenek önizleme */}
-                {formData.options.trim() && (
-                  <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      {t('preview', 'attributes')}
-                    </label>
-                    <div className="flex flex-wrap gap-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700">
-                      {formData.options
-                        .split(',')
-                        .map(option => option.trim())
-                        .filter(option => option.length > 0)
-                        .map((option, index) => (
-                          <span
-                            key={`option-${index}-${option}-${currentLanguage}`}
-                            className="inline-flex px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t('select_options', 'attributes')}
+                  </h4>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                    {t('select_readonly_options', 'attributes')}
+                  </p>
+                  
+                  {readonlyAttributes.length > 0 ? (
+                    <div className="space-y-3">
+                      {readonlyAttributes.map((attr) => (
+                        <div 
+                          key={attr._id}
+                          className={`flex items-center p-3 rounded-lg border ${
+                            formData.options.includes(attr._id)
+                              ? 'border-primary-light bg-primary-50 dark:border-primary-dark dark:bg-primary-900/20'
+                              : 'border-gray-200 dark:border-gray-700'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            id={`option-${attr._id}`}
+                            checked={formData.options.includes(attr._id)}
+                            onChange={() => {
+                              const newOptions = formData.options.includes(attr._id)
+                                ? formData.options.filter(id => id !== attr._id)
+                                : [...formData.options, attr._id];
+                              handleOptionsChange(newOptions);
+                            }}
+                            className="h-4 w-4 text-primary-light focus:ring-primary-light border-gray-300 rounded"
+                          />
+                          <label 
+                            htmlFor={`option-${attr._id}`}
+                            className="ml-3 flex-1 cursor-pointer"
                           >
-                            {option}
-                          </span>
-                        ))
-                      }
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">
+                              {getEntityName(attr, currentLanguage)}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {attr.code}
+                            </div>
+                          </label>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <div className="text-center p-6 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                      <p className="text-gray-500 dark:text-gray-400">
+                        {t('no_readonly_attributes', 'attributes')}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
@@ -892,7 +906,6 @@ const AttributeCreatePage: React.FC = () => {
                 <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">{t('options', 'attributes')}</h4>
                 <div className="flex flex-wrap gap-2">
                   {formData.options
-                    .split(',')
                     .map(option => option.trim())
                     .filter(option => option.length > 0)
                     .map((option, index) => (
@@ -933,6 +946,31 @@ const AttributeCreatePage: React.FC = () => {
         return null;
     }
   };
+  
+  // READONLY attributes yükle
+  useEffect(() => {
+    const fetchReadonlyAttributes = async () => {
+      if (formData.type === AttributeType.SELECT || formData.type === AttributeType.MULTISELECT) {
+        try {
+          const result = await attributeService.getAttributes({ 
+            type: AttributeType.READONLY,
+            isActive: true
+          });
+          setReadonlyAttributes(result.attributes || []);
+        } catch (error) {
+          console.error('READONLY attributes yüklenirken hata:', error);
+          showToast({
+            type: 'error',
+            title: 'Hata',
+            message: 'Seçenekler yüklenirken bir hata oluştu',
+            duration: 5000
+          });
+        }
+      }
+    };
+
+    fetchReadonlyAttributes();
+  }, [formData.type]);
   
   return (
     <div className="space-y-6">

@@ -23,7 +23,18 @@ interface AttributeOption {
   type: string;
   description: string;
   isRequired: boolean;
-  options: string[];
+  options: {
+    _id: string;
+    name: string;
+    code: string;
+    type: string;
+  }[];
+  optionType?: {
+    _id: string;
+    name: string;
+    code: string;
+    type: string;
+  };
   attributeGroup: {
     _id: string;
     name: string;
@@ -39,7 +50,18 @@ interface ApiAttribute {
   type: string;
   description?: string;
   isRequired?: boolean;
-  options?: string[];
+  options?: {
+    _id: string;
+    name: string;
+    code: string;
+    type: string;
+  }[];
+  optionType?: {
+    _id: string;
+    name: string;
+    code: string;
+    type: string;
+  };
   attributeGroup: string | AttributeGroupObject;
   [key: string]: any;
 }
@@ -103,6 +125,7 @@ const AttributeSelector: React.FC<AttributeSelectorProps> = ({
               description: attr.description || '',
               isRequired: attr.isRequired || false,
               options: attr.options || [],
+              optionType: attr.optionType,
               attributeGroup: {
                 _id: groupId,
                 name: groupName,
@@ -247,6 +270,9 @@ const AttributeSelector: React.FC<AttributeSelectorProps> = ({
                 Zorunlu
               </th>
               <th scope="col" className="hidden xl:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
+                Seçenekler
+              </th>
+              <th scope="col" className="hidden xl:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
                 Açıklama
               </th>
             </tr>
@@ -254,8 +280,8 @@ const AttributeSelector: React.FC<AttributeSelectorProps> = ({
           <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
             {filteredAttributes.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                  Arama kriterlerine uygun öznitelik bulunamadı
+                <td colSpan={7} className="px-4 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                  {searchTerm ? "Arama kriterlerine uygun öznitelik bulunamadı" : "Öznitelik bulunamadı"}
                 </td>
               </tr>
             ) : (
@@ -284,11 +310,6 @@ const AttributeSelector: React.FC<AttributeSelectorProps> = ({
                   </td>
                   <td className="hidden lg:table-cell px-4 py-3 whitespace-nowrap">
                     <AttributeBadge type={attr.type as any} size="sm" />
-                    {attr.type === 'select' && (
-                      <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-                        ({attr.options.length} seçenek)
-                      </span>
-                    )}
                   </td>
                   <td className="hidden lg:table-cell px-4 py-3 whitespace-nowrap">
                     {attr.isRequired ? (
@@ -302,7 +323,23 @@ const AttributeSelector: React.FC<AttributeSelectorProps> = ({
                     )}
                   </td>
                   <td className="hidden xl:table-cell px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                    {attr.description || '-'}
+                    {(attr.type === 'select' || attr.type === 'multiselect') && (
+                      <div className="flex flex-col">
+                        {attr.optionType && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            Tip: {attr.optionType.name} ({attr.optionType.code})
+                          </div>
+                        )}
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {attr.options?.length || 0} seçenek
+                        </div>
+                      </div>
+                    )}
+                  </td>
+                  <td className="hidden xl:table-cell px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                    <div className="truncate max-w-xs" title={attr.description || '-'}>
+                      {attr.description || '-'}
+                    </div>
                   </td>
                 </tr>
               ))

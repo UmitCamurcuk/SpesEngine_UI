@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
 import { useNotification } from '../../../components/notifications';
-import { NotificationSettings } from '../../../types/attribute';
+import { NotificationSettings, Attribute, AttributeType } from '../../../types/attribute';
 import Breadcrumb from '../../../components/common/Breadcrumb';
 import AttributeBadge from '../../../components/attributes/AttributeBadge';
 import EntityHistoryList from '../../../components/common/EntityHistoryList';
@@ -13,7 +13,6 @@ import DocumentationTab from '../../../components/common/DocumentationTab';
 import APITab from '../../../components/common/APITab';
 import StatisticsTab from '../../../components/common/StatisticsTab';
 import attributeService from '../../../services/api/attributeService';
-import { Attribute } from '../../../types/attribute';
 import dayjs from 'dayjs';
 import 'dayjs/locale/tr';
 import { useTranslation } from '../../../context/i18nContext';
@@ -53,8 +52,8 @@ const AttributeDetailsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('details');
   const [showJsonPreview, setShowJsonPreview] = useState(false);
   
-  // Edit state'leri ekle
-  const [isEditing, setIsEditing] = useState<boolean>(false);
+  // Edit state'leri
+  const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   
@@ -69,11 +68,15 @@ const AttributeDetailsPage: React.FC = () => {
     code: '',
     description: '',
     isRequired: false,
-    isActive: true
+    isActive: true,
+    options: [] as string[]
   });
   
   // Notification settings state'i
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({});
+  
+  // READONLY attribute'ları için state
+  const [readonlyAttributes, setReadonlyAttributes] = useState<Attribute[]>([]);
   
   // Attribute Groups fonksiyonları - useEffect'ten önce tanımla
   const fetchAttributeGroups = async () => {
@@ -98,10 +101,29 @@ const AttributeDetailsPage: React.FC = () => {
     }
   };
   
+  // READONLY attribute'ları yükle
+  useEffect(() => {
+    const fetchReadonlyAttributes = async () => {
+      if (attribute && (attribute.type === AttributeType.SELECT || attribute.type === AttributeType.MULTISELECT)) {
+        try {
+          const result = await attributeService.getAttributes({ 
+            type: AttributeType.READONLY,
+            isActive: true
+          });
+          setReadonlyAttributes(result.attributes || []);
+        } catch (error) {
+          console.error('READONLY attributes yüklenirken hata:', error);
+        }
+      }
+    };
+
+    fetchReadonlyAttributes();
+  }, [attribute?.type]);
+  
   // HELPER FUNCTIONS
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return '-';
-    return dayjs(dateString).locale('tr').format('DD MMMM YYYY HH:mm:ss');
+  const formatDate = (date?: Date | string) => {
+    if (!date) return '-';
+    return dayjs(date).locale('tr').format('DD MMMM YYYY HH:mm:ss');
   };
 
   const getStatusIcon = (isActive?: boolean) => {
@@ -156,15 +178,13 @@ const AttributeDetailsPage: React.FC = () => {
             name: getEntityName(data, currentLanguage),
             code: data.code || '',
             description: getEntityDescription(data, currentLanguage),
-            isRequired: data.isRequired,
-            isActive: data.isActive
+            isRequired: data.isRequired || false,
+            isActive: data.isActive || false,
+            options: (data.options || []).map(opt => opt._id)
           });
           
           // Initialize notification settings
           setNotificationSettings(data.notificationSettings || {});
-          
-          // Attribute groups'ları da yükle
-          fetchAttributeGroups();
         }
       } catch (err: any) {
         if (isMounted) {
@@ -182,7 +202,14 @@ const AttributeDetailsPage: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [id, t, currentLanguage]);
+  }, [id, currentLanguage]);
+  
+  // Attribute Groups'ları ayrı bir useEffect'te yükle
+  useEffect(() => {
+    if (!id || !attribute) return;
+    
+    fetchAttributeGroups();
+  }, [id, attribute]);
   
   // LOADING STATE
   if (isLoading) {
@@ -283,87 +310,45 @@ const AttributeDetailsPage: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
 
-  const handleSave = async () => {
-    if (!validateForm()) return;
-    
-    // Değişiklikleri kontrol et
-    const changes: any = {};
-    
-    if (editableFields.name !== getEntityName(attribute!, currentLanguage)) {
-      changes.name = editableFields.name;
-    }
-    if (editableFields.code !== attribute!.code) {
-      changes.code = editableFields.code;
-    }
-    if (editableFields.description !== getEntityDescription(attribute!, currentLanguage)) {
-      changes.description = editableFields.description;
-    }
-    if (editableFields.isRequired !== attribute!.isRequired) {
-      changes.isRequired = editableFields.isRequired;
-    }
-    if (editableFields.isActive !== attribute!.isActive) {
-      changes.isActive = editableFields.isActive;
-    }
-    
-    if (Object.keys(changes).length === 0) {
-      showToast({
-        type: 'info',
-        title: 'Bilgi',
-        message: 'Değişiklik yapılmadı',
-        duration: 3000
-      });
-      return;
-    }
-    
-    // Comment modal göster
-    const changesList = Object.keys(changes).map(key => `${key}: ${changes[key]}`);
-    showCommentModal({
-      title: 'Değişiklik Yorumu',
-      changes: changesList,
-      onSave: async (comment: string) => {
-        await handleSaveWithComment(comment, changes);
-      }
-    });
+  // Options seçimini güncelle
+  const handleOptionsChange = (selectedOptions: string[]) => {
+    setEditableFields(prev => ({
+      ...prev,
+      options: selectedOptions
+    }));
   };
 
-  const handleSaveWithComment = async (comment: string, changes: any) => {
-    if (comment.trim().length < 3) {
-      showToast({
-        type: 'error',
-        title: 'Hata',
-        message: 'Yorum en az 3 karakter olmalıdır',
-        duration: 3000
-      });
-      return;
-    }
-    
-    setIsSaving(true);
-    
+  // Değişiklikleri kaydet
+  const handleSave = async () => {
+    if (!attribute || !id) return;
+
     try {
-      const updateData = { ...changes, comment: comment.trim() };
-      const response = await attributeService.updateAttribute(id!, updateData);
-      setAttribute(response);
+      const updatedData: Partial<Attribute> = {
+        options: editableFields.options.map(id => ({ _id: id } as Attribute))
+      };
+
+      await attributeService.updateAttribute(id, updatedData);
+
+      // Attribute'u yeniden yükle
+      const updatedAttribute = await attributeService.getAttributeById(id);
+      setAttribute(updatedAttribute);
       setIsEditing(false);
-      
+
       showToast({
         type: 'success',
-        title: 'Başarılı',
-        message: 'Öznitelik başarıyla güncellendi',
+        title: t('success', 'common'),
+        message: t('attribute_updated_successfully', 'attributes'),
         duration: 3000
       });
     } catch (error: any) {
       showToast({
         type: 'error',
-        title: 'Hata',
-        message: error.message || 'Öznitelik güncellenirken bir hata oluştu',
+        title: t('error', 'common'),
+        message: error.message || t('error_updating_attribute', 'attributes'),
         duration: 5000
       });
-    } finally {
-      setIsSaving(false);
     }
   };
-
-
 
   const handleDeleteClick = () => {
     showModal({
@@ -421,6 +406,43 @@ const AttributeDetailsPage: React.FC = () => {
         duration: 5000
       });
     }
+  };
+
+  // Edit moduna geç
+  const handleEditClick = () => {
+    if (!attribute) return;
+
+    setEditableFields({
+      name: getEntityName(attribute, currentLanguage),
+      code: attribute.code,
+      description: getEntityDescription(attribute, currentLanguage) || '',
+      isRequired: attribute.isRequired || false,
+      isActive: attribute.isActive || false,
+      options: attribute.options?.map(opt => opt._id) || []
+    });
+    setIsEditing(true);
+  };
+
+  // Options gösterimi için yeni bir bileşen
+  const OptionsDisplay: React.FC<{ options: Attribute[] }> = ({ options }) => {
+    const { currentLanguage } = useTranslation();
+    
+    if (!options || options.length === 0) {
+      return <span className="text-gray-500 dark:text-gray-400">-</span>;
+    }
+    
+    return (
+      <div className="flex flex-wrap gap-2">
+        {options.map((option: Attribute) => (
+          <span
+            key={option._id}
+            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300"
+          >
+            {getEntityName(option, currentLanguage)}
+          </span>
+        ))}
+      </div>
+    );
   };
 
   // MAIN RENDER
@@ -563,7 +585,7 @@ const AttributeDetailsPage: React.FC = () => {
               <Button
                 variant="primary"
                 className="flex items-center"
-                onClick={() => setIsEditing(true)}
+                onClick={handleEditClick}
               >
                 <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -835,6 +857,55 @@ const AttributeDetailsPage: React.FC = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Options (SELECT/MULTISELECT için) */}
+                  {attribute && (attribute.type === AttributeType.SELECT || attribute.type === AttributeType.MULTISELECT) && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        {t('options', 'attributes')}
+                      </h4>
+                      {isEditing ? (
+                        <div className="space-y-3">
+                          {readonlyAttributes.map((attr) => (
+                            <div 
+                              key={attr._id}
+                              className={`flex items-center p-3 rounded-lg border ${
+                                editableFields.options.includes(attr._id)
+                                  ? 'border-primary-light bg-primary-50 dark:border-primary-dark dark:bg-primary-900/20'
+                                  : 'border-gray-200 dark:border-gray-700'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                id={`option-${attr._id}`}
+                                checked={editableFields.options.includes(attr._id)}
+                                onChange={() => {
+                                  const newOptions = editableFields.options.includes(attr._id)
+                                    ? editableFields.options.filter(id => id !== attr._id)
+                                    : [...editableFields.options, attr._id];
+                                  handleOptionsChange(newOptions);
+                                }}
+                                className="h-4 w-4 text-primary-light focus:ring-primary-light border-gray-300 rounded"
+                              />
+                              <label 
+                                htmlFor={`option-${attr._id}`}
+                                className="ml-3 flex-1 cursor-pointer"
+                              >
+                                <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                  {getEntityName(attr, currentLanguage)}
+                                </div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  {attr.code}
+                                </div>
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <OptionsDisplay options={attribute.options || []} />
+                      )}
+                    </div>
+                  )}
                 </div>
               </CardBody>
             </Card>
@@ -905,12 +976,12 @@ const AttributeDetailsPage: React.FC = () => {
                     <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                       <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">{t('options_label', 'attributes')}</h3>
                       <div className="flex flex-wrap gap-2">
-                        {attribute.options.map((option: string, index: number) => (
+                        {attribute.options.map((option, index) => (
                           <span 
-                            key={index} 
+                            key={option._id} 
                             className="inline-flex px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
                           >
-                            {option}
+                            {option.name.translations[currentLanguage] || option.name.translations['en'] || option.code}
                           </span>
                         ))}
                       </div>
@@ -1102,7 +1173,6 @@ const AttributeDetailsPage: React.FC = () => {
           </CardBody>
         </Card>
       )}
-
 
     </div>
   );

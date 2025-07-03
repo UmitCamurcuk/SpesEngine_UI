@@ -67,7 +67,7 @@ const attributeService = {
   },
   
   // Mevcut özniteliği güncelle
-  updateAttribute: async (id: string, attributeData: any): Promise<Attribute> => {
+  updateAttribute: async (id: string, attributeData: Partial<Attribute>): Promise<Attribute> => {
     try {
       const response = await api.put<ApiResponse<Attribute>>(`/attributes/${id}`, attributeData);
       return response.data.data;

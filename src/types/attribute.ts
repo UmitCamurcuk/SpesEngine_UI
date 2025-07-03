@@ -131,31 +131,42 @@ export interface NotificationSettings {
   onUsedInItem?: boolean;
 }
 
+// Translation objesi için tip
+export interface TranslationObject {
+  _id: string;
+  key: string;
+  namespace: string;
+  translations: Record<string, string>;
+}
+
 // Attribute modeli
 export interface Attribute {
   _id: string;
-  name: any; // Localization object veya string
+  name: TranslationObject;
   code: string;
   type: AttributeType;
-  description: any; // Localization object veya string
-  isRequired: boolean;
-  options: string[];
-  attributeGroup?: string | {
-    _id: string;
-    name: any; // Localization object veya string
-    code?: string;
-    description?: any; // Localization object veya string
-  };
+  description?: TranslationObject;
+  isRequired?: boolean;
+  options?: Attribute[];
+  optionType?: Attribute;
+  attributeGroup?: string | AttributeGroupObject;
   validations?: AttributeValidation;
   notificationSettings?: NotificationSettings;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  isActive?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
   // Ek alanlar - details sayfası için
   usageCount?: number;
   relationships?: Array<{ entityType: string; count: number }>;
   history?: Array<{ action: string; date: string; user: string; type: string }>;
   examples?: string[];
+}
+
+export interface AttributeGroupObject {
+  _id: string;
+  name: string;
+  code: string;
+  description?: string;
 }
 
 // Response için tip tanımı

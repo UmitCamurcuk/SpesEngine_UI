@@ -1,5 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { AppDispatch } from './redux/store';
+import { initializeAuth } from './redux/features/auth/authSlice';
 import Sidebar from './components/Sidebar';
 import Home from './pages/Home';
 import DashboardOverview from './pages/dashboard/Dashboard1/components/overview';
@@ -7,6 +10,13 @@ import DataQualityDashboard from './pages/dashboard/Dashboard1/components/qualit
 import DashboardGovernance from './pages/dashboard/Dashboard1/components/governance';
 
 const App: React.FC = () => {
+  const dispatch = useDispatch<AppDispatch>();
+
+  useEffect(() => {
+    // Uygulama başladığında auth durumunu initialize et
+    dispatch(initializeAuth());
+  }, [dispatch]);
+
   return (
     <Router>
       <div className="flex h-screen bg-gray-50 dark:bg-gray-900">

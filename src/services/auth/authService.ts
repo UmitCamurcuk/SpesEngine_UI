@@ -25,14 +25,16 @@ interface ResetPasswordRequest {
 }
 
 interface AuthResponse {
+  success: boolean;
   accessToken: string;
   refreshToken: string;
   user: {
     id: string;
     email: string;
-    firstName: string;
-    lastName: string;
-    role: string;
+    firstName?: string;
+    lastName?: string;
+    name?: string;
+    role: any;
   };
 }
 
@@ -42,10 +44,19 @@ const authService = {
   login: async (data: LoginRequest): Promise<AuthResponse> => {
     const response = await api.post<AuthResponse>('/auth/login', data);
     
+    console.log('Login response:', response.data);
+    
     // Token'ları localStorage'a kaydet
     if (response.data.accessToken) {
       localStorage.setItem('accessToken', response.data.accessToken);
+      console.log('Access token saved:', response.data.accessToken);
+    }
+    
+    if (response.data.refreshToken) {
       localStorage.setItem('refreshToken', response.data.refreshToken);
+      console.log('Refresh token saved:', response.data.refreshToken);
+    } else {
+      console.warn('No refresh token in response!');
     }
     
     return response.data;
@@ -58,6 +69,9 @@ const authService = {
     // Token'ları localStorage'a kaydet
     if (response.data.accessToken) {
       localStorage.setItem('accessToken', response.data.accessToken);
+    }
+    
+    if (response.data.refreshToken) {
       localStorage.setItem('refreshToken', response.data.refreshToken);
     }
     

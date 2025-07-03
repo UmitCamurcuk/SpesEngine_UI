@@ -1,5 +1,6 @@
-import { useSelector } from 'react-redux';
-import { RootState } from '../redux/store';
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState, AppDispatch } from '../redux/store';
+import { refreshPermissions as refreshPermissionsAction } from '../redux/features/auth/authSlice';
 
 interface Permission {
   permission: {
@@ -41,7 +42,19 @@ interface User {
 }
 
 export const usePermissions = () => {
+  const dispatch = useDispatch<AppDispatch>();
   const user = useSelector((state: RootState) => state.auth.user) as User | null;
+  const loading = useSelector((state: RootState) => state.auth.loading);
+
+  // İzinleri yenile
+  const refreshPermissions = async () => {
+    try {
+      await dispatch(refreshPermissionsAction()).unwrap();
+      console.log('Permissions refreshed successfully');
+    } catch (error) {
+      console.error('Failed to refresh permissions:', error);
+    }
+  };
 
   // Kullanıcının tüm izinlerini çıkar
   const getUserPermissions = (): string[] => {
@@ -127,6 +140,7 @@ export const usePermissions = () => {
 
   return {
     user,
+    loading,
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,
@@ -136,6 +150,7 @@ export const usePermissions = () => {
     canDelete,
     canRead,
     getAllPermissions,
+    refreshPermissions,
     isAdmin: user?.isAdmin || false,
     isAuthenticated: !!user
   };

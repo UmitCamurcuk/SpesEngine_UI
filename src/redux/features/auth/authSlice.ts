@@ -6,9 +6,10 @@ import { authService } from '../../../services';
 interface User {
   id: string;
   email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
+  firstName?: string;
+  lastName?: string;
+  name?: string;
+  role: any;
 }
 
 interface AuthState {
@@ -40,15 +41,51 @@ interface LoginResponse {
   user: any;
 }
 
-// Initial state
+// Initial state - localStorage'dan token'ları yükle
+const loadTokensFromStorage = () => {
+  const accessToken = localStorage.getItem('accessToken');
+  const refreshToken = localStorage.getItem('refreshToken');
+  return {
+    accessToken,
+    refreshToken,
+    isAuthenticated: !!(accessToken && refreshToken)
+  };
+};
+
+const tokenState = loadTokensFromStorage();
+
 const initialState: AuthState = {
-  isAuthenticated: false,
+  isAuthenticated: tokenState.isAuthenticated,
   user: null,
-  accessToken: null,
-  refreshToken: null,
+  accessToken: tokenState.accessToken,
+  refreshToken: tokenState.refreshToken,
   loading: false,
   error: null,
 };
+
+// Token'ları localStorage'dan yükle ve kullanıcı bilgilerini getir
+export const initializeAuth = createAsyncThunk(
+  'auth/initialize',
+  async (_, { rejectWithValue }) => {
+    try {
+      const accessToken = localStorage.getItem('accessToken');
+      const refreshToken = localStorage.getItem('refreshToken');
+      
+      if (!accessToken || !refreshToken) {
+        return null;
+      }
+      
+      // Kullanıcı bilgilerini getir
+      const user = await authService.getCurrentUser();
+      return { accessToken, refreshToken, user };
+    } catch (error: any) {
+      // Token'lar geçersizse temizle
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      return rejectWithValue('Token geçersiz');
+    }
+  }
+);
 
 // Async thunk actions
 export const login = createAsyncThunk<LoginResponse, LoginCredentials>(
@@ -56,10 +93,7 @@ export const login = createAsyncThunk<LoginResponse, LoginCredentials>(
   async (credentials, { rejectWithValue }) => {
     try {
       const response = await authService.login(credentials);
-      return {
-        success: true,
-        ...response
-      };
+      return response;
     } catch (error: any) {
       return rejectWithValue({
         success: false,
@@ -155,9 +189,41 @@ const authSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    // Token'ları localStorage'dan senkronize et
+    syncTokensFromStorage: (state) => {
+      const accessToken = localStorage.getItem('accessToken');
+      const refreshToken = localStorage.getItem('refreshToken');
+      
+      state.accessToken = accessToken;
+      state.refreshToken = refreshToken;
+      state.isAuthenticated = !!(accessToken && refreshToken);
+    },
   },
   extraReducers: (builder) => {
     builder
+      // Initialize auth cases
+      .addCase(initializeAuth.fulfilled, (state, action) => {
+        if (action.payload) {
+          state.accessToken = action.payload.accessToken;
+          state.refreshToken = action.payload.refreshToken;
+          state.user = action.payload.user?.data || action.payload.user;
+          state.isAuthenticated = true;
+        } else {
+          state.accessToken = null;
+          state.refreshToken = null;
+          state.user = null;
+          state.isAuthenticated = false;
+        }
+        state.loading = false;
+      })
+      .addCase(initializeAuth.rejected, (state) => {
+        state.accessToken = null;
+        state.refreshToken = null;
+        state.user = null;
+        state.isAuthenticated = false;
+        state.loading = false;
+      })
+      
       // Login cases
       .addCase(login.pending, (state) => {
         state.loading = true;
@@ -170,6 +236,10 @@ const authSlice = createSlice({
         state.accessToken = action.payload.accessToken;
         state.refreshToken = action.payload.refreshToken;
         state.user = action.payload.user;
+        
+        // localStorage'a da kaydet
+        localStorage.setItem('accessToken', action.payload.accessToken);
+        localStorage.setItem('refreshToken', action.payload.refreshToken);
       })
       .addCase(login.rejected, (state, action) => {
         state.isAuthenticated = false;
@@ -178,6 +248,10 @@ const authSlice = createSlice({
         state.accessToken = null;
         state.refreshToken = null;
         state.user = null;
+        
+        // localStorage'dan da temizle
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
       })
       
       // Register cases
@@ -204,6 +278,10 @@ const authSlice = createSlice({
         state.refreshToken = null;
         state.user = null;
         state.error = null;
+        
+        // localStorage'dan da temizle
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
       })
       
       // Get current user cases
@@ -213,7 +291,7 @@ const authSlice = createSlice({
       .addCase(getCurrentUser.fulfilled, (state, action) => {
         state.loading = false;
         if (action.payload) {
-          state.user = action.payload;
+          state.user = action.payload.data || action.payload;
           state.isAuthenticated = true;
         }
       })
@@ -221,6 +299,11 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = null;
         state.isAuthenticated = false;
+        // Token geçersizse localStorage'dan da temizle
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        state.accessToken = null;
+        state.refreshToken = null;
       })
       
       // Refresh Permissions
@@ -238,6 +321,6 @@ const authSlice = createSlice({
   },
 });
 
-export const { setUser, setTokens, clearAuth, clearError } = authSlice.actions;
+export const { setUser, setTokens, clearAuth, clearError, syncTokensFromStorage } = authSlice.actions;
 
 export default authSlice.reducer; 

@@ -17,6 +17,9 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/tr';
 import { useTranslation } from '../../../context/i18nContext';
 import { getEntityName, getEntityDescription } from '../../../utils/translationUtils';
+import AttributeSelector from '../../../components/attributes/AttributeSelector';
+import Modal from '../../../components/ui/Modal';
+import attributeGroupService from '../../../services/api/attributeGroupService';
 
 // UTILITY COMPONENTS
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
@@ -36,6 +39,98 @@ const CardBody: React.FC<{ children: React.ReactNode; className?: string }> = ({
     {children}
   </div>
 );
+
+// Options seçimi için modal bileşeni
+const OptionsModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (selectedOptions: string[]) => void;
+  currentOptions: string[];
+}> = ({ isOpen, onClose, onSave, currentOptions }) => {
+  const { t } = useTranslation();
+  const [selectedOptions, setSelectedOptions] = useState<string[]>(currentOptions);
+  const [readonlyAttrs, setReadonlyAttrs] = useState<Attribute[]>([]);
+
+  useEffect(() => {
+    const fetchReadonlyAttributes = async () => {
+      try {
+        const result = await attributeService.getAttributes({ 
+          type: AttributeType.READONLY,
+          isActive: true,
+          limit: 100 
+        });
+        setReadonlyAttrs(result.attributes);
+      } catch (error) {
+        console.error('Error fetching readonly attributes:', error);
+      }
+    };
+
+    if (isOpen) {
+      fetchReadonlyAttributes();
+      setSelectedOptions(currentOptions);
+    }
+  }, [isOpen, currentOptions]);
+
+  const handleSave = () => {
+    onSave(selectedOptions);
+    onClose();
+  };
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={t('select_options', 'attributes')}
+    >
+      <div className="p-6">
+        <div className="space-y-3 max-h-80 overflow-y-auto">
+          {readonlyAttrs.map((attr) => (
+            <div 
+              key={attr._id}
+              className={`flex items-center p-3 rounded-lg border ${
+                selectedOptions.includes(attr._id)
+                  ? 'border-primary-light bg-primary-50 dark:border-primary-dark dark:bg-primary-900/20'
+                  : 'border-gray-200 dark:border-gray-700'
+              }`}
+            >
+              <input
+                type="checkbox"
+                id={`modal-option-${attr._id}`}
+                checked={selectedOptions.includes(attr._id)}
+                onChange={() => {
+                  const newOptions = selectedOptions.includes(attr._id)
+                    ? selectedOptions.filter(id => id !== attr._id)
+                    : [...selectedOptions, attr._id];
+                  setSelectedOptions(newOptions);
+                }}
+                className="h-4 w-4 text-primary-light focus:ring-primary-light border-gray-300 rounded"
+              />
+              <label 
+                htmlFor={`modal-option-${attr._id}`}
+                className="ml-3 flex-1 cursor-pointer"
+              >
+                <div className="text-sm font-medium text-gray-900 dark:text-white">
+                  {getEntityName(attr, 'tr')}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  {attr.code}
+                </div>
+              </label>
+            </div>
+          ))}
+        </div>
+        <div className="mt-6 flex justify-end space-x-3">
+          <Button variant="outline" onClick={onClose}>
+            {t('cancel', 'common')}
+          </Button>
+          <Button variant="primary" onClick={handleSave}>
+            {t('save', 'common')}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
 
 // MAIN COMPONENT
 const AttributeDetailsPage: React.FC = () => {
@@ -61,6 +156,7 @@ const AttributeDetailsPage: React.FC = () => {
   const [attributeGroups, setAttributeGroups] = useState<any[]>([]);
   const [allAttributeGroups, setAllAttributeGroups] = useState<any[]>([]);
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+  const [initialFormState, setInitialFormState] = useState<any>(null);
   
   // Edit form data
   const [editableFields, setEditableFields] = useState({
@@ -78,26 +174,31 @@ const AttributeDetailsPage: React.FC = () => {
   // READONLY attribute'ları için state
   const [readonlyAttributes, setReadonlyAttributes] = useState<Attribute[]>([]);
   
+  // Options modal işleyicileri
+  const [isOptionsModalOpen, setIsOptionsModalOpen] = useState(false);
+  
   // Attribute Groups fonksiyonları - useEffect'ten önce tanımla
   const fetchAttributeGroups = async () => {
     if (!id) return;
     
     try {
-      const groups = await attributeService.getAttributeGroups(id);
-      setAttributeGroups(groups);
-      setSelectedGroupIds(groups.map((g: any) => g._id));
-    } catch (err: any) {
-      console.error('Attribute groups yüklenirken hata:', err);
+      // Önce bu attribute'ın bağlı olduğu grupları getir
+      const attributeGroupsResponse = await attributeService.getAttributeGroups(id);
+      setAttributeGroups(attributeGroupsResponse);
+      setSelectedGroupIds(attributeGroupsResponse.map((g: any) => g._id));
+    } catch (error) {
+      console.error('Error fetching attribute groups:', error);
+      setAttributeGroups([]);
+      setSelectedGroupIds([]);
     }
   };
 
   const fetchAllAttributeGroups = async () => {
     try {
-      const attributeGroupService = await import('../../../services/api/attributeGroupService');
-      const response = await attributeGroupService.default.getAttributeGroups({ isActive: true });
-      setAllAttributeGroups(response.attributeGroups);
-    } catch (err: any) {
-      console.error('Tüm attribute groups yüklenirken hata:', err);
+      const response = await attributeGroupService.getAttributeGroups({ isActive: true });
+      setAllAttributeGroups(response.attributeGroups || []);
+    } catch (error) {
+      console.error('Error fetching all attribute groups:', error);
     }
   };
   
@@ -211,6 +312,225 @@ const AttributeDetailsPage: React.FC = () => {
     fetchAttributeGroups();
   }, [id, attribute]);
   
+  // Değişiklik tespiti
+  const hasChanges = () => {
+    if (!initialFormState || !editableFields) return false;
+    
+    const currentState = {
+      code: editableFields.code,
+      isRequired: editableFields.isRequired,
+      isActive: editableFields.isActive,
+      options: [...editableFields.options].sort(),
+      attributeGroups: [...selectedGroupIds].sort()
+    };
+
+    const initialState = {
+      code: initialFormState.code,
+      isRequired: initialFormState.isRequired,
+      isActive: initialFormState.isActive,
+      options: [...initialFormState.options].sort(),
+      attributeGroups: [...initialFormState.attributeGroups].sort()
+    };
+
+    return JSON.stringify(currentState) !== JSON.stringify(initialState);
+  };
+
+  // Değişiklik detaylarını al
+  const getChangeDetails = () => {
+    if (!initialFormState) return [];
+    
+    const changes: string[] = [];
+    
+    // Kod değişikliği
+    if (editableFields.code !== initialFormState.code) {
+      changes.push(`Kod: ${initialFormState.code} → ${editableFields.code}`);
+    }
+    
+    // Zorunlu alan değişikliği
+    if (editableFields.isRequired !== initialFormState.isRequired) {
+      changes.push(`Zorunlu: ${initialFormState.isRequired ? 'Evet' : 'Hayır'} → ${editableFields.isRequired ? 'Evet' : 'Hayır'}`);
+    }
+    
+    // Aktif durum değişikliği
+    if (editableFields.isActive !== initialFormState.isActive) {
+      changes.push(`Aktif: ${initialFormState.isActive ? 'Evet' : 'Hayır'} → ${editableFields.isActive ? 'Evet' : 'Hayır'}`);
+    }
+    
+    // Options değişikliği - detaylı
+    const initialOptions = [...initialFormState.options].sort();
+    const currentOptions = [...editableFields.options].sort();
+    if (JSON.stringify(initialOptions) !== JSON.stringify(currentOptions)) {
+      const addedOptions = currentOptions.filter(id => !initialOptions.includes(id));
+      const removedOptions = initialOptions.filter(id => !currentOptions.includes(id));
+      
+      if (addedOptions.length > 0) {
+        const addedNames = addedOptions.map(id => {
+          const option = readonlyAttributes.find(attr => attr._id === id);
+          return option ? getEntityName(option, currentLanguage) : id;
+        });
+        changes.push(`Eklenen seçenekler: ${addedNames.join(', ')}`);
+      }
+      
+      if (removedOptions.length > 0) {
+        const removedNames = removedOptions.map(id => {
+          const option = readonlyAttributes.find(attr => attr._id === id);
+          return option ? getEntityName(option, currentLanguage) : id;
+        });
+        changes.push(`Kaldırılan seçenekler: ${removedNames.join(', ')}`);
+      }
+    }
+    
+    // Attribute Groups değişikliği - detaylı
+    const initialGroups = [...initialFormState.attributeGroups].sort();
+    const currentGroups = [...selectedGroupIds].sort();
+    if (JSON.stringify(initialGroups) !== JSON.stringify(currentGroups)) {
+      const addedGroups = currentGroups.filter(id => !initialGroups.includes(id));
+      const removedGroups = initialGroups.filter(id => !currentGroups.includes(id));
+      
+      if (addedGroups.length > 0) {
+        const addedNames = addedGroups.map(id => {
+          const group = attributeGroups.find(g => g._id === id) || allAttributeGroups.find(g => g._id === id);
+          return group ? getEntityName(group, currentLanguage) : id;
+        });
+        changes.push(`Eklenen gruplar: ${addedNames.join(', ')}`);
+      }
+      
+      if (removedGroups.length > 0) {
+        const removedNames = removedGroups.map(id => {
+          const group = attributeGroups.find(g => g._id === id) || allAttributeGroups.find(g => g._id === id);
+          return group ? getEntityName(group, currentLanguage) : id;
+        });
+        changes.push(`Kaldırılan gruplar: ${removedNames.join(', ')}`);
+      }
+    }
+
+    return changes;
+  };
+
+  // Attribute Groups işlevleri
+  const handleAttributeGroupAdd = async (groupId: string) => {
+    if (!selectedGroupIds.includes(groupId)) {
+      setSelectedGroupIds(prev => [...prev, groupId]);
+      
+      // Group bilgisini al ve state'e ekle
+      try {
+        const groupResponse = await attributeGroupService.getAttributeGroupById(groupId);
+        if (groupResponse) {
+          setAttributeGroups(prev => [...prev, groupResponse]);
+        }
+      } catch (error) {
+        console.error('Error fetching attribute group:', error);
+      }
+    }
+  };
+
+  const handleAttributeGroupRemove = (groupId: string) => {
+    setSelectedGroupIds(prev => prev.filter(id => id !== groupId));
+    setAttributeGroups(prev => prev.filter(g => g._id !== groupId));
+  };
+
+  // Edit moduna geç
+  const handleEditClick = () => {
+    if (!attribute) return;
+
+    const currentState = {
+      name: getEntityName(attribute, currentLanguage),
+      code: attribute.code,
+      description: getEntityDescription(attribute, currentLanguage) || '',
+      isRequired: attribute.isRequired || false,
+      isActive: attribute.isActive || false,
+      options: attribute.options?.map(opt => opt._id) || [],
+      attributeGroups: attributeGroups.map(g => g._id)
+    };
+
+    setEditableFields(currentState);
+    setInitialFormState(currentState);
+    
+    // Mevcut attribute groups ID'lerini al
+    setSelectedGroupIds(attributeGroups.map(g => g._id));
+    setIsEditing(true);
+  };
+
+  // Kaydet fonksiyonu
+  const handleSave = async () => {
+    if (!attribute || !id) return;
+
+    if (!validateForm()) return;
+    if (!hasChanges()) return; // Değişiklik yoksa kaydetme
+
+    setIsSaving(true);
+
+    const changes = getChangeDetails();
+
+    // Comment modal göster
+    showCommentModal({
+      title: t('change_comment_title', 'common'),
+      changes: changes,
+      onSave: async (comment: string) => {
+        try {
+          const updatedData: any = {
+            code: editableFields.code,
+            isRequired: editableFields.isRequired,
+            isActive: editableFields.isActive,
+            options: editableFields.options,
+            attributeGroups: selectedGroupIds,
+            comment
+          };
+
+          await attributeService.updateAttribute(id, updatedData);
+
+          // Attribute'u yeniden yükle
+          const updatedAttribute = await attributeService.getAttributeById(id);
+          setAttribute(updatedAttribute);
+          
+          // Attribute groups'ları da yeniden yükle
+          await fetchAttributeGroups();
+          
+          setIsEditing(false);
+
+          showToast({
+            type: 'success',
+            title: t('success', 'common'),
+            message: t('attribute_updated_successfully', 'attributes'),
+            duration: 3000
+          });
+        } catch (error: any) {
+          showToast({
+            type: 'error',
+            title: t('error', 'common'),
+            message: error.message || t('error_updating_attribute', 'attributes'),
+            duration: 5000
+          });
+        } finally {
+          setIsSaving(false);
+        }
+      }
+    });
+  };
+
+  const handleNotificationUpdate = async (settings: NotificationSettings) => {
+    try {
+      const updateData = { notificationSettings: settings };
+      const response = await attributeService.updateAttribute(id!, updateData);
+      setAttribute(response);
+      setNotificationSettings(settings);
+      
+      showToast({
+        type: 'success',
+        title: 'Başarılı',
+        message: 'Bildirim ayarları güncellendi',
+        duration: 3000
+      });
+    } catch (error: any) {
+      showToast({
+        type: 'error',
+        title: 'Hata',
+        message: error.message || 'Bildirim ayarları güncellenirken bir hata oluştu',
+        duration: 5000
+      });
+    }
+  };
+
   // LOADING STATE
   if (isLoading) {
     return (
@@ -310,139 +630,17 @@ const AttributeDetailsPage: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
 
-  // Options seçimini güncelle
-  const handleOptionsChange = (selectedOptions: string[]) => {
+  // Options seçimini güncelle (sadece editableFields için)
+  const handleOptionsFieldChange = (selectedOptions: string[]) => {
     setEditableFields(prev => ({
       ...prev,
       options: selectedOptions
     }));
   };
 
-  // Değişiklikleri kaydet
-  const handleSave = async () => {
-    if (!attribute || !id) return;
-
-    try {
-      const updatedData: Partial<Attribute> = {
-        options: editableFields.options.map(id => ({ _id: id } as Attribute))
-      };
-
-      await attributeService.updateAttribute(id, updatedData);
-
-      // Attribute'u yeniden yükle
-      const updatedAttribute = await attributeService.getAttributeById(id);
-      setAttribute(updatedAttribute);
-      setIsEditing(false);
-
-      showToast({
-        type: 'success',
-        title: t('success', 'common'),
-        message: t('attribute_updated_successfully', 'attributes'),
-        duration: 3000
-      });
-    } catch (error: any) {
-      showToast({
-        type: 'error',
-        title: t('error', 'common'),
-        message: error.message || t('error_updating_attribute', 'attributes'),
-        duration: 5000
-      });
-    }
-  };
-
-  const handleDeleteClick = () => {
-    showModal({
-      type: 'error',
-      title: 'Öznitelik Silme Onayı',
-      message: `"${attribute ? getEntityName(attribute, currentLanguage) : ''}" özniteliğini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`,
-      primaryButton: {
-        text: 'Sil',
-        onClick: async () => {
-          try {
-            await attributeService.deleteAttribute(id!);
-            showToast({
-              type: 'success',
-              title: 'Başarılı',
-              message: 'Öznitelik başarıyla silindi',
-              duration: 3000
-            });
-            navigate('/attributes/list');
-          } catch (error: any) {
-            showToast({
-              type: 'error',
-              title: 'Hata',
-              message: error.message || 'Öznitelik silinirken bir hata oluştu',
-              duration: 5000
-            });
-          }
-        },
-        variant: 'error'
-      },
-      secondaryButton: {
-        text: 'İptal',
-        onClick: () => {}
-      }
-    });
-  };
-
-  const handleNotificationUpdate = async (settings: NotificationSettings) => {
-    try {
-      const updateData = { notificationSettings: settings };
-      const response = await attributeService.updateAttribute(id!, updateData);
-      setAttribute(response);
-      setNotificationSettings(settings);
-      
-      showToast({
-        type: 'success',
-        title: 'Başarılı',
-        message: 'Bildirim ayarları güncellendi',
-        duration: 3000
-      });
-    } catch (error: any) {
-      showToast({
-        type: 'error',
-        title: 'Hata',
-        message: error.message || 'Bildirim ayarları güncellenirken bir hata oluştu',
-        duration: 5000
-      });
-    }
-  };
-
-  // Edit moduna geç
-  const handleEditClick = () => {
-    if (!attribute) return;
-
-    setEditableFields({
-      name: getEntityName(attribute, currentLanguage),
-      code: attribute.code,
-      description: getEntityDescription(attribute, currentLanguage) || '',
-      isRequired: attribute.isRequired || false,
-      isActive: attribute.isActive || false,
-      options: attribute.options?.map(opt => opt._id) || []
-    });
-    setIsEditing(true);
-  };
-
-  // Options gösterimi için yeni bir bileşen
-  const OptionsDisplay: React.FC<{ options: Attribute[] }> = ({ options }) => {
-    const { currentLanguage } = useTranslation();
-    
-    if (!options || options.length === 0) {
-      return <span className="text-gray-500 dark:text-gray-400">-</span>;
-    }
-    
-    return (
-      <div className="flex flex-wrap gap-2">
-        {options.map((option: Attribute) => (
-          <span
-            key={option._id}
-            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300"
-          >
-            {getEntityName(option, currentLanguage)}
-          </span>
-        ))}
-      </div>
-    );
+  // Seçenekler modal'ını aç
+  const handleOptionsModalOpen = () => {
+    setIsOptionsModalOpen(true);
   };
 
   // MAIN RENDER
@@ -551,7 +749,7 @@ const AttributeDetailsPage: React.FC = () => {
                 className="flex items-center"
                 onClick={handleSave}
                 loading={isSaving}
-                disabled={isSaving}
+                disabled={isSaving || !hasChanges()}
               >
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -595,7 +793,40 @@ const AttributeDetailsPage: React.FC = () => {
               <Button
                 variant="secondary"
                 className="flex items-center text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900"
-                onClick={handleDeleteClick}
+                onClick={() => {
+                  showModal({
+                    type: 'error',
+                    title: 'Öznitelik Silme Onayı',
+                    message: `"${attribute ? getEntityName(attribute, currentLanguage) : ''}" özniteliğini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`,
+                    primaryButton: {
+                      text: 'Sil',
+                      onClick: async () => {
+                        try {
+                          await attributeService.deleteAttribute(id!);
+                          showToast({
+                            type: 'success',
+                            title: 'Başarılı',
+                            message: 'Öznitelik başarıyla silindi',
+                            duration: 3000
+                          });
+                          navigate('/attributes/list');
+                        } catch (error: any) {
+                          showToast({
+                            type: 'error',
+                            title: 'Hata',
+                            message: error.message || 'Öznitelik silinirken bir hata oluştu',
+                            duration: 5000
+                          });
+                        }
+                      },
+                      variant: 'error'
+                    },
+                    secondaryButton: {
+                      text: 'İptal',
+                      onClick: () => {}
+                    }
+                  });
+                }}
               >
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -860,49 +1091,80 @@ const AttributeDetailsPage: React.FC = () => {
 
                   {/* Options (SELECT/MULTISELECT için) */}
                   {attribute && (attribute.type === AttributeType.SELECT || attribute.type === AttributeType.MULTISELECT) && (
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        {t('options', 'attributes')}
-                      </h4>
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          {t('options', 'attributes')}
+                        </h4>
+                        {isEditing && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleOptionsModalOpen}
+                          >
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            {t('add_remove', 'common')}
+                          </Button>
+                        )}
+                      </div>
                       {isEditing ? (
                         <div className="space-y-3">
-                          {readonlyAttributes.map((attr) => (
+                          {readonlyAttributes
+                            .filter(attr => editableFields.options.includes(attr._id))
+                            .map((attr) => (
                             <div 
                               key={attr._id}
-                              className={`flex items-center p-3 rounded-lg border ${
-                                editableFields.options.includes(attr._id)
-                                  ? 'border-primary-light bg-primary-50 dark:border-primary-dark dark:bg-primary-900/20'
-                                  : 'border-gray-200 dark:border-gray-700'
-                              }`}
+                              className="flex items-center justify-between p-3 rounded-lg border border-primary-light bg-primary-50 dark:border-primary-dark dark:bg-primary-900/20"
                             >
-                              <input
-                                type="checkbox"
-                                id={`option-${attr._id}`}
-                                checked={editableFields.options.includes(attr._id)}
-                                onChange={() => {
-                                  const newOptions = editableFields.options.includes(attr._id)
-                                    ? editableFields.options.filter(id => id !== attr._id)
-                                    : [...editableFields.options, attr._id];
-                                  handleOptionsChange(newOptions);
-                                }}
-                                className="h-4 w-4 text-primary-light focus:ring-primary-light border-gray-300 rounded"
-                              />
-                              <label 
-                                htmlFor={`option-${attr._id}`}
-                                className="ml-3 flex-1 cursor-pointer"
-                              >
+                              <div className="flex-1">
                                 <div className="text-sm font-medium text-gray-900 dark:text-white">
                                   {getEntityName(attr, currentLanguage)}
                                 </div>
                                 <div className="text-xs text-gray-500 dark:text-gray-400">
                                   {attr.code}
                                 </div>
-                              </label>
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const newOptions = editableFields.options.filter(id => id !== attr._id);
+                                  handleOptionsFieldChange(newOptions);
+                                }}
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </Button>
                             </div>
                           ))}
+                          {editableFields.options.length === 0 && (
+                            <p className="text-gray-500 dark:text-gray-400">
+                              {t('no_options_selected', 'attributes')}
+                            </p>
+                          )}
                         </div>
                       ) : (
-                        <OptionsDisplay options={attribute.options || []} />
+                        <div className="space-y-4">
+                          {attribute.options && attribute.options.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {attribute.options.map((option) => (
+                                <span
+                                  key={option._id}
+                                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300"
+                                >
+                                  {getEntityName(option, currentLanguage)}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-gray-500 dark:text-gray-400">
+                              {t('no_options_selected', 'attributes')}
+                            </p>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}
@@ -968,22 +1230,6 @@ const AttributeDetailsPage: React.FC = () => {
                         <code className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-sm font-mono">
                           {attribute.validations.pattern}
                         </code>
-                      </div>
-                    </div>
-                  )}
-
-                  {attribute.options && attribute.options.length > 0 && (
-                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">{t('options_label', 'attributes')}</h3>
-                      <div className="flex flex-wrap gap-2">
-                        {attribute.options.map((option, index) => (
-                          <span 
-                            key={option._id} 
-                            className="inline-flex px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
-                          >
-                            {option.name.translations[currentLanguage] || option.name.translations['en'] || option.code}
-                          </span>
-                        ))}
                       </div>
                     </div>
                   )}
@@ -1109,11 +1355,8 @@ const AttributeDetailsPage: React.FC = () => {
         <AttributeGroupsTab
           attributeGroups={attributeGroups}
           isEditing={isEditing}
-          onAdd={() => fetchAllAttributeGroups()}
-          onRemove={(groupId) => {
-            setAttributeGroups(prev => prev.filter(g => g._id !== groupId));
-            setSelectedGroupIds(prev => prev.filter(id => id !== groupId));
-          }}
+          onAdd={handleAttributeGroupAdd}
+          onRemove={handleAttributeGroupRemove}
           title="Öznitelik Grupları"
           emptyMessage="Bu öznitelik henüz hiçbir gruba bağlı değil."
           showAddButton={isEditing}
@@ -1172,6 +1415,19 @@ const AttributeDetailsPage: React.FC = () => {
             <EntityHistoryList entityId={id!} entityType="attribute" title="Öznitelik Geçmişi" />
           </CardBody>
         </Card>
+      )}
+
+      {/* Options Modal - Edit modunda seçenekler için */}
+      {attribute && (
+        <OptionsModal
+          isOpen={isOptionsModalOpen}
+          onClose={() => setIsOptionsModalOpen(false)}
+          onSave={(selectedOptions) => {
+            handleOptionsFieldChange(selectedOptions);
+            setIsOptionsModalOpen(false);
+          }}
+          currentOptions={editableFields.options}
+        />
       )}
 
     </div>

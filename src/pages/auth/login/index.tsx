@@ -26,6 +26,13 @@ const LoginPage = () => {
     }
   }, [isAuthenticated, navigate, location]);
 
+  // Sayfa yüklendiğinde token kontrolü yap
+  useEffect(() => {
+    if (location.pathname === '/auth/login') {
+      dispatch({ type: 'auth/syncTokensFromStorage' });
+    }
+  }, [dispatch, location]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     

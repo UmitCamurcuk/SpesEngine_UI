@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { TokenService } from '../auth/tokenService';
+import { TokenInterceptor } from '../auth/tokenInterceptor';
 
 // API temel URL'sini tanımlıyoruz - gerçek projenizde değiştirmeniz gerekecek
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:1903/api';
@@ -53,11 +55,9 @@ const api = axios.create({
 // İstek gönderilmeden önce çalışacak interceptor
 api.interceptors.request.use(
   (config) => {
-    // Localstorage'dan token alınıyor
-    const token = localStorage.getItem('accessToken');
-    
-    // Eğer token varsa, isteğin header'ına ekleniyor
-    if (token) {
+    // Token'ı ekle
+    const token = TokenService.getAccessToken();
+    if (token && !TokenService.isTokenExpired(token)) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     
@@ -106,29 +106,15 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       
       try {
-        // Refresh token ile yeni bir token almaya çalışalım
-        const refreshToken = localStorage.getItem('refreshToken');
+        // TokenInterceptor ile token yenile
+        const newToken = await TokenInterceptor.handleUnauthorized();
         
-        if (refreshToken) {
-          const response = await axios.post(`${baseURL}/auth/refresh-token`, {
-            refreshToken,
-          });
-          
-          // Yeni token'ı localStorage'a kaydedelim
-          const { accessToken, refreshToken: newRefreshToken } = response.data;
-          localStorage.setItem('accessToken', accessToken);
-          localStorage.setItem('refreshToken', newRefreshToken);
-          
-          // Yeni token ile orijinal isteği tekrar gönderelim
-          api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-          return api(originalRequest);
-        }
+        // Yeni token ile orijinal isteği tekrar gönder
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return api(originalRequest);
       } catch (refreshError) {
-        // Token yenilenemezse kullanıcıyı çıkış yaptıralım
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        
-        // Kullanıcıyı login sayfasına yönlendirelim
+        // Token yenilenemezse kullanıcıyı çıkış yaptır
+        TokenService.clearTokens();
         window.location.href = '/auth/login';
       }
     }

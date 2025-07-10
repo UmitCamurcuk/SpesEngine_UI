@@ -1,4 +1,5 @@
 import api from '../api/config';
+import { TokenService } from './tokenService';
 
 // Auth servisinin tip tanımlamaları
 interface LoginRequest {
@@ -44,15 +45,11 @@ const authService = {
   login: async (data: LoginRequest): Promise<AuthResponse> => {
     const response = await api.post<AuthResponse>('/auth/login', data);
     
-    // Token'ları localStorage'a kaydet
-    if (response.data.accessToken) {
-      localStorage.setItem('accessToken', response.data.accessToken); 
-    }
-    
-    if (response.data.refreshToken) {
-      localStorage.setItem('refreshToken', response.data.refreshToken);
+    // Token'ları TokenService ile kaydet
+    if (response.data.accessToken && response.data.refreshToken) {
+      TokenService.setTokens(response.data.accessToken, response.data.refreshToken);
     } else {
-      console.warn('No refresh token in response!');
+      console.warn('Token\'lar response\'da bulunamadı!');
     }
     
     return response.data;
@@ -62,13 +59,9 @@ const authService = {
   register: async (data: RegisterRequest): Promise<AuthResponse> => {
     const response = await api.post<AuthResponse>('/auth/register', data);
     
-    // Token'ları localStorage'a kaydet
-    if (response.data.accessToken) {
-      localStorage.setItem('accessToken', response.data.accessToken);
-    }
-    
-    if (response.data.refreshToken) {
-      localStorage.setItem('refreshToken', response.data.refreshToken);
+    // Token'ları TokenService ile kaydet
+    if (response.data.accessToken && response.data.refreshToken) {
+      TokenService.setTokens(response.data.accessToken, response.data.refreshToken);
     }
     
     return response.data;
@@ -76,7 +69,7 @@ const authService = {
   
   // Çıkış işlemi
   logout: async (): Promise<void> => {
-    const refreshToken = localStorage.getItem('refreshToken');
+    const refreshToken = TokenService.getRefreshToken();
     
     if (refreshToken) {
       try {
@@ -86,9 +79,8 @@ const authService = {
       }
     }
     
-    // Token'ları localStorage'dan sil
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    // Token'ları temizle
+    TokenService.clearTokens();
   },
   
   // Mevcut kullanıcı bilgisini getir
@@ -113,13 +105,19 @@ const authService = {
   
   // Kullanıcı giriş yapmış mı kontrolü
   isAuthenticated: (): boolean => {
-    return localStorage.getItem('accessToken') !== null;
+    return TokenService.hasValidTokens();
   },
   
   // İzinleri yenile
   refreshPermissions: async () => {
     const response = await api.get('/auth/refresh-permissions');
     return response.data.user;
+  },
+
+  // Token yenile
+  refreshToken: async (refreshToken: string): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/refresh-token', { refreshToken });
+    return response.data;
   }
 };
 

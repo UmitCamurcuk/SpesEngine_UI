@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAppDispatch } from '../../../redux/store';
 import systemSettingsService from '../../../services/api/systemSettingsService';
+import { TokenService } from '../../../services/auth/tokenService';
 
 const LoadingPage = () => {
   const navigate = useNavigate();
@@ -12,6 +13,12 @@ const LoadingPage = () => {
 
   useEffect(() => {
     const initializeSystem = async () => {
+      // Token kontrolü
+      if (!TokenService.hasValidTokens()) {
+        navigate('/auth/login');
+        return;
+      }
+
       // Adım 1: Giriş yapıldı mesajı
       await new Promise(resolve => setTimeout(resolve, 1000));
       

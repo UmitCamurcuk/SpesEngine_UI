@@ -6,7 +6,7 @@ interface LayoutState {
 
 // LocalStorage'den başlangıç durumunu al
 const initialState: LayoutState = {
-  isSidebarOpen: localStorage.getItem('isSidebarOpen') === 'true' ?? true,
+  isSidebarOpen: localStorage.getItem('isSidebarOpen') === 'true' || localStorage.getItem('isSidebarOpen') === null,
 };
 
 const layoutSlice = createSlice({

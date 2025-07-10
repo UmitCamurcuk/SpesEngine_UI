@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from './redux/store';
 import { initializeAuth } from './redux/features/auth/authSlice';
+import { TokenService } from './services/auth/tokenService';
 import Sidebar from './components/Sidebar';
 import Home from './pages/Home';
 import DashboardOverview from './pages/dashboard/Dashboard1/components/overview';
@@ -13,8 +14,10 @@ const App: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
 
   useEffect(() => {
-    // Uygulama başladığında auth durumunu initialize et
-    dispatch(initializeAuth());
+    // Uygulama başladığında token kontrolü yap
+    if (TokenService.hasValidTokens()) {
+      dispatch(initializeAuth());
+    }
   }, [dispatch]);
 
   return (

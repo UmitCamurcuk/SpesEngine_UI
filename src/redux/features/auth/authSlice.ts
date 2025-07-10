@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { authService } from '../../../services';
+import { TokenService } from '../../../services/auth/tokenService';
 
 // Tip tanımlamaları
 interface User {
@@ -41,14 +42,14 @@ interface LoginResponse {
   user: any;
 }
 
-// Initial state - localStorage'dan token'ları yükle
+// Initial state - TokenService'den token'ları yükle
 const loadTokensFromStorage = () => {
-  const accessToken = localStorage.getItem('accessToken');
-  const refreshToken = localStorage.getItem('refreshToken');
+  const accessToken = TokenService.getAccessToken();
+  const refreshToken = TokenService.getRefreshToken();
   return {
     accessToken,
     refreshToken,
-    isAuthenticated: !!(accessToken && refreshToken)
+    isAuthenticated: TokenService.hasValidTokens()
   };
 };
 
@@ -63,25 +64,25 @@ const initialState: AuthState = {
   error: null,
 };
 
-// Token'ları localStorage'dan yükle ve kullanıcı bilgilerini getir
+// Token'ları TokenService'den yükle ve kullanıcı bilgilerini getir
 export const initializeAuth = createAsyncThunk(
   'auth/initialize',
   async (_, { rejectWithValue }) => {
     try {
-      const accessToken = localStorage.getItem('accessToken');
-      const refreshToken = localStorage.getItem('refreshToken');
-      
-      if (!accessToken || !refreshToken) {
+      if (!TokenService.hasValidTokens()) {
         return null;
       }
       
       // Kullanıcı bilgilerini getir
       const user = await authService.getCurrentUser();
-      return { accessToken, refreshToken, user };
+      return { 
+        accessToken: TokenService.getAccessToken(), 
+        refreshToken: TokenService.getRefreshToken(), 
+        user 
+      };
     } catch (error: any) {
       // Token'lar geçersizse temizle
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
+      TokenService.clearTokens();
       return rejectWithValue('Token geçersiz');
     }
   }
@@ -109,9 +110,8 @@ export const register = createAsyncThunk(
     try {
       const response = await authService.register(credentials);
       
-      // Manuel olarak localStorage'a token'ları kaydedelim
-      localStorage.setItem('accessToken', response.accessToken);
-      localStorage.setItem('refreshToken', response.refreshToken);
+      // Token'ları TokenService ile kaydet
+      TokenService.setTokens(response.accessToken, response.refreshToken);
       
       return response;
     } catch (error: any) {
@@ -171,9 +171,8 @@ const authSlice = createSlice({
       state.refreshToken = action.payload.refreshToken;
       state.isAuthenticated = true;
 
-      // Manuel olarak localStorage'a token'ları kaydedelim
-      localStorage.setItem('accessToken', action.payload.accessToken);
-      localStorage.setItem('refreshToken', action.payload.refreshToken);
+      // Token'ları TokenService ile kaydet
+      TokenService.setTokens(action.payload.accessToken, action.payload.refreshToken);
     },
     clearAuth: (state) => {
       state.user = null;
@@ -182,21 +181,20 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
       state.error = null;
 
-      // Manuel olarak localStorage'dan token'ları silelim
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
+      // Token'ları TokenService ile temizle
+      TokenService.clearTokens();
     },
     clearError: (state) => {
       state.error = null;
     },
-    // Token'ları localStorage'dan senkronize et
+    // Token'ları TokenService'den senkronize et
     syncTokensFromStorage: (state) => {
-      const accessToken = localStorage.getItem('accessToken');
-      const refreshToken = localStorage.getItem('refreshToken');
+      const accessToken = TokenService.getAccessToken();
+      const refreshToken = TokenService.getRefreshToken();
       
       state.accessToken = accessToken;
       state.refreshToken = refreshToken;
-      state.isAuthenticated = !!(accessToken && refreshToken);
+      state.isAuthenticated = TokenService.hasValidTokens();
     },
   },
   extraReducers: (builder) => {

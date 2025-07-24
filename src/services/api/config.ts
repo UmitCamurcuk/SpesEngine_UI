@@ -101,21 +101,50 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     
-    // 401 hatası ve token yenileme isteği değilse
-    if (error.response?.status === 401 && !originalRequest._retry && originalRequest.url !== '/auth/refresh-token') {
-      originalRequest._retry = true;
+    // 401 hatası kontrolü
+    if (error.response?.status === 401 && !originalRequest._retry) {
       
-      try {
-        // TokenInterceptor ile token yenile
-        const newToken = await TokenInterceptor.handleUnauthorized();
+      // Permission version hatası - izinler güncellenmiş
+      if (error.response?.data?.needsPermissionRefresh) {
+        originalRequest._retry = true;
         
-        // Yeni token ile orijinal isteği tekrar gönder
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
-        return api(originalRequest);
-      } catch (refreshError) {
-        // Token yenilenemezse kullanıcıyı çıkış yaptır
-        TokenService.clearTokens();
-        window.location.href = '/auth/login';
+        try {
+          // Permission refresh yap
+          const authService = await import('../auth/authService');
+          const refreshedUser = await authService.default.refreshPermissions();
+          
+          // Redux store'u güncelle
+          const { store } = await import('../../redux/store');
+          store.dispatch({ 
+            type: 'auth/setUser', 
+            payload: refreshedUser 
+          });
+          
+          // İsteği yeniden gönder
+          return api(originalRequest);
+        } catch (permissionError) {
+          console.error('Permission refresh hatası:', permissionError);
+          // Permission refresh başarısızsa logout yap
+          TokenService.clearTokens();
+          window.location.href = '/auth/logout';
+        }
+      }
+      // Normal 401 hatası - token refresh
+      else if (originalRequest.url !== '/auth/refresh-token') {
+        originalRequest._retry = true;
+        
+        try {
+          // TokenInterceptor ile token yenile
+          const newToken = await TokenInterceptor.handleUnauthorized();
+          
+          // Yeni token ile orijinal isteği tekrar gönder
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          return api(originalRequest);
+        } catch (refreshError) {
+          // Token yenilenemezse kullanıcıyı logout sayfasına yönlendir
+          TokenService.clearTokens();
+          window.location.href = '/auth/logout';
+        }
       }
     }
     

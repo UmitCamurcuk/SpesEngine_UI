@@ -41,7 +41,7 @@ export class TokenInterceptor {
         // Refresh token da geçersizse, logout yap
         this.processQueue(null);
         TokenService.clearTokens();
-        window.location.href = '/auth/login';
+        window.location.href = '/auth/logout';
         throw new Error('Refresh token geçersiz');
       }
 
@@ -58,7 +58,7 @@ export class TokenInterceptor {
     } catch (error) {
       this.processQueue(null);
       TokenService.clearTokens();
-      window.location.href = '/auth/login';
+      window.location.href = '/auth/logout';
       throw error;
     } finally {
       this.isRefreshing = false;

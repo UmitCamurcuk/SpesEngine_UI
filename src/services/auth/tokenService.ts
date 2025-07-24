@@ -129,4 +129,12 @@ export class TokenService {
     this.setAccessToken(accessToken);
     this.setRefreshToken(refreshToken);
   }
+
+  // Eski duplicate token'ları temizle (sadece bir kez çalıştırılmalı)
+  static cleanupDuplicateTokens(): void {
+    // Eski prefix'siz token'ları temizle
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    console.log('Duplicate tokens cleaned up');
+  }
 } 

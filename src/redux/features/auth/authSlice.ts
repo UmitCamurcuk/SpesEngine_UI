@@ -235,9 +235,8 @@ const authSlice = createSlice({
         state.refreshToken = action.payload.refreshToken;
         state.user = action.payload.user;
         
-        // localStorage'a da kaydet
-        localStorage.setItem('accessToken', action.payload.accessToken);
-        localStorage.setItem('refreshToken', action.payload.refreshToken);
+        // TokenService ile kaydet (spesengine_ prefix ile)
+        TokenService.setTokens(action.payload.accessToken, action.payload.refreshToken);
       })
       .addCase(login.rejected, (state, action) => {
         state.isAuthenticated = false;
@@ -247,9 +246,8 @@ const authSlice = createSlice({
         state.refreshToken = null;
         state.user = null;
         
-        // localStorage'dan da temizle
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+        // TokenService ile temizle
+        TokenService.clearTokens();
       })
       
       // Register cases
@@ -263,6 +261,9 @@ const authSlice = createSlice({
         state.user = action.payload.user;
         state.accessToken = action.payload.accessToken;
         state.refreshToken = action.payload.refreshToken;
+        
+        // TokenService ile kaydet
+        TokenService.setTokens(action.payload.accessToken, action.payload.refreshToken);
       })
       .addCase(register.rejected, (state, action) => {
         state.loading = false;
@@ -277,9 +278,8 @@ const authSlice = createSlice({
         state.user = null;
         state.error = null;
         
-        // localStorage'dan da temizle
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+        // TokenService ile temizle
+        TokenService.clearTokens();
       })
       
       // Get current user cases
@@ -297,9 +297,8 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = null;
         state.isAuthenticated = false;
-        // Token geçersizse localStorage'dan da temizle
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+        // Token geçersizse TokenService ile temizle
+        TokenService.clearTokens();
         state.accessToken = null;
         state.refreshToken = null;
       })

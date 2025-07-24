@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
 import Breadcrumb from '../../../components/common/Breadcrumb';
@@ -26,25 +26,45 @@ interface TreeNode {
 
 interface CategoryOption {
   _id: string;
-  name: string;
+  name: { 
+    _id: string; 
+    key: string; 
+    namespace: string; 
+    translations: Record<string, string> 
+  };
   code: string;
 }
 
 interface AttributeOption {
   _id: string;
-  name: string;
+  name: { 
+    _id: string; 
+    key: string; 
+    namespace: string; 
+    translations: Record<string, string> 
+  };
   code: string;
 }
 
 interface AttributeGroupOption {
   _id: string;
-  name: string;
+  name: { 
+    _id: string; 
+    key: string; 
+    namespace: string; 
+    translations: Record<string, string> 
+  };
   code: string;
 }
 
 interface FamilyOption {
   _id: string;
-  name: string;
+  name: { 
+    _id: string; 
+    key: string; 
+    namespace: string; 
+    translations: Record<string, string> 
+  };
   code: string;
 }
 
@@ -155,7 +175,7 @@ const CategoryCreatePage: React.FC = () => {
   }, []);
   
   // Kategori ağacını getir
-  const fetchCategoryTree = async () => {
+  const fetchCategoryTree = useCallback(async () => {
     try {
       // Tüm kategorileri getir
       const { categories } = await categoryService.getCategories({ limit: 500 });
@@ -224,10 +244,10 @@ const CategoryCreatePage: React.FC = () => {
     } catch (err) {
       console.error('Kategori ağacı oluşturulurken hata oluştu:', err);
     }
-  };
+  }, []);
   
   // Family ağacını getir
-  const fetchFamilyTree = async () => {
+  const fetchFamilyTree = useCallback(async () => {
     try {
       // Tüm aileleri getir
       const { families } = await familyService.getFamilies({ limit: 500 });
@@ -279,7 +299,7 @@ const CategoryCreatePage: React.FC = () => {
     } catch (err) {
       console.error('Aile ağacı oluşturulurken hata oluştu:', err);
     }
-  };
+  }, []);
   
   // Form input değişiklik handler
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -310,7 +330,7 @@ const CategoryCreatePage: React.FC = () => {
     setFormData(prev => ({ ...prev, attributes: attributeIds }));
   };
   
-  // Öznitelik grubu seçimi değişiklik handler
+  // Öznitelik grupları seçimi değişiklik handler
   const handleAttributeGroupChange = (attributeGroupIds: string[]) => {
     setSelectedAttributeGroups(attributeGroupIds);
     setFormData(prev => ({ ...prev, attributeGroups: attributeGroupIds }));
@@ -693,7 +713,7 @@ const CategoryCreatePage: React.FC = () => {
                 <option value="">Üst kategori seçin (opsiyonel)</option>
                 {parentCategoryOptions.map(category => (
                   <option key={category._id} value={category._id}>
-                    {category.name} ({category.code})
+                    {getEntityName(category, currentLanguage)} ({category.code})
                   </option>
                 ))}
               </select>
@@ -714,7 +734,7 @@ const CategoryCreatePage: React.FC = () => {
                 <option value="">Aile seçin (opsiyonel)</option>
                 {familyOptions.map((family: FamilyOption) => (
                   <option key={family._id} value={family._id}>
-                    {family.name} ({family.code})
+                    {getEntityName(family, currentLanguage)} ({family.code})
                   </option>
                 ))}
               </select>

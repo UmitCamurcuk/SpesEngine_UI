@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { TokenService } from '../auth/tokenService';
 
 const api = axios.create({
   baseURL: '/api',
@@ -10,8 +11,8 @@ const api = axios.create({
 // Request interceptor - Token ekleme
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
+    const token = TokenService.getAccessToken();
+    if (token && !TokenService.isTokenExpired(token)) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -29,8 +30,8 @@ api.interceptors.response.use(
       // Token süresi dolmuşsa
       if (error.response.status === 401) {
         // Refresh token ile yeni token alma işlemi yapılabilir
-        localStorage.removeItem('accessToken');
-        window.location.href = '/login';
+        TokenService.clearTokens();
+        window.location.href = '/auth/logout';
       }
       
       // Yetki hatası

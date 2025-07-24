@@ -14,6 +14,9 @@ const App: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
 
   useEffect(() => {
+    // Eski duplicate token'ları temizle (sadece ilk yüklemede)
+    TokenService.cleanupDuplicateTokens();
+    
     // Uygulama başladığında token kontrolü yap
     if (TokenService.hasValidTokens()) {
       dispatch(initializeAuth());

@@ -18,25 +18,25 @@ import { getEntityName } from '../../../utils/translationUtils';
 
 interface ItemTypeOption {
   _id: string;
-  name: string;
+  name: any; // TranslationObject | string
   code: string;
 }
 
 interface CategoryOption {
   _id: string;
-  name: string;
+  name: any; // TranslationObject | string
   code: string;
 }
 
 interface AttributeGroupOption {
   _id: string;
-  name: string;
+  name: any; // TranslationObject | string
   code: string;
 }
 
 interface FamilyOption {
   _id: string;
-  name: string;
+  name: any; // TranslationObject | string
   code: string;
 }
 
@@ -164,17 +164,8 @@ const FamilyCreatePage: React.FC = () => {
   const getGroupName = (group: any): string => {
     if (!group) return 'Bilinmeyen Grup';
     
-    // Eğer name bir translation objesi ise
-    if (typeof group.name === 'object' && group.name !== null) {
-      return getEntityName(group.name, currentLanguage) || 'Bilinmeyen Grup';
-    }
-    
-    // Eğer name bir string ise
-    if (typeof group.name === 'string') {
-      return group.name;
-    }
-    
-    return 'Bilinmeyen Grup';
+    // getEntityName fonksiyonunu kullan
+    return getEntityName(group, currentLanguage) || 'Bilinmeyen Grup';
   };
 
   // Form input değişiklik handler
@@ -427,7 +418,7 @@ const FamilyCreatePage: React.FC = () => {
                 <option value="">{t('select_parent_family_optional')}</option>
                 {parentOptions.map((parent) => (
                   <option key={parent._id} value={parent._id}>
-                    {parent.name} ({parent.code})
+                    {getEntityName(parent, currentLanguage)} ({parent.code})
                   </option>
                 ))}
               </select>
@@ -476,7 +467,7 @@ const FamilyCreatePage: React.FC = () => {
                 <option value="">Öğe tipi seçin (opsiyonel)</option>
                 {itemTypeOptions.map((type) => (
                   <option key={type._id} value={type._id}>
-                    {type.name} ({type.code})
+                    {getEntityName(type, currentLanguage)} ({type.code})
                   </option>
                 ))}
               </select>
@@ -504,7 +495,7 @@ const FamilyCreatePage: React.FC = () => {
                 <option value="">Kategori seçin</option>
                 {categoryOptions.map((category) => (
                   <option key={category._id} value={category._id}>
-                    {category.name} ({category.code})
+                    {getEntityName(category, currentLanguage)} ({category.code})
                   </option>
                 ))}
               </select>

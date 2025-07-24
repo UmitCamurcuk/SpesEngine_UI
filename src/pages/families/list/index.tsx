@@ -6,7 +6,7 @@ import Button from '../../../components/ui/Button';
 import familyService from '../../../services/api/familyService';
 import type { Family } from '../../../types/family';
 import { useTranslation } from '../../../context/i18nContext';
-import { getEntityName } from '../../../utils/translationUtils';
+import { getEntityName, getEntityDescription } from '../../../utils/translationUtils';
 import ModalNotification from '../../../components/notifications/ModalNotification';
 import { useNotification } from '../../../components/notifications';
 import ListPageLayout from '../../../components/layout/ListPageLayout';
@@ -166,8 +166,8 @@ const FamiliesListPage: React.FC = () => {
       key: 'description',
       header: 'Açıklama',
       render: (row) => (
-        <div className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={row.description}>
-          {row.description || <span className="text-gray-400 italic">Açıklama yok</span>}
+        <div className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={getEntityDescription(row, currentLanguage)}>
+          {getEntityDescription(row, currentLanguage) || <span className="text-gray-400 italic">Açıklama yok</span>}
         </div>
       )
     },
@@ -176,7 +176,7 @@ const FamiliesListPage: React.FC = () => {
       header: 'Üst Aile',
       render: (row) => (
         <div className="text-sm text-gray-600 dark:text-gray-400">
-          {row.parentFamily ? row.parentFamily : <span className="text-gray-400 italic">Ana Aile</span>}
+          {row.parentFamily && typeof row.parentFamily === 'object' ? getEntityName(row.parentFamily, currentLanguage) : <span className="text-gray-400 italic">Ana Aile</span>}
         </div>
       )
     },

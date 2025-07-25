@@ -374,6 +374,22 @@ const ItemCreatePage: React.FC = () => {
         }
       });
 
+      console.log('🔍 Collected attribute groups:', {
+        total: groups.length,
+        itemType: groups.filter(g => g.source === 'itemType').length,
+        category: groups.filter(g => g.source === 'category').length,
+        family: groups.filter(g => g.source === 'family').length,
+        groups: groups.map(g => ({
+          id: g._id,
+          source: g.source,
+          sourceName: g.sourceName,
+          attributeCount: g.attributes.length
+        }))
+      });
+      
+      console.log('🔍 Category hierarchy:', getCategoryHierarchy(selectedCategory!));
+      console.log('🔍 Family hierarchy:', getFamilyHierarchy(family));
+      
       setAttributeGroups(groups);
       
       toast.success('Aile seçildi. Öznitelik doldurma için sonraki adıma geçebilirsiniz.');
@@ -384,13 +400,151 @@ const ItemCreatePage: React.FC = () => {
   };
 
   const getCategoryHierarchy = (category: CategoryOption): any[] => {
-    // For now, just return the single category until backend provides full hierarchy
-    return [category];
+    // Get category hierarchy from selectedItemTypeData
+    const hierarchy: any[] = [];
+    
+    if (selectedItemTypeData?.category) {
+      // Add main category if it's the target or if target is a subcategory
+      if (selectedItemTypeData.category._id === category._id) {
+        hierarchy.push(selectedItemTypeData.category);
+      } else {
+        // Check if target is in subcategories, if so, add main category first
+        const isInSubcategories = checkIfCategoryInSubcategories(selectedItemTypeData.category.subcategories, category._id);
+        if (isInSubcategories) {
+          hierarchy.push(selectedItemTypeData.category);
+        }
+      }
+      
+      // Add subcategories hierarchy
+      if (selectedItemTypeData.category.subcategories) {
+        const found = findCategoryInSubcategories(selectedItemTypeData.category.subcategories, category._id);
+        if (found.length > 0) {
+          hierarchy.push(...found);
+        }
+      }
+    }
+    
+    return hierarchy.length > 0 ? hierarchy : [category];
+  };
+
+  // Helper function to check if category exists in subcategories
+  const checkIfCategoryInSubcategories = (subcategories: any[], targetId: string): boolean => {
+    for (const subcat of subcategories) {
+      if (subcat._id === targetId) {
+        return true;
+      }
+      if (subcat.subcategories) {
+        if (checkIfCategoryInSubcategories(subcat.subcategories, targetId)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  // Helper function to find category in subcategories with full path
+  const findCategoryInSubcategories = (subcategories: any[], targetId: string): any[] => {
+    for (const subcat of subcategories) {
+      if (subcat._id === targetId) {
+        return [subcat];
+      }
+      if (subcat.subcategories) {
+        const found = findCategoryInSubcategories(subcat.subcategories, targetId);
+        if (found.length > 0) {
+          return [subcat, ...found];
+        }
+      }
+    }
+    return [];
   };
 
   const getFamilyHierarchy = (family: FamilyOption): any[] => {
-    // For now, just return the single family until backend provides full hierarchy
-    return [family];
+    // Get family hierarchy from selectedItemTypeData
+    const hierarchy: any[] = [];
+    
+    if (selectedItemTypeData?.category) {
+      // Search in main category families
+      if (selectedItemTypeData.category.families) {
+        const findFamilyInFamilies = (families: any[], targetId: string): any[] => {
+          for (const fam of families) {
+            if (fam._id === targetId) {
+              // Found the target family, now build the hierarchy from root to target
+              return buildFamilyHierarchy(families, targetId);
+            }
+            if (fam.subFamilies) {
+              const found = findFamilyInFamilies(fam.subFamilies, targetId);
+              if (found.length > 0) {
+                // Found in subfamilies, add current family to hierarchy
+                return [fam, ...found];
+              }
+            }
+          }
+          return [];
+        };
+        
+        const found = findFamilyInFamilies(selectedItemTypeData.category.families, family._id);
+        if (found.length > 0) {
+          hierarchy.push(...found);
+        }
+      }
+      
+      // Search in subcategory families
+      if (selectedItemTypeData.category.subcategories) {
+        for (const subcat of selectedItemTypeData.category.subcategories) {
+          if (subcat.families) {
+            const findFamilyInFamilies = (families: any[], targetId: string): any[] => {
+              for (const fam of families) {
+                if (fam._id === targetId) {
+                  // Found the target family, now build the hierarchy from root to target
+                  return buildFamilyHierarchy(families, targetId);
+                }
+                if (fam.subFamilies) {
+                  const found = findFamilyInFamilies(fam.subFamilies, targetId);
+                  if (found.length > 0) {
+                    // Found in subfamilies, add current family to hierarchy
+                    return [fam, ...found];
+                  }
+                }
+              }
+              return [];
+            };
+            
+            const found = findFamilyInFamilies(subcat.families, family._id);
+            if (found.length > 0) {
+              hierarchy.push(...found);
+            }
+          }
+        }
+      }
+    }
+    
+    return hierarchy.length > 0 ? hierarchy : [family];
+  };
+
+  // Helper function to build family hierarchy from root to target
+  const buildFamilyHierarchy = (families: any[], targetId: string): any[] => {
+    const hierarchy: any[] = [];
+    
+    const findPath = (familyList: any[], target: string, currentPath: any[] = []): any[] | null => {
+      for (const fam of familyList) {
+        const newPath = [...currentPath, fam];
+        
+        if (fam._id === target) {
+          return newPath;
+        }
+        
+        if (fam.subFamilies && fam.subFamilies.length > 0) {
+          const found = findPath(fam.subFamilies, target, newPath);
+          if (found) {
+            return found;
+          }
+        }
+      }
+      return null;
+    };
+    
+    const path = findPath(families, targetId);
+    return path || [];
   };
 
   // Attribute management - Memoized to prevent infinite re-renders
@@ -428,12 +582,19 @@ const ItemCreatePage: React.FC = () => {
       case 3:
         return !!formData.family;
       case 4:
-        // Don't validate attributes on every render
-        return true;
+        // Basic validation without state updates
+        return attributeGroups.every(group => 
+          group.attributes.every(attribute => 
+            !attribute.isRequired || 
+            (formData.attributes?.[attribute._id] !== undefined && 
+             formData.attributes?.[attribute._id] !== null && 
+             formData.attributes?.[attribute._id] !== '')
+          )
+        );
       default:
         return true;
     }
-  }, [formData.itemType, formData.category, formData.family]);
+  }, [formData.itemType, formData.category, formData.family, formData.attributes, attributeGroups]);
 
   const validateAttributes = useCallback((): boolean => {
     const errors: Record<string, string> = {};
@@ -457,8 +618,15 @@ const ItemCreatePage: React.FC = () => {
 
   // Navigation
   const handleNextStep = () => {
-    if (validateStep(currentStep)) {
-      setCurrentStep(prev => Math.min(prev + 1, steps.length));
+    if (currentStep === 4) {
+      // For step 4, run full validation with error setting
+      if (validateAttributes()) {
+        setCurrentStep(prev => Math.min(prev + 1, steps.length));
+      }
+    } else {
+      if (validateStep(currentStep)) {
+        setCurrentStep(prev => Math.min(prev + 1, steps.length));
+      }
     }
   };
 
@@ -777,31 +945,144 @@ const ItemCreatePage: React.FC = () => {
         );
 
       case 4:
-        console.log('🔄 Step 4 rendering, attributeGroups count:', attributeGroups.length);
+        // Group attributes by source for better organization
+        const itemTypeGroups = attributeGroups.filter(group => group.source === 'itemType');
+        const categoryGroups = attributeGroups.filter(group => group.source === 'category');
+        const familyGroups = attributeGroups.filter(group => group.source === 'family');
         
         return (
           <div className="space-y-8">
+            {/* Header */}
             <div className="text-center">
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Öznitelikler</h3>
               <p className="text-gray-600 dark:text-gray-400">
                 Seçili Aile: <strong>{selectedFamily ? getEntityName(selectedFamily, currentLanguage) : ''}</strong>
               </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Lütfen tüm zorunlu alanları doldurun
+              </p>
             </div>
             
-            {attributeGroups.length > 0 ? (
-              <div className="space-y-8">
-                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-                  <p className="text-center text-gray-600 dark:text-gray-400">
-                    Öznitelik sayısı: {attributeGroups.length}
-                  </p>
+            {/* ItemType Attribute Groups */}
+            {itemTypeGroups.length > 0 && (
+              <div className="space-y-6">
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center justify-center w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full">
+                    <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Öğe Tipi Öznitelikleri
+                  </h4>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                    {selectedItemType ? getEntityName(selectedItemType, currentLanguage) : 'Öğe Tipi'}
+                  </span>
                 </div>
+                
+                {itemTypeGroups.map(group => (
+                  <AttributeGroupSection
+                    key={group._id}
+                    attributeGroup={group}
+                    attributes={group.attributes}
+                    values={formData.attributes || {}}
+                    errors={attributeErrors}
+                    onChange={handleAttributeChange}
+                    disabled={loading}
+                  />
+                ))}
               </div>
-            ) : (
+            )}
+            
+            {/* Category Attribute Groups */}
+            {categoryGroups.length > 0 && (
+              <div className="space-y-6">
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center justify-center w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full">
+                    <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                    </svg>
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Kategori Öznitelikleri
+                  </h4>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                    {selectedCategory ? getEntityName(selectedCategory, currentLanguage) : 'Kategori'}
+                  </span>
+                </div>
+                
+                {categoryGroups.map(group => (
+                  <AttributeGroupSection
+                    key={group._id}
+                    attributeGroup={group}
+                    attributes={group.attributes}
+                    values={formData.attributes || {}}
+                    errors={attributeErrors}
+                    onChange={handleAttributeChange}
+                    disabled={loading}
+                  />
+                ))}
+              </div>
+            )}
+            
+            {/* Family Attribute Groups */}
+            {familyGroups.length > 0 && (
+              <div className="space-y-6">
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center justify-center w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-full">
+                    <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Aile Öznitelikleri
+                  </h4>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                    {selectedFamily ? getEntityName(selectedFamily, currentLanguage) : 'Aile'}
+                  </span>
+                </div>
+                
+                {familyGroups.map(group => (
+                  <AttributeGroupSection
+                    key={group._id}
+                    attributeGroup={group}
+                    attributes={group.attributes}
+                    values={formData.attributes || {}}
+                    errors={attributeErrors}
+                    onChange={handleAttributeChange}
+                    disabled={loading}
+                  />
+                ))}
+              </div>
+            )}
+            
+            {/* No Attributes Message */}
+            {attributeGroups.length === 0 && (
               <div className="text-center py-12 text-gray-500 dark:text-gray-400">
                 <svg className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <p>Bu aile için öznitelik bulunamadı</p>
+                <p className="text-lg font-medium mb-2">Henüz öznitelik bulunamadı</p>
+                <p className="text-sm">Seçili hiyerarşi için tanımlanmış öznitelik bulunmuyor.</p>
+              </div>
+            )}
+            
+            {/* Validation Summary */}
+            {Object.keys(attributeErrors).length > 0 && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <svg className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium text-red-800 dark:text-red-200">
+                      Validation Hataları ({Object.keys(attributeErrors).length})
+                    </h4>
+                    <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                      Lütfen tüm zorunlu alanları doldurun ve hataları düzeltin.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
           </div>

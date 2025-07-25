@@ -8,6 +8,8 @@ import { UnifiedTreeView } from '../../../components/ui';
 import TabView from '../../../components/ui/TabView';
 import PaginatedAttributeSelector from '../../../components/attributes/PaginatedAttributeSelector';
 import AttributeGroupSelector from '../../../components/attributes/AttributeGroupSelector';
+import AttributeGroupsTab from '../../../components/common/AttributeGroupsTab';
+import AttributesTab from '../../../components/common/AttributesTab';
 import categoryService from '../../../services/api/categoryService';
 import attributeService from '../../../services/api/attributeService';
 import attributeGroupService from '../../../services/api/attributeGroupService';
@@ -129,6 +131,10 @@ const CategoryDetailsPage: React.FC = () => {
   // Öznitelik seçici modal için yeni state'ler ekleyelim
   const [selectedAttributeIdsForModal, setSelectedAttributeIdsForModal] = useState<string[]>([]);
   const [selectedGroupIdsForModal, setSelectedGroupIdsForModal] = useState<string[]>([]);
+  
+  // Comment modal state
+  const [showCommentModal, setShowCommentModal] = useState<boolean>(false);
+  const [comment, setComment] = useState<string>('');
   
   // Veriyi getir
   useEffect(() => {
@@ -448,22 +454,53 @@ const CategoryDetailsPage: React.FC = () => {
     
     if (!id || !formData) return;
     
+    // Comment modal'ını aç
+    setShowCommentModal(true);
+  };
+  
+  // Comment ile kaydetme handler
+  const handleSaveWithComment = async () => {
+    if (!id || !formData) return;
+    
     setIsSaving(true);
     setError(null);
     setSuccess(false);
+    setShowCommentModal(false);
     
     try {
-      // API'ye gönderilmeden önce formData'yı kontrol et
-      console.log("API'ye gönderilecek form verileri:", formData);
-      console.log("Üst kategori ID:", formData.parentId);
-      console.log("Aile ID:", formData.family);
+      // Sadece değişen alanları hesapla
+      const originalData = {
+        name: getEntityName(category, currentLanguage) || '',
+        code: category?.code || '',
+        description: getEntityDescription(category, currentLanguage) || '',
+        isActive: category?.isActive || true,
+        parentId: getEntityId(category?.parentCategory) || getEntityId(category?.parent) || undefined,
+        family: getEntityId(category?.family) || undefined
+      };
+      
+      const changedFields: any = {};
+      
+      // Değişen alanları bul
+      if (formData.name !== originalData.name) changedFields.name = formData.name;
+      if (formData.code !== originalData.code) changedFields.code = formData.code;
+      if (formData.description !== originalData.description) changedFields.description = formData.description;
+      if (formData.isActive !== originalData.isActive) changedFields.isActive = formData.isActive;
+      if (formData.parentId !== originalData.parentId) changedFields.parent = formData.parentId;
+      if (formData.family !== originalData.family) changedFields.family = formData.family;
+      
+      // Öznitelik ve öznitelik grubu değişikliklerini ekle
+      changedFields.attributes = attributes.map(a => a.id);
+      changedFields.attributeGroups = attributeGroups.map(g => g.id);
+      
+      // Comment'i ekle
+      if (comment.trim()) {
+        changedFields.comment = comment.trim();
+      }
+      
+      console.log("API'ye gönderilecek değişiklikler:", changedFields);
       
       // API'ye gönder
-      await categoryService.updateCategory(id, {
-        ...formData,
-        attributes: attributes.map(a => a.id),
-        attributeGroups: attributeGroups.map(g => g.id)
-      });
+      await categoryService.updateCategory(id, changedFields);
       
       // Güncel veriyi yeniden yükle
       const updatedCategory = await categoryService.getCategoryById(id, {
@@ -474,6 +511,7 @@ const CategoryDetailsPage: React.FC = () => {
       
       setSuccess(true);
       setIsEditing(false);
+      setComment('');
       
       // Başarı mesajını belirli bir süre sonra kaldır
       setTimeout(() => {
@@ -823,6 +861,8 @@ const CategoryDetailsPage: React.FC = () => {
                     maxHeight="300px"
                     showRelationLines={true}
                     variant="spectrum"
+                    mode="select"
+                    selectionMode="single"
                     onSelectionChange={(selectedIds) => {
                       if (selectedIds.length > 0 && selectedIds[0] !== id) {
                         // Düzenleme modunda seçilen kategoriyi üst kategori olarak ayarla
@@ -833,6 +873,9 @@ const CategoryDetailsPage: React.FC = () => {
                           console.log("Hiyerarşi tab - formData güncellendi:", updated);
                           return updated;
                         });
+                      } else if (selectedIds.length === 0) {
+                        // Seçim temizlenirse parent'ı kaldır
+                        setFormData(prev => ({ ...prev, parentId: undefined }));
                       }
                     }}
                     className="shadow-sm"
@@ -899,7 +942,7 @@ const CategoryDetailsPage: React.FC = () => {
               <div>
                 {isEditing ? (
                   <UnifiedTreeView
-                    key={`family-tree-${tabRefreshCounter}-${getEntityId(category?.family) || 'none'}`}
+                    key={`family-tree-${tabRefreshCounter}-${formData.family || 'none'}`}
                     data={familyTree.map(fam => ({
                       id: fam.id,
                       name: fam.name,
@@ -907,16 +950,16 @@ const CategoryDetailsPage: React.FC = () => {
                       children: fam.children
                     }))}
                     onSelectionChange={(selectedIds) => {
-                      if (isEditing) {
-                        const newFamilyId = selectedIds[0] || undefined;
-                        console.log("Seçilen aile ID:", newFamilyId);
-                        setSelectedCategory(newFamilyId);
-                        setFormData(prev => ({ ...prev, family: newFamilyId }));
-                      }
+                      const newFamilyId = selectedIds[0] || undefined;
+                      console.log("Seçilen aile ID:", newFamilyId);
+                      setSelectedCategory(newFamilyId);
+                      setFormData(prev => ({ ...prev, family: newFamilyId }));
                     }}
-                    defaultSelectedIds={getEntityId(category?.family) ? [getEntityId(category?.family)!] : []}
+                    defaultSelectedIds={formData.family ? [formData.family] : []}
                     expandAll={true}
                     variant="spectrum"
+                    mode="select"
+                    selectionMode="single"
                     maxHeight="200px"
                   />
                 ) : (
@@ -1223,97 +1266,113 @@ const CategoryDetailsPage: React.FC = () => {
   };
 
   // Öznitelik grubu ekleme handler'ı
-  const handleAddAttributeGroup = (selectedGroupIds: string[]) => {
-    if (!isEditing || !selectedGroupIds.length) return;
+  const handleAddAttributeGroup = async (selectedGroupIds: string[]) => {
+    if (!selectedGroupIds.length) return;
     
-    // Öznitelik gruplarını getir ve state'e ekle
-    const fetchAndAddGroups = async () => {
-      try {
-        const newGroups: {
-          id: string,
-          name: string,
-          code: string,
-          description?: string,
-          attributes?: any[]
-        }[] = [];
+    try {
+      const newGroups: {
+        id: string,
+        name: string,
+        code: string,
+        description?: string,
+        attributes?: any[]
+      }[] = [];
+      
+      for (const groupId of selectedGroupIds) {
+        // Grup zaten ekli mi kontrol et
+        if (attributeGroups.some(g => g.id === groupId)) continue;
         
-        for (const groupId of selectedGroupIds) {
-          // Grup zaten ekli mi kontrol et
-          if (attributeGroups.some(g => g.id === groupId)) continue;
-          
-          const groupData = await attributeGroupService.getAttributeGroupById(groupId, {
-            includeAttributes: true
-          });
-          
-          newGroups.push({
-            id: groupData._id,
-            name: getEntityName(groupData, currentLanguage) || '',
-            code: groupData.code,
-            description: getEntityDescription(groupData, currentLanguage) || '',
-            attributes: groupData.attributes || []
-          });
-        }
+        const groupData = await attributeGroupService.getAttributeGroupById(groupId, {
+          includeAttributes: true
+        });
         
-        if (newGroups.length > 0) {
-          setAttributeGroups(prev => [...prev, ...newGroups]);
-          toast.success(`${newGroups.length} öznitelik grupları başarıyla eklendi`);
-        } else {
-          toast.error("Seçilen gruplar zaten eklenmiş");
-        }
-        
-        setShowAttributeGroupModal(false);
-        setSelectedGroupIdsForModal([]);
-      } catch (err) {
-        toast.error("Öznitelik grupları eklenirken hata oluştu");
-        console.error('Öznitelik grupları eklenirken hata:', err);
+        newGroups.push({
+          id: groupData._id,
+          name: getEntityName(groupData, currentLanguage) || '',
+          code: groupData.code,
+          description: getEntityDescription(groupData, currentLanguage) || '',
+          attributes: groupData.attributes || []
+        });
       }
-    };
-    
-    fetchAndAddGroups();
+      
+      if (newGroups.length > 0) {
+        setAttributeGroups(prev => [...prev, ...newGroups]);
+        toast.success(`${newGroups.length} öznitelik grupları başarıyla eklendi`);
+        
+        // Düzenleme modunda değilse direkt kaydet
+        if (!isEditing && id) {
+          try {
+            await categoryService.updateCategory(id, {
+              attributeGroups: [...attributeGroups, ...newGroups].map(g => g.id)
+            });
+            toast.success("Öznitelik grupları kaydedildi");
+          } catch (err) {
+            toast.error("Öznitelik grupları kaydedilirken hata oluştu");
+            console.error('Öznitelik grupları kaydedilirken hata:', err);
+          }
+        }
+      } else {
+        toast.error("Seçilen gruplar zaten eklenmiş");
+      }
+      
+      setShowAttributeGroupModal(false);
+      setSelectedGroupIdsForModal([]);
+    } catch (err) {
+      toast.error("Öznitelik grupları eklenirken hata oluştu");
+      console.error('Öznitelik grupları eklenirken hata:', err);
+    }
   };
   
   // Öznitelik ekleme handler'ı
-  const handleAddAttribute = (selectedAttributeIds: string[]) => {
-    if (!isEditing || !selectedAttributeIds.length) return;
+  const handleAddAttribute = async (selectedAttributeIds: string[]) => {
+    if (!selectedAttributeIds.length) return;
     
-    // Öznitelikleri getir ve state'e ekle
-    const fetchAndAddAttributes = async () => {
-      try {
-        const newAttributes: {
-          id: string,
-          name: string,
-          type: string
-        }[] = [];
+    try {
+      const newAttributes: {
+        id: string,
+        name: string,
+        type: string
+      }[] = [];
+      
+      for (const attrId of selectedAttributeIds) {
+        // Öznitelik zaten ekli mi kontrol et
+        if (attributes.some(a => a.id === attrId)) continue;
         
-        for (const attrId of selectedAttributeIds) {
-          // Öznitelik zaten ekli mi kontrol et
-          if (attributes.some(a => a.id === attrId)) continue;
-          
-          const attrData = await attributeService.getAttributeById(attrId);
-          
-          newAttributes.push({
-            id: attrData._id,
-            name: getEntityName(attrData, currentLanguage) || '',
-            type: attrData.type
-          });
-        }
+        const attrData = await attributeService.getAttributeById(attrId);
         
-        if (newAttributes.length > 0) {
-          setAttributes(prev => [...prev, ...newAttributes]);
-          toast.success(`${newAttributes.length} öznitelik başarıyla eklendi`);
-        } else {
-          toast.error("Seçilen öznitelikler zaten eklenmiş");
-        }
-        
-        setShowAttributeModal(false);
-        setSelectedAttributeIdsForModal([]);
-      } catch (err) {
-        toast.error("Öznitelikler eklenirken hata oluştu");
-        console.error('Öznitelikler eklenirken hata:', err);
+        newAttributes.push({
+          id: attrData._id,
+          name: getEntityName(attrData, currentLanguage) || '',
+          type: attrData.type
+        });
       }
-    };
-    
-    fetchAndAddAttributes();
+      
+      if (newAttributes.length > 0) {
+        setAttributes(prev => [...prev, ...newAttributes]);
+        toast.success(`${newAttributes.length} öznitelik başarıyla eklendi`);
+        
+        // Düzenleme modunda değilse direkt kaydet
+        if (!isEditing && id) {
+          try {
+            await categoryService.updateCategory(id, {
+              attributes: [...attributes, ...newAttributes].map(a => a.id)
+            });
+            toast.success("Öznitelikler kaydedildi");
+          } catch (err) {
+            toast.error("Öznitelikler kaydedilirken hata oluştu");
+            console.error('Öznitelikler kaydedilirken hata:', err);
+          }
+        }
+      } else {
+        toast.error("Seçilen öznitelikler zaten eklenmiş");
+      }
+      
+      setShowAttributeModal(false);
+      setSelectedAttributeIdsForModal([]);
+    } catch (err) {
+      toast.error("Öznitelikler eklenirken hata oluştu");
+      console.error('Öznitelikler eklenirken hata:', err);
+    }
   };
   
   // Öznitelik seçici modal
@@ -1322,7 +1381,7 @@ const CategoryDetailsPage: React.FC = () => {
       title="Öznitelik Ekle"
       isOpen={showAttributeModal}
       onClose={() => setShowAttributeModal(false)}
-      size="lg"
+      size="xl"
     >
       <div className="p-4">
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
@@ -1365,7 +1424,7 @@ const CategoryDetailsPage: React.FC = () => {
       title="Öznitelik Grubu Ekle"
       isOpen={showAttributeGroupModal}
       onClose={() => setShowAttributeGroupModal(false)}
-      size="lg"
+      size="xl"
     >
       <div className="p-4">
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
@@ -1395,6 +1454,55 @@ const CategoryDetailsPage: React.FC = () => {
             }}
           >
             Ekle
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+  
+  // Comment modal
+  const renderCommentModal = () => (
+    <Modal
+      title="Değişiklikleri Kaydet"
+      isOpen={showCommentModal}
+      onClose={() => setShowCommentModal(false)}
+      size="md"
+    >
+      <div className="p-4">
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          Bu değişiklik için bir açıklama ekleyebilirsiniz. (İsteğe bağlı)
+        </p>
+        
+        <div>
+          <label htmlFor="comment" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Değişiklik Açıklaması
+          </label>
+          <textarea
+            id="comment"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            rows={4}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark"
+            placeholder="Değişiklikle ilgili açıklama yazın..."
+          />
+        </div>
+        
+        <div className="flex justify-end space-x-2 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              setComment('');
+              setShowCommentModal(false);
+            }}
+          >
+            İptal
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={handleSaveWithComment}
+            loading={isSaving}
+          >
+            Kaydet
           </Button>
         </div>
       </div>
@@ -1791,339 +1899,171 @@ const CategoryDetailsPage: React.FC = () => {
             )}
             
             {isEditing ? (
-              <div className="space-y-6">
-                <TabView 
-                  tabs={[
-                    {
-                      id: 'general',
-                      title: 'Genel Bilgiler',
-                      content: (
-                        <div className="space-y-6">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* İsim */}
-                            <div>
-                              <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Kategori Adı <span className="text-red-500">*</span>
-                              </label>
-                              <input
-                                type="text"
-                                id="name"
-                                name="name"
-                                value={formData.name || ''}
-                                onChange={handleChange}
-                                required
-                                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-                              />
-                            </div>
-                            
-                            {/* Kod */}
-                            <div>
-                              <label htmlFor="code" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Kod <span className="text-red-500">*</span>
-                              </label>
-                              <input
-                                type="text"
-                                id="code"
-                                name="code"
-                                value={formData.code || ''}
-                                onChange={handleChange}
-                                required
-                                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-                              />
-                            </div>
-                            
-                            {/* Açıklama */}
-                            <div className="col-span-1 md:col-span-2">
-                              <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Açıklama
-                              </label>
-                              <textarea
-                                id="description"
-                                name="description"
-                                value={formData.description || ''}
-                                onChange={handleChange}
-                                rows={3}
-                                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
-                              />
-                            </div>
-                            
-                            {/* Aktif/Pasif durumu */}
-                            <div className="col-span-1 md:col-span-2">
-                              <div className="flex items-start">
-                                <div className="flex items-center h-5">
-                                  <input
-                                    id="isActive"
-                                    name="isActive"
-                                    type="checkbox"
-                                    checked={formData.isActive === undefined ? true : formData.isActive}
-                                    onChange={e => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-                                    className="w-4 h-4 text-primary-light bg-gray-100 border-gray-300 rounded focus:ring-primary-light dark:focus:ring-primary-dark dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                  />
-                                </div>
-                                <label htmlFor="isActive" className="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300">
-                                  Aktif
-                                </label>
-                              </div>
-                              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                Kategorinin aktif olup olmadığını belirler. Pasif kategoriler kullanıcı arayüzünde gösterilmez.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    },
-                    {
-                      id: 'hierarchy',
-                      title: 'Hiyerarşi',
-                      content: (
-                        <div className="space-y-6">
-                          {/* Üst Kategori Seçimi */}
-                          <div>
-                            <label htmlFor="parentId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                              Üst Kategori
-                            </label>
-                            <UnifiedTreeView
-                              key={`category-tree-${tabRefreshCounter}-${formData.parentId || 'none'}`}
-                              data={categoryTree.map(cat => ({
-                                id: cat.id,
-                                name: cat.name,
-                                label: getEntityName(cat.data, currentLanguage) || cat.name,
-                                children: cat.children
-                              }))}
-                              onSelectionChange={(selectedIds) => {
-                                if (selectedIds.length > 0 && selectedIds[0] !== id) {
-                                  setFormData(prev => ({ 
-                                    ...prev, 
-                                    parentId: selectedIds[0] 
-                                  }));
-                                } else {
-                                  setFormData(prev => ({ 
-                                    ...prev, 
-                                    parentId: undefined 
-                                  }));
-                                }
-                              }}
-                              defaultSelectedIds={formData.parentId ? [formData.parentId] : []}
-                              mode="select"
-                              selectionMode="single"
-                              showHeader={false}
-                              headerTitle="Kategori Seç"
-                              variant="default"
-                              className="max-h-64 overflow-y-auto"
+              <div>
+                {/* Düzenleme modunda da aynı tab sistemi kullan */}
+                {activeTab === 'overview' && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* İsim */}
+                      <div>
+                        <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Kategori Adı <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          id="name"
+                          name="name"
+                          value={formData.name || ''}
+                          onChange={handleChange}
+                          required
+                          className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
+                        />
+                      </div>
+                      
+                      {/* Kod */}
+                      <div>
+                        <label htmlFor="code" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Kod <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          id="code"
+                          name="code"
+                          value={formData.code || ''}
+                          onChange={handleChange}
+                          required
+                          className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
+                        />
+                      </div>
+                      
+                      {/* Açıklama */}
+                      <div className="col-span-1 md:col-span-2">
+                        <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Açıklama
+                        </label>
+                        <textarea
+                          id="description"
+                          name="description"
+                          value={formData.description || ''}
+                          onChange={handleChange}
+                          rows={3}
+                          className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark"
+                        />
+                      </div>
+                      
+                      {/* Aktif/Pasif durumu */}
+                      <div className="col-span-1 md:col-span-2">
+                        <div className="flex items-start">
+                          <div className="flex items-center h-5">
+                            <input
+                              id="isActive"
+                              name="isActive"
+                              type="checkbox"
+                              checked={formData.isActive === undefined ? true : formData.isActive}
+                              onChange={e => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                              className="w-4 h-4 text-primary-light bg-gray-100 border-gray-300 rounded focus:ring-primary-light dark:focus:ring-primary-dark dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                             />
                           </div>
+                          <label htmlFor="isActive" className="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300">
+                            Aktif
+                          </label>
                         </div>
-                      )
-                    },
-                    {
-                      id: 'attributeGroups',
-                      title: 'Öznitelik Grupları',
-                      badge: attributeGroups.length || undefined,
-                      content: (
-                        <div className="space-y-4">
-                          <div className="flex justify-between items-center">
-                            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Öznitelik Grupları</h3>
-                            <Button
-                              variant="outline"
-                              onClick={() => setShowAttributeGroupModal(true)}
-                              className="flex items-center"
-                            >
-                              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                              </svg>
-                              Grup Ekle
-                            </Button>
-                          </div>
-                          
-                          {attributeGroups.length > 0 ? (
-                            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 overflow-hidden">
-                              <div className="grid grid-cols-1 gap-4">
-                                {attributeGroups.map(group => (
-                                  <div 
-                                    key={group.id} 
-                                    className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700"
-                                  >
-                                    <div className="flex items-center justify-between">
-                                      <div>
-                                        <h4 className="font-medium text-gray-900 dark:text-white">{getEntityName(group, currentLanguage) || group.name}</h4>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{group.code}</p>
-                                      </div>
-                                      <Button
-                                        variant="danger"
-                                        size="sm"
-                                        onClick={() => handleRemoveAttributeGroup(group.id)}
-                                        className="flex items-center"
-                                      >
-                                        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
-                                        Kaldır
-                                      </Button>
-                                    </div>
-                                    
-                                    {/* Grup açıklaması */}
-                                    {getEntityDescription(group, currentLanguage) && (
-                                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-3 border-t border-gray-100 dark:border-gray-700 pt-3">
-                                        {getEntityDescription(group, currentLanguage)}
-                                      </p>
-                                    )}
-                                    
-                                    {/* Gruba ait öznitelikler */}
-                                    {group.attributes && group.attributes.length > 0 ? (
-                                      <div className="mt-4 border-t border-gray-100 dark:border-gray-700 pt-3">
-                                        <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                          Grup Öznitelikleri ({group.attributes.length})
-                                        </h5>
-                                        <ul className="ml-2 space-y-1">
-                                          {group.attributes.map((attr: any) => (
-                                            <li key={attr._id} className="flex items-center justify-between">
-                                              <div className="flex items-center">
-                                                <span className="h-1.5 w-1.5 rounded-full bg-primary-light dark:bg-primary-dark mr-2"></span>
-                                                <span className="text-sm text-gray-700 dark:text-gray-300">{getEntityName(attr, currentLanguage) || attr.name}</span>
-                                                <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">({attr.type})</span>
-                                              </div>
-                                              <Button
-                                                variant="danger"
-                                                size="sm"
-                                                onClick={() => handleRemoveAttributeFromGroup(attr._id, group.id)}
-                                                className="flex items-center"
-                                              >
-                                                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                </svg>
-                                                Kaldır
-                                              </Button>
-                                            </li>
-                                          ))}
-                                        </ul>
-                                      </div>
-                                    ) : (
-                                      <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 text-sm text-gray-500 dark:text-gray-400">
-                                        Bu gruba atanmış öznitelik bulunmamaktadır.
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                              <svg className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                              </svg>
-                              <p className="text-gray-500 dark:text-gray-400">Bu kategoriye atanmış öznitelik grubu bulunmamaktadır.</p>
-                              <Button
-                                variant="outline"
-                                onClick={() => setShowAttributeGroupModal(true)}
-                                className="mt-4 flex items-center"
-                              >
-                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                </svg>
-                                Grup Ekle
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    },
-                    {
-                      id: 'attributes',
-                      title: 'Öznitelikler',
-                      badge: attributes.length || undefined,
-                      content: (
-                        <div className="space-y-4">
-                          <div className="flex justify-between items-center">
-                            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Öznitelikler</h3>
-                            <Button
-                              variant="outline"
-                              onClick={() => setShowAttributeModal(true)}
-                              className="flex items-center"
-                            >
-                              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                              </svg>
-                              Öznitelik Ekle
-                            </Button>
-                          </div>
-                          
-                          {attributes.length > 0 ? (
-                            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 overflow-x-auto">
-                              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                                <thead className="bg-gray-50 dark:bg-gray-800">
-                                  <tr>
-                                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                      Öznitelik Adı
-                                    </th>
-                                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                      Tip
-                                    </th>
-                                    <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                      İşlemler
-                                    </th>
-                                  </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
-                                  {attributes.map(attr => (
-                                    <tr key={attr.id}>
-                                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                                        {getEntityName(attr, currentLanguage) || attr.name}
-                                      </td>
-                                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                        {attr.type}
-                                      </td>
-                                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
-                                        <Button
-                                          variant="danger"
-                                          size="sm"
-                                          onClick={() => handleRemoveAttribute(attr.id)}
-                                          className="flex items-center"
-                                        >
-                                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                          </svg>
-                                          Kaldır
-                                        </Button>
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          ) : (
-                            <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                              <svg className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                              <p className="text-gray-500 dark:text-gray-400">Bu kategoriye atanmış öznitelik bulunmamaktadır.</p>
-                              <Button
-                                variant="outline"
-                                onClick={() => setShowAttributeModal(true)}
-                                className="mt-4 flex items-center"
-                              >
-                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                </svg>
-                                Öznitelik Ekle
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    }
-                  ]}
-                  defaultActiveTab="general"
-                  onTabChange={(tabId) => {
-                    setActiveTab(tabId);
-                  }}
-                />
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          Kategorinin aktif olup olmadığını belirler. Pasif kategoriler kullanıcı arayüzünde gösterilmez.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {activeTab === 'hierarchy' && renderHierarchy()}
+                {activeTab === 'attributeGroups' && (
+                  <AttributeGroupsTab
+                    attributeGroups={attributeGroups.map(g => ({
+                      _id: g.id,
+                      name: g.name,
+                      code: g.code,
+                      description: g.description,
+                      attributes: g.attributes
+                    }))}
+                    isEditing={isEditing}
+                    onAdd={async (groupId: string) => {
+                      await handleAddAttributeGroup([groupId]);
+                    }}
+                    onRemove={handleRemoveAttributeGroup}
+                    title="Öznitelik Grupları"
+                    emptyMessage="Bu kategoriye atanmış öznitelik grubu bulunmamaktadır."
+                    showAddButton={true}
+                  />
+                )}
+                {activeTab === 'attributes' && (
+                  <AttributesTab
+                    attributes={attributes.map(a => ({
+                      _id: a.id,
+                      name: { tr: a.name },
+                      type: a.type,
+                      code: a.name,
+                      description: { tr: '' },
+                      isActive: true,
+                      isRequired: false
+                    }))}
+                    isEditing={isEditing}
+                    onAdd={async (attributeId: string) => {
+                      await handleAddAttribute([attributeId]);
+                    }}
+                    onRemove={handleRemoveAttribute}
+                    title="Öznitelikler"
+                    emptyMessage="Bu kategoriye atanmış öznitelik bulunmamaktadır."
+                    showAddButton={true}
+                  />
+                )}
+                {activeTab === 'usage' && renderUsageStatistics()}
+                {activeTab === 'api' && renderApiReference()}
+                {activeTab === 'history' && renderHistory()}
               </div>
             ) : (
               <div>
                 {activeTab === 'overview' && renderOverview()}
                 {activeTab === 'hierarchy' && renderHierarchy()}
-                {activeTab === 'attributeGroups' && renderAttributeGroups()}
-                {activeTab === 'attributes' && renderAttributes()}
+                {activeTab === 'attributeGroups' && (
+                  <AttributeGroupsTab
+                    attributeGroups={attributeGroups.map(g => ({
+                      _id: g.id,
+                      name: g.name,
+                      code: g.code,
+                      description: g.description,
+                      attributes: g.attributes
+                    }))}
+                    isEditing={isEditing}
+                    onAdd={async (groupId: string) => {
+                      await handleAddAttributeGroup([groupId]);
+                    }}
+                    onRemove={handleRemoveAttributeGroup}
+                    title="Öznitelik Grupları"
+                    emptyMessage="Bu kategoriye atanmış öznitelik grubu bulunmamaktadır."
+                    showAddButton={true}
+                  />
+                )}
+                {activeTab === 'attributes' && (
+                  <AttributesTab
+                    attributes={attributes.map(a => ({
+                      _id: a.id,
+                      name: { tr: a.name },
+                      type: a.type,
+                      code: a.name,
+                      description: { tr: '' },
+                      isActive: true,
+                      isRequired: false
+                    }))}
+                    isEditing={isEditing}
+                    onAdd={async (attributeId: string) => {
+                      await handleAddAttribute([attributeId]);
+                    }}
+                    onRemove={handleRemoveAttribute}
+                    title="Öznitelikler"
+                    emptyMessage="Bu kategoriye atanmış öznitelik bulunmamaktadır."
+                    showAddButton={true}
+                  />
+                )}
                 {activeTab === 'usage' && renderUsageStatistics()}
                 {activeTab === 'api' && renderApiReference()}
                 {activeTab === 'history' && renderHistory()}
@@ -2136,6 +2076,7 @@ const CategoryDetailsPage: React.FC = () => {
       {/* Modallar */}
       {renderAttributeModal()}
       {renderAttributeGroupModal()}
+      {renderCommentModal()}
     </div>
   );
 };

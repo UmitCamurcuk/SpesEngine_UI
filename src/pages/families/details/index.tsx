@@ -64,7 +64,9 @@ const FamilyDetailsPage: React.FC = () => {
     name: '',
     code: '',
     description: '',
-    isActive: true
+    isActive: true,
+    parent: undefined as string | undefined,
+    category: undefined as string | undefined
   });
 
   // Attributes and AttributeGroups state
@@ -209,7 +211,9 @@ const FamilyDetailsPage: React.FC = () => {
             name: getEntityName(data, currentLanguage),
             code: data.code || '',
             description: getEntityDescription(data, currentLanguage),
-            isActive: data.isActive
+            isActive: data.isActive,
+            parent: data.parent ? (typeof data.parent === 'string' ? data.parent : (data.parent as any)?._id) : undefined,
+            category: data.category ? (typeof data.category === 'string' ? data.category : (data.category as any)?._id) : undefined
           });
         
         // İlişkili öznitelikleri getir
@@ -379,14 +383,18 @@ const FamilyDetailsPage: React.FC = () => {
       name: editableFields.name,
       code: editableFields.code,
       description: editableFields.description,
-      isActive: editableFields.isActive
+      isActive: editableFields.isActive,
+      parent: editableFields.parent,
+      category: editableFields.category
     };
 
     const initialState = {
       name: initialFormState.name,
       code: initialFormState.code,
       description: initialFormState.description,
-      isActive: initialFormState.isActive
+      isActive: initialFormState.isActive,
+      parent: initialFormState.parent,
+      category: initialFormState.category
     };
 
     // Form alanları değişikliği kontrolü
@@ -429,6 +437,20 @@ const FamilyDetailsPage: React.FC = () => {
     // Aktif durum değişikliği
     if (editableFields.isActive !== initialFormState.isActive) {
       changes.push(`Aktif: ${initialFormState.isActive ? 'Evet' : 'Hayır'} → ${editableFields.isActive ? 'Evet' : 'Hayır'}`);
+    }
+    
+    // Parent değişikliği
+    if (editableFields.parent !== initialFormState.parent) {
+      const oldParent = initialFormState.parent || 'Yok';
+      const newParent = editableFields.parent || 'Yok';
+      changes.push(`Üst Aile: ${oldParent} → ${newParent}`);
+    }
+    
+    // Category değişikliği
+    if (editableFields.category !== initialFormState.category) {
+      const oldCategory = initialFormState.category || 'Yok';
+      const newCategory = editableFields.category || 'Yok';
+      changes.push(`Kategori: ${oldCategory} → ${newCategory}`);
     }
 
     // AttributeGroups değişikliği
@@ -512,6 +534,12 @@ const FamilyDetailsPage: React.FC = () => {
           if (editableFields.isActive !== initialFormState.isActive) {
             updateData.isActive = editableFields.isActive;
           }
+          if (editableFields.parent !== initialFormState.parent) {
+            updateData.parent = editableFields.parent || undefined;
+          }
+          if (editableFields.category !== initialFormState.category) {
+            updateData.category = editableFields.category || undefined;
+          }
           
           // AttributeGroups değişikliği varsa ekle
           const currentGroupIds = attributeGroups.map(g => g._id);
@@ -574,7 +602,9 @@ const FamilyDetailsPage: React.FC = () => {
       name: getEntityName(family, currentLanguage),
       code: family.code || '',
       description: getEntityDescription(family, currentLanguage),
-      isActive: family.isActive
+      isActive: family.isActive,
+      parent: family.parent ? (typeof family.parent === 'string' ? family.parent : (family.parent as any)?._id) : undefined,
+      category: family.category ? (typeof family.category === 'string' ? family.category : (family.category as any)?._id) : undefined
     });
     
     setFormErrors({});
@@ -589,7 +619,9 @@ const FamilyDetailsPage: React.FC = () => {
       name: getEntityName(family, currentLanguage),
       code: family.code || '',
       description: getEntityDescription(family, currentLanguage),
-      isActive: family.isActive
+      isActive: family.isActive,
+      parent: family.parent ? (typeof family.parent === 'string' ? family.parent : (family.parent as any)?._id) : undefined,
+      category: family.category ? (typeof family.category === 'string' ? family.category : (family.category as any)?._id) : undefined
     };
     
     setEditableFields(initialFields);
@@ -618,19 +650,37 @@ const FamilyDetailsPage: React.FC = () => {
   // Handle attribute group operations
   const handleAddAttributeGroup = async (groupId: string) => {
     try {
+      // Grup zaten ekli mi kontrol et
+      if (attributeGroups.some(g => g._id === groupId)) {
+        showToast({
+          type: 'warning',
+          title: 'Uyarı',
+          message: 'Bu öznitelik grubu zaten eklenmiş',
+          duration: 3000
+        });
+        return;
+      }
+      
       // AttributeGroup'u API'den getir
       const groupData = await attributeGroupService.getAttributeGroupById(groupId);
       
-      // State'e ekle
+      // State'e ekle - sadece grup bilgilerini ekle, attributes'leri ana listeye ekleme
       const newGroup = {
         _id: groupData._id,
         name: groupData.name,
         code: groupData.code,
         description: groupData.description,
-        attributes: groupData.attributes || []
+        attributes: groupData.attributes || [] // Grup içindeki attributes bilgisi (referans amaçlı)
       };
       
       setAttributeGroups(prev => [...prev, newGroup]);
+      
+      showToast({
+        type: 'success',
+        title: 'Başarılı',
+        message: 'Öznitelik grubu başarıyla eklendi',
+        duration: 3000
+      });
     } catch (error: any) {
       showToast({
         type: 'error',
@@ -648,6 +698,17 @@ const FamilyDetailsPage: React.FC = () => {
   // Handle attribute operations
   const handleAddAttribute = async (attributeId: string) => {
     try {
+      // Attribute zaten ekli mi kontrol et
+      if (attributes.some(a => a._id === attributeId)) {
+        showToast({
+          type: 'warning',
+          title: 'Uyarı',
+          message: 'Bu öznitelik zaten eklenmiş',
+          duration: 3000
+        });
+        return;
+      }
+      
       // Attribute'u API'den getir
       const attributeData = await attributeService.getAttributeById(attributeId);
       
@@ -663,6 +724,13 @@ const FamilyDetailsPage: React.FC = () => {
       };
       
       setAttributes(prev => [...prev, newAttribute]);
+      
+      showToast({
+        type: 'success',
+        title: 'Başarılı',
+        message: 'Öznitelik başarıyla eklendi',
+        duration: 3000
+      });
     } catch (error: any) {
       showToast({
         type: 'error',
@@ -688,26 +756,46 @@ const FamilyDetailsPage: React.FC = () => {
         {/* Family Hierarchy */}
         <div className="space-y-3">
           <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Aile Hiyerarşisi
+            Aile Hiyerarşisi {isEditing && "(Üst aile seçin)"}
           </h4>
           <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
             {familyTree.length > 0 ? (
               <div>
-                <UnifiedTreeView 
-                  data={familyTree} 
-                  activeNodeId={id}
-                  expandAll={true}
-                  maxHeight="300px"
-                  showRelationLines={true}
-                  variant="spectrum"
-                  onNodeClick={(node) => {
-                    if (node.id !== id) {
-                      navigate(`/families/details/${node.id}`);
-                    }
-                  }}
-                  className="shadow-sm"
-                  key={`family-tree-view-${id}`}
-                />
+                {isEditing ? (
+                  <UnifiedTreeView 
+                    data={familyTree.filter(f => f.id !== id)} // Kendisini çıkar
+                    defaultSelectedIds={family.parent ? [typeof family.parent === 'string' ? family.parent : (family.parent as any)?._id || ''] : []}
+                    expandAll={true}
+                    maxHeight="300px"
+                    showRelationLines={true}
+                    variant="spectrum"
+                    mode="select"
+                    selectionMode="single"
+                    onSelectionChange={(selectedIds) => {
+                      const newParentId = selectedIds[0] || undefined;
+                      console.log("Seçilen üst aile ID:", newParentId);
+                      setEditableFields(prev => ({ ...prev, parent: newParentId }));
+                    }}
+                    className="shadow-sm"
+                    key={`family-tree-edit-${id}`}
+                  />
+                ) : (
+                  <UnifiedTreeView 
+                    data={familyTree} 
+                    activeNodeId={id}
+                    expandAll={true}
+                    maxHeight="300px"
+                    showRelationLines={true}
+                    variant="spectrum"
+                    onNodeClick={(node) => {
+                      if (node.id !== id) {
+                        navigate(`/families/details/${node.id}`);
+                      }
+                    }}
+                    className="shadow-sm"
+                    key={`family-tree-view-${id}`}
+                  />
+                )}
               </div>
             ) : (
               <div className="text-center py-6">
@@ -724,29 +812,66 @@ const FamilyDetailsPage: React.FC = () => {
               </div>
             )}
           </div>
+          
+          {/* Seçili Üst Aile Bilgisi */}
+          {family.parent && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md border border-blue-200 dark:border-blue-800">
+              <div className="flex items-start">
+                <svg className="w-5 h-5 mr-2 mt-0.5 text-blue-500 dark:text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <h4 className="text-sm font-medium text-blue-700 dark:text-blue-300">Üst Aile Bilgisi</h4>
+                  <p className="mt-1 text-sm text-blue-600 dark:text-blue-400">
+                    Bu aile, <strong>{typeof family.parent === 'string' ? family.parent : getEntityName(family.parent, currentLanguage)}</strong> ailesinin alt ailesidir.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         
-        {/* Category Hierarchy */}
+        {/* Category Selection */}
         <div className="space-y-3">
           <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Kategori Hiyerarşisi
+            Kategori Seçimi {isEditing && "(Bu ailenin kategorisini seçin)"}
           </h4>
           <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
             {categoryTree.length > 0 ? (
               <div>
-                <UnifiedTreeView 
-                  data={categoryTree} 
-                  activeNodeId={id}
-                  expandAll={true}
-                  maxHeight="300px"
-                  showRelationLines={true}
-                  variant="spectrum"
-                  onNodeClick={(node) => {
-                    navigate(`/categories/details/${node.id}`);
-                  }}
-                  className="shadow-sm"
-                  key={`category-tree-view-${id}`}
-                />
+                {isEditing ? (
+                  <UnifiedTreeView 
+                    data={categoryTree}
+                    defaultSelectedIds={family.category ? [typeof family.category === 'string' ? family.category : (family.category as any)?._id || ''] : []}
+                    expandAll={true}
+                    maxHeight="300px"
+                    showRelationLines={true}
+                    variant="spectrum"
+                    mode="select"
+                    selectionMode="single"
+                    onSelectionChange={(selectedIds) => {
+                      const newCategoryId = selectedIds[0] || undefined;
+                      console.log("Seçilen kategori ID:", newCategoryId);
+                      setEditableFields(prev => ({ ...prev, category: newCategoryId }));
+                    }}
+                    className="shadow-sm"
+                    key={`category-tree-edit-${id}`}
+                  />
+                ) : (
+                  <UnifiedTreeView 
+                    data={categoryTree} 
+                    activeNodeId={family.category ? (typeof family.category === 'string' ? family.category : (family.category as any)?._id) : undefined}
+                    expandAll={true}
+                    maxHeight="300px"
+                    showRelationLines={true}
+                    variant="spectrum"
+                    onNodeClick={(node) => {
+                      navigate(`/categories/details/${node.id}`);
+                    }}
+                    className="shadow-sm"
+                    key={`category-tree-view-${id}`}
+                  />
+                )}
               </div>
             ) : (
               <div className="text-center py-6">
@@ -763,6 +888,23 @@ const FamilyDetailsPage: React.FC = () => {
               </div>
             )}
           </div>
+          
+          {/* Seçili Kategori Bilgisi */}
+          {family.category && (
+            <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-md border border-green-200 dark:border-green-800">
+              <div className="flex items-start">
+                <svg className="w-5 h-5 mr-2 mt-0.5 text-green-500 dark:text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <h4 className="text-sm font-medium text-green-700 dark:text-green-300">Seçili Kategori</h4>
+                  <p className="mt-1 text-sm text-green-600 dark:text-green-400">
+                    Bu aile, <strong>{typeof family.category === 'string' ? family.category : getEntityName(family.category, currentLanguage)}</strong> kategorisine bağlıdır.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

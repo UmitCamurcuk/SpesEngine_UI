@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
 import Breadcrumb from '../../../components/common/Breadcrumb';
 import EntityHistoryList from '../../../components/common/EntityHistoryList';
 import AttributeGroupsTab from '../../../components/common/AttributeGroupsTab';
 import AttributesTab from '../../../components/common/AttributesTab';
+import { UnifiedTreeView } from '../../../components/ui';
 import { useNotification } from '../../../components/notifications';
 import familyService from '../../../services/api/familyService';
 import attributeService from '../../../services/api/attributeService';
 import attributeGroupService from '../../../services/api/attributeGroupService';
+import categoryService from '../../../services/api/categoryService';
 import type { Family, CreateFamilyDto } from '../../../types/family';
 import dayjs from 'dayjs';
 import 'dayjs/locale/tr';
@@ -83,6 +85,11 @@ const FamilyDetailsPage: React.FC = () => {
     attributes?: any[]
   }[]>([]);
   
+  // Hierarchy state
+  const [familyTree, setFamilyTree] = useState<any[]>([]);
+  const [categoryTree, setCategoryTree] = useState<any[]>([]);
+  const [isLoadingHierarchy, setIsLoadingHierarchy] = useState(false);
+  
   // Notification hook
   const { showToast, showCommentModal } = useNotification();
   
@@ -91,6 +98,77 @@ const FamilyDetailsPage: React.FC = () => {
     if (!dateString) return '-';
     return dayjs(dateString).locale('tr').format('DD MMMM YYYY HH:mm:ss');
   };
+
+  // Hierarchy functions
+  const fetchFamilyTree = useCallback(async () => {
+    setIsLoadingHierarchy(true);
+    try {
+      const response = await familyService.getFamilies();
+      const families = response.families || response;
+      
+      const buildFamilyTree = (parentId: string | null = null): any[] => {
+        return families
+          .filter((fam: any) => {
+            if (parentId === null) {
+              return !fam.parent || (typeof fam.parent === 'string' ? !fam.parent : !fam.parent._id);
+            }
+            return typeof fam.parent === 'string' ? fam.parent === parentId : fam.parent?._id === parentId;
+          })
+          .map((fam: any) => ({
+            id: fam._id,
+            name: getEntityName(fam, currentLanguage),
+            type: 'family',
+            level: 0,
+            hasChildren: families.some((child: any) => 
+              typeof child.parent === 'string' ? child.parent === fam._id : child.parent?._id === fam._id
+            ),
+            children: buildFamilyTree(fam._id)
+          }));
+      };
+      
+      const tree = buildFamilyTree();
+      setFamilyTree(tree);
+    } catch (error) {
+      console.error('Family tree fetch error:', error);
+    } finally {
+      setIsLoadingHierarchy(false);
+    }
+  }, [currentLanguage]);
+
+  const fetchCategoryTree = useCallback(async () => {
+    setIsLoadingHierarchy(true);
+    try {
+      const response = await categoryService.getCategories();
+      const categories = response.categories || response;
+      
+      const buildCategoryTree = (parentId: string | null = null): any[] => {
+        return categories
+          .filter((cat: any) => {
+            if (parentId === null) {
+              return !cat.parent || (typeof cat.parent === 'string' ? !cat.parent : !cat.parent._id);
+            }
+            return typeof cat.parent === 'string' ? cat.parent === parentId : cat.parent?._id === parentId;
+          })
+          .map((cat: any) => ({
+            id: cat._id,
+            name: getEntityName(cat, currentLanguage),
+            type: 'category',
+            level: 0,
+            hasChildren: categories.some((child: any) => 
+              typeof child.parent === 'string' ? child.parent === cat._id : child.parent?._id === cat._id
+            ),
+            children: buildCategoryTree(cat._id)
+          }));
+      };
+      
+      const tree = buildCategoryTree();
+      setCategoryTree(tree);
+    } catch (error) {
+      console.error('Category tree fetch error:', error);
+    } finally {
+      setIsLoadingHierarchy(false);
+    }
+  }, [currentLanguage]);
 
   const getStatusIcon = (isActive?: boolean) => {
     if (isActive) {
@@ -189,10 +267,14 @@ const FamilyDetailsPage: React.FC = () => {
     
     fetchFamilyDetails();
     
+    // Fetch hierarchy data
+    fetchFamilyTree();
+    fetchCategoryTree();
+    
     return () => {
       isMounted = false;
     };
-  }, [id, t, currentLanguage]);
+  }, [id, t, currentLanguage, fetchFamilyTree, fetchCategoryTree]);
   
   // LOADING STATE
   if (isLoading) {
@@ -594,6 +676,97 @@ const FamilyDetailsPage: React.FC = () => {
   const handleRemoveAttribute = (attributeId: string) => {
     setAttributes(prev => prev.filter(attribute => attribute._id !== attributeId));
   };
+
+    // Render hierarchy tab
+  const renderHierarchy = () => (
+    <div className="space-y-6" key="hierarchy-content">
+      <h3 className="text-lg font-medium text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">
+        Hiyerarşik İlişkiler
+      </h3>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Family Hierarchy */}
+        <div className="space-y-3">
+          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Aile Hiyerarşisi
+          </h4>
+          <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+            {familyTree.length > 0 ? (
+              <div>
+                <UnifiedTreeView 
+                  data={familyTree} 
+                  activeNodeId={id}
+                  expandAll={true}
+                  maxHeight="300px"
+                  showRelationLines={true}
+                  variant="spectrum"
+                  onNodeClick={(node) => {
+                    if (node.id !== id) {
+                      navigate(`/families/details/${node.id}`);
+                    }
+                  }}
+                  className="shadow-sm"
+                  key={`family-tree-view-${id}`}
+                />
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <svg className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                </svg>
+                <p className="text-gray-500 dark:text-gray-400">Aile hiyerarşisi yüklenemedi.</p>
+                <button 
+                  onClick={() => fetchFamilyTree()} 
+                  className="mt-3 px-3 py-1.5 bg-primary-light text-white rounded-md hover:bg-primary-light/90 dark:bg-primary-dark dark:hover:bg-primary-dark/90 transition-colors text-sm"
+                >
+                  Tekrar Dene
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* Category Hierarchy */}
+        <div className="space-y-3">
+          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Kategori Hiyerarşisi
+          </h4>
+          <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+            {categoryTree.length > 0 ? (
+              <div>
+                <UnifiedTreeView 
+                  data={categoryTree} 
+                  activeNodeId={id}
+                  expandAll={true}
+                  maxHeight="300px"
+                  showRelationLines={true}
+                  variant="spectrum"
+                  onNodeClick={(node) => {
+                    navigate(`/categories/details/${node.id}`);
+                  }}
+                  className="shadow-sm"
+                  key={`category-tree-view-${id}`}
+                />
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <svg className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                </svg>
+                <p className="text-gray-500 dark:text-gray-400">Kategori hiyerarşisi yüklenemedi.</p>
+                <button 
+                  onClick={() => fetchCategoryTree()} 
+                  className="mt-3 px-3 py-1.5 bg-primary-light text-white rounded-md hover:bg-primary-light/90 dark:bg-primary-dark dark:hover:bg-primary-dark/90 transition-colors text-sm"
+                >
+                  Tekrar Dene
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
   
   // MAIN RENDER
   return (
@@ -777,6 +950,21 @@ const FamilyDetailsPage: React.FC = () => {
                 </svg>
               Detaylar
         </div>
+          </button>
+          <button
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'hierarchy'
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+            }`}
+            onClick={() => setActiveTab('hierarchy')}
+          >
+            <div className="flex items-center">
+              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+              </svg>
+              Hiyerarşi
+            </div>
           </button>
                 <button 
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
@@ -1179,6 +1367,15 @@ const FamilyDetailsPage: React.FC = () => {
         </Button>
       </div>
             </div>
+          </CardBody>
+        </Card>
+      )}
+
+      {/* TAB CONTENT - HIERARCHY */}
+      {activeTab === 'hierarchy' && (
+        <Card>
+          <CardBody>
+            {renderHierarchy()}
           </CardBody>
         </Card>
       )}

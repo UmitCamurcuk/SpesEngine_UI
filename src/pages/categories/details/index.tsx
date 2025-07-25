@@ -6,8 +6,7 @@ import Breadcrumb from '../../../components/common/Breadcrumb';
 import EntityHistoryList from '../../../components/common/EntityHistoryList';
 import { UnifiedTreeView } from '../../../components/ui';
 import TabView from '../../../components/ui/TabView';
-import PaginatedAttributeSelector from '../../../components/attributes/PaginatedAttributeSelector';
-import AttributeGroupSelector from '../../../components/attributes/AttributeGroupSelector';
+
 import AttributeGroupsTab from '../../../components/common/AttributeGroupsTab';
 import AttributesTab from '../../../components/common/AttributesTab';
 import categoryService from '../../../services/api/categoryService';
@@ -19,6 +18,7 @@ import { toast } from 'react-hot-toast';
 import 'dayjs/locale/tr';
 import { useTranslation } from '../../../context/i18nContext';
 import { getEntityName, getEntityDescription } from '../../../utils/translationUtils';
+import { useNotification } from '../../../components/notifications';
 
 interface TreeNode {
   id: string;
@@ -124,17 +124,10 @@ const CategoryDetailsPage: React.FC = () => {
   // JSON preview state'i
   const [showJsonPreview, setShowJsonPreview] = useState<boolean>(false);
   
-  // Öznitelik ve öznitelik grupları için modal state'leri ekleyelim
-  const [showAttributeModal, setShowAttributeModal] = useState<boolean>(false);
-  const [showAttributeGroupModal, setShowAttributeGroupModal] = useState<boolean>(false);
+
   
-  // Öznitelik seçici modal için yeni state'ler ekleyelim
-  const [selectedAttributeIdsForModal, setSelectedAttributeIdsForModal] = useState<string[]>([]);
-  const [selectedGroupIdsForModal, setSelectedGroupIdsForModal] = useState<string[]>([]);
-  
-  // Comment modal state
-  const [showCommentModal, setShowCommentModal] = useState<boolean>(false);
-  const [comment, setComment] = useState<string>('');
+  // Notification hook
+  const { showToast, showCommentModal } = useNotification();
   
   // Veriyi getir
   useEffect(() => {
@@ -454,30 +447,57 @@ const CategoryDetailsPage: React.FC = () => {
     
     if (!id || !formData) return;
     
+    // Değişiklikleri hesapla
+    const originalData = {
+      name: getEntityName(category, currentLanguage) || '',
+      code: category?.code || '',
+      description: getEntityDescription(category, currentLanguage) || '',
+      isActive: category?.isActive || true,
+      parentId: getEntityId(category?.parentCategory) || getEntityId(category?.parent) || undefined,
+      family: getEntityId(category?.family) || undefined
+    };
+    
+    const changes: string[] = [];
+    
+    // Değişen alanları bul
+    if (formData.name !== originalData.name) {
+      changes.push(`İsim: ${originalData.name} → ${formData.name}`);
+    }
+    if (formData.code !== originalData.code) {
+      changes.push(`Kod: ${originalData.code} → ${formData.code}`);
+    }
+    if (formData.description !== originalData.description) {
+      changes.push(`Açıklama: ${originalData.description || 'Boş'} → ${formData.description || 'Boş'}`);
+    }
+    if (formData.isActive !== originalData.isActive) {
+      changes.push(`Aktif: ${originalData.isActive ? 'Evet' : 'Hayır'} → ${formData.isActive ? 'Evet' : 'Hayır'}`);
+    }
+    if (formData.parentId !== originalData.parentId) {
+      changes.push(`Üst Kategori: ${originalData.parentId || 'Yok'} → ${formData.parentId || 'Yok'}`);
+    }
+    if (formData.family !== originalData.family) {
+      changes.push(`Aile: ${originalData.family || 'Yok'} → ${formData.family || 'Yok'}`);
+    }
+    
     // Comment modal'ını aç
-    setShowCommentModal(true);
+    showCommentModal({
+      title: 'Kategori Değişiklik Yorumu',
+      changes: changes,
+      onSave: async (comment: string) => {
+        await handleSaveWithComment(comment, originalData);
+      }
+    });
   };
   
   // Comment ile kaydetme handler
-  const handleSaveWithComment = async () => {
+  const handleSaveWithComment = async (comment: string, originalData: any) => {
     if (!id || !formData) return;
     
     setIsSaving(true);
     setError(null);
     setSuccess(false);
-    setShowCommentModal(false);
     
     try {
-      // Sadece değişen alanları hesapla
-      const originalData = {
-        name: getEntityName(category, currentLanguage) || '',
-        code: category?.code || '',
-        description: getEntityDescription(category, currentLanguage) || '',
-        isActive: category?.isActive || true,
-        parentId: getEntityId(category?.parentCategory) || getEntityId(category?.parent) || undefined,
-        family: getEntityId(category?.family) || undefined
-      };
-      
       const changedFields: any = {};
       
       // Değişen alanları bul
@@ -511,7 +531,13 @@ const CategoryDetailsPage: React.FC = () => {
       
       setSuccess(true);
       setIsEditing(false);
-      setComment('');
+      
+      showToast({
+        type: 'success',
+        title: 'Başarılı',
+        message: 'Kategori başarıyla güncellendi',
+        duration: 3000
+      });
       
       // Başarı mesajını belirli bir süre sonra kaldır
       setTimeout(() => {
@@ -520,6 +546,12 @@ const CategoryDetailsPage: React.FC = () => {
       
     } catch (err: any) {
       setError(err.message || 'Kategori güncellenirken bir hata oluştu');
+      showToast({
+        type: 'error',
+        title: 'Hata',
+        message: err.message || 'Kategori güncellenirken bir hata oluştu',
+        duration: 5000
+      });
     } finally {
       setIsSaving(false);
     }
@@ -561,13 +593,13 @@ const CategoryDetailsPage: React.FC = () => {
           id: 'attributeGroups',
           title: 'Öznitelik Grupları',
           badge: attributeGroups.length || undefined,
-          content: renderAttributeGroups()
+          content: null // Artık direkt component kullanılıyor
         },
         {
           id: 'attributes',
           title: 'Öznitelikler',
           badge: attributes.length || undefined,
-          content: renderAttributes()
+          content: null // Artık direkt component kullanılıyor
         },
         {
           id: 'usage',
@@ -1008,179 +1040,29 @@ const CategoryDetailsPage: React.FC = () => {
               </div>
             </div>
           )}
+          
+          {/* Aile Yok Bilgisi */}
+          {!familyName && (
+            <div className="bg-gray-50 dark:bg-gray-900/20 p-3 rounded-md border border-gray-200 dark:border-gray-700">
+              <div className="flex items-start">
+                <svg className="w-5 h-5 mr-2 mt-0.5 text-gray-500 dark:text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Aile Bilgisi</h4>
+                  <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                    Bu kategori herhangi bir aileye bağlı değildir.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
   
-  const renderAttributeGroups = () => (
-    <div className="space-y-4" key="attribute-groups-content">
-      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Öznitelik Grupları</h3>
-      
-      {attributeGroups.length > 0 ? (
-        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 overflow-hidden">
-          <div className="grid grid-cols-1 gap-4">
-            {attributeGroups.map(group => (
-              <div 
-                key={group.id} 
-                className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium text-gray-900 dark:text-white">{getEntityName(group, currentLanguage) || group.name}</h4>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{group.code}</p>
-                  </div>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => isEditing && handleRemoveAttributeGroup(group.id)}
-                    className={`flex items-center ${!isEditing && 'opacity-50 cursor-not-allowed'}`}
-                    disabled={!isEditing}
-                  >
-                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    Kaldır
-                  </Button>
-                </div>
-                
-                {/* Grup açıklaması */}
-                {getEntityDescription(group, currentLanguage) && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-3 border-t border-gray-100 dark:border-gray-700 pt-3">
-                    {getEntityDescription(group, currentLanguage)}
-                  </p>
-                )}
-                
-                {/* Gruba ait öznitelikler */}
-                {group.attributes && group.attributes.length > 0 ? (
-                  <div className="mt-4 border-t border-gray-100 dark:border-gray-700 pt-3">
-                    <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Grup Öznitelikleri ({group.attributes.length})
-                    </h5>
-                    <ul className="ml-2 space-y-1">
-                      {group.attributes.map((attr: any) => (
-                        <li key={attr._id} className="flex items-center justify-between">
-                          <div className="flex items-center">
-                            <span className="h-1.5 w-1.5 rounded-full bg-primary-light dark:bg-primary-dark mr-2"></span>
-                            <span className="text-sm text-gray-700 dark:text-gray-300">{getEntityName(attr, currentLanguage) || attr.name}</span>
-                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">({attr.type})</span>
-                          </div>
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            onClick={() => isEditing && handleRemoveAttributeFromGroup(attr._id, group.id)}
-                            className={`flex items-center ${!isEditing && 'opacity-50 cursor-not-allowed'}`}
-                            disabled={!isEditing}
-                          >
-                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                            Kaldır
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : (
-                  <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 text-sm text-gray-500 dark:text-gray-400">
-                    Bu gruba atanmış öznitelik bulunmamaktadır.
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg">
-          <svg className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-          </svg>
-          <p className="text-gray-500 dark:text-gray-400">Bu kategoriye atanmış öznitelik grubu bulunmamaktadır.</p>
-          <Button
-            variant="outline"
-            onClick={() => isEditing && setShowAttributeGroupModal(true)}
-            className={`mt-4 flex items-center ${!isEditing && 'opacity-50 cursor-not-allowed'}`}
-            disabled={!isEditing}
-          >
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Grup Ekle
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-  
-  const renderAttributes = () => (
-    <div className="space-y-4" key="attributes-content">
-      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Öznitelikler</h3>
-      
-      {attributes.length > 0 ? (
-        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-800">
-              <tr>
-                <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                  Öznitelik Adı
-                </th>
-                <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                  Tip
-                </th>
-                <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                  İşlemler
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
-              {attributes.map(attr => (
-                <tr key={attr.id}>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                    {getEntityName(attr, currentLanguage) || attr.name}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    {attr.type}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      onClick={() => isEditing && handleRemoveAttribute(attr.id)}
-                      className={`flex items-center ${!isEditing && 'opacity-50 cursor-not-allowed'}`}
-                      disabled={!isEditing}
-                    >
-                      <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      Kaldır
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg">
-          <svg className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          <p className="text-gray-500 dark:text-gray-400">Bu kategoriye atanmış öznitelik bulunmamaktadır.</p>
-          <Button
-            variant="outline"
-            onClick={() => isEditing && setShowAttributeModal(true)}
-            className={`mt-4 flex items-center ${!isEditing && 'opacity-50 cursor-not-allowed'}`}
-            disabled={!isEditing}
-          >
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Öznitelik Ekle
-          </Button>
-        </div>
-      )}
-    </div>
-  );
+
   
   const handleEdit = () => {
     setIsEditing(true);
@@ -1265,249 +1147,89 @@ const CategoryDetailsPage: React.FC = () => {
     console.log(`Öznitelik kaldırıldı: ${attributeId}`);
   };
 
-  // Öznitelik grubu ekleme handler'ı
-  const handleAddAttributeGroup = async (selectedGroupIds: string[]) => {
-    if (!selectedGroupIds.length) return;
-    
+    // Öznitelik grubu ekleme handler'ı
+  const handleAddAttributeGroup = async (groupId: string) => {
     try {
-      const newGroups: {
-        id: string,
-        name: string,
-        code: string,
-        description?: string,
-        attributes?: any[]
-      }[] = [];
-      
-      for (const groupId of selectedGroupIds) {
-        // Grup zaten ekli mi kontrol et
-        if (attributeGroups.some(g => g.id === groupId)) continue;
-        
-        const groupData = await attributeGroupService.getAttributeGroupById(groupId, {
-          includeAttributes: true
-        });
-        
-        newGroups.push({
-          id: groupData._id,
-          name: getEntityName(groupData, currentLanguage) || '',
-          code: groupData.code,
-          description: getEntityDescription(groupData, currentLanguage) || '',
-          attributes: groupData.attributes || []
-        });
+      // Grup zaten ekli mi kontrol et
+      if (attributeGroups.some(g => g.id === groupId)) {
+        toast.error("Bu öznitelik grubu zaten eklenmiş");
+        return;
       }
       
-      if (newGroups.length > 0) {
-        setAttributeGroups(prev => [...prev, ...newGroups]);
-        toast.success(`${newGroups.length} öznitelik grupları başarıyla eklendi`);
-        
-        // Düzenleme modunda değilse direkt kaydet
-        if (!isEditing && id) {
-          try {
-            await categoryService.updateCategory(id, {
-              attributeGroups: [...attributeGroups, ...newGroups].map(g => g.id)
-            });
-            toast.success("Öznitelik grupları kaydedildi");
-          } catch (err) {
-            toast.error("Öznitelik grupları kaydedilirken hata oluştu");
-            console.error('Öznitelik grupları kaydedilirken hata:', err);
-          }
+      const groupData = await attributeGroupService.getAttributeGroupById(groupId, {
+        includeAttributes: true
+      });
+      
+      const newGroup = {
+        id: groupData._id,
+        name: getEntityName(groupData, currentLanguage) || '',
+        code: groupData.code,
+        description: getEntityDescription(groupData, currentLanguage) || '',
+        attributes: groupData.attributes || []
+      };
+      
+      setAttributeGroups(prev => [...prev, newGroup]);
+      toast.success("Öznitelik grubu başarıyla eklendi");
+      
+      // Düzenleme modunda değilse direkt kaydet
+      if (!isEditing && id) {
+        try {
+          await categoryService.updateCategory(id, {
+            attributeGroups: [...attributeGroups, newGroup].map(g => g.id)
+          });
+          toast.success("Öznitelik grubu kaydedildi");
+        } catch (err) {
+          toast.error("Öznitelik grubu kaydedilirken hata oluştu");
+          console.error('Öznitelik grubu kaydedilirken hata:', err);
         }
-      } else {
-        toast.error("Seçilen gruplar zaten eklenmiş");
       }
-      
-      setShowAttributeGroupModal(false);
-      setSelectedGroupIdsForModal([]);
     } catch (err) {
-      toast.error("Öznitelik grupları eklenirken hata oluştu");
-      console.error('Öznitelik grupları eklenirken hata:', err);
+      toast.error("Öznitelik grubu eklenirken hata oluştu");
+      console.error('Öznitelik grubu eklenirken hata:', err);
     }
   };
   
-  // Öznitelik ekleme handler'ı
-  const handleAddAttribute = async (selectedAttributeIds: string[]) => {
-    if (!selectedAttributeIds.length) return;
-    
+    // Öznitelik ekleme handler'ı
+  const handleAddAttribute = async (attributeId: string) => {
     try {
-      const newAttributes: {
-        id: string,
-        name: string,
-        type: string
-      }[] = [];
-      
-      for (const attrId of selectedAttributeIds) {
-        // Öznitelik zaten ekli mi kontrol et
-        if (attributes.some(a => a.id === attrId)) continue;
-        
-        const attrData = await attributeService.getAttributeById(attrId);
-        
-        newAttributes.push({
-          id: attrData._id,
-          name: getEntityName(attrData, currentLanguage) || '',
-          type: attrData.type
-        });
+      // Öznitelik zaten ekli mi kontrol et
+      if (attributes.some(a => a.id === attributeId)) {
+        toast.error("Bu öznitelik zaten eklenmiş");
+        return;
       }
       
-      if (newAttributes.length > 0) {
-        setAttributes(prev => [...prev, ...newAttributes]);
-        toast.success(`${newAttributes.length} öznitelik başarıyla eklendi`);
-        
-        // Düzenleme modunda değilse direkt kaydet
-        if (!isEditing && id) {
-          try {
-            await categoryService.updateCategory(id, {
-              attributes: [...attributes, ...newAttributes].map(a => a.id)
-            });
-            toast.success("Öznitelikler kaydedildi");
-          } catch (err) {
-            toast.error("Öznitelikler kaydedilirken hata oluştu");
-            console.error('Öznitelikler kaydedilirken hata:', err);
-          }
+      const attrData = await attributeService.getAttributeById(attributeId);
+      
+      const newAttribute = {
+        id: attrData._id,
+        name: getEntityName(attrData, currentLanguage) || '',
+        type: attrData.type
+      };
+      
+      setAttributes(prev => [...prev, newAttribute]);
+      toast.success("Öznitelik başarıyla eklendi");
+      
+      // Düzenleme modunda değilse direkt kaydet
+      if (!isEditing && id) {
+        try {
+          await categoryService.updateCategory(id, {
+            attributes: [...attributes, newAttribute].map(a => a.id)
+          });
+          toast.success("Öznitelik kaydedildi");
+        } catch (err) {
+          toast.error("Öznitelik kaydedilirken hata oluştu");
+          console.error('Öznitelik kaydedilirken hata:', err);
         }
-      } else {
-        toast.error("Seçilen öznitelikler zaten eklenmiş");
       }
-      
-      setShowAttributeModal(false);
-      setSelectedAttributeIdsForModal([]);
     } catch (err) {
-      toast.error("Öznitelikler eklenirken hata oluştu");
-      console.error('Öznitelikler eklenirken hata:', err);
+      toast.error("Öznitelik eklenirken hata oluştu");
+      console.error('Öznitelik eklenirken hata:', err);
     }
   };
   
-  // Öznitelik seçici modal
-  const renderAttributeModal = () => (
-    <Modal
-      title="Öznitelik Ekle"
-      isOpen={showAttributeModal}
-      onClose={() => setShowAttributeModal(false)}
-      size="xl"
-    >
-      <div className="p-4">
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Bu kategoriye eklemek istediğiniz öznitelikleri seçin.
-        </p>
-        
-        <PaginatedAttributeSelector 
-          selectedAttributes={selectedAttributeIdsForModal}
-          onChange={setSelectedAttributeIdsForModal}
-          excludeIds={attributes.map(a => typeof a.id === 'string' ? a.id : '')}
-        />
-        
-        <div className="flex justify-end space-x-2 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <Button 
-            variant="outline" 
-            onClick={() => {
-              setSelectedAttributeIdsForModal([]);
-              setShowAttributeModal(false);
-            }}
-          >
-            İptal
-          </Button>
-          <Button 
-            variant="primary" 
-            onClick={() => {
-              handleAddAttribute(selectedAttributeIdsForModal);
-              setSelectedAttributeIdsForModal([]);
-            }}
-          >
-            Ekle
-          </Button>
-        </div>
-      </div>
-    </Modal>
-  );
 
-  // Öznitelik grubu seçici modal
-  const renderAttributeGroupModal = () => (
-    <Modal
-      title="Öznitelik Grubu Ekle"
-      isOpen={showAttributeGroupModal}
-      onClose={() => setShowAttributeGroupModal(false)}
-      size="xl"
-    >
-      <div className="p-4">
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Bu kategoriye eklemek istediğiniz öznitelik gruplarını seçin.
-        </p>
-        
-        <AttributeGroupSelector
-          selectedAttributeGroups={selectedGroupIdsForModal}
-          onChange={setSelectedGroupIdsForModal}
-        />
-        
-        <div className="flex justify-end space-x-2 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <Button 
-            variant="outline" 
-            onClick={() => {
-              setSelectedGroupIdsForModal([]);
-              setShowAttributeGroupModal(false);
-            }}
-          >
-            İptal
-          </Button>
-          <Button 
-            variant="primary" 
-            onClick={() => {
-              handleAddAttributeGroup(selectedGroupIdsForModal);
-              setSelectedGroupIdsForModal([]);
-            }}
-          >
-            Ekle
-          </Button>
-        </div>
-      </div>
-    </Modal>
-  );
   
-  // Comment modal
-  const renderCommentModal = () => (
-    <Modal
-      title="Değişiklikleri Kaydet"
-      isOpen={showCommentModal}
-      onClose={() => setShowCommentModal(false)}
-      size="md"
-    >
-      <div className="p-4">
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Bu değişiklik için bir açıklama ekleyebilirsiniz. (İsteğe bağlı)
-        </p>
-        
-        <div>
-          <label htmlFor="comment" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Değişiklik Açıklaması
-          </label>
-          <textarea
-            id="comment"
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            rows={4}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark"
-            placeholder="Değişiklikle ilgili açıklama yazın..."
-          />
-        </div>
-        
-        <div className="flex justify-end space-x-2 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <Button 
-            variant="outline" 
-            onClick={() => {
-              setComment('');
-              setShowCommentModal(false);
-            }}
-          >
-            İptal
-          </Button>
-          <Button 
-            variant="primary" 
-            onClick={handleSaveWithComment}
-            loading={isSaving}
-          >
-            Kaydet
-          </Button>
-        </div>
-      </div>
-    </Modal>
-  );
+
   
   // Düzenleme modu değiştiğinde parentId ve family ID'lerin doğru gösterilmesini sağla
   useEffect(() => {
@@ -1986,9 +1708,7 @@ const CategoryDetailsPage: React.FC = () => {
                       attributes: g.attributes
                     }))}
                     isEditing={isEditing}
-                    onAdd={async (groupId: string) => {
-                      await handleAddAttributeGroup([groupId]);
-                    }}
+                    onAdd={handleAddAttributeGroup}
                     onRemove={handleRemoveAttributeGroup}
                     title="Öznitelik Grupları"
                     emptyMessage="Bu kategoriye atanmış öznitelik grubu bulunmamaktadır."
@@ -2007,9 +1727,7 @@ const CategoryDetailsPage: React.FC = () => {
                       isRequired: false
                     }))}
                     isEditing={isEditing}
-                    onAdd={async (attributeId: string) => {
-                      await handleAddAttribute([attributeId]);
-                    }}
+                    onAdd={handleAddAttribute}
                     onRemove={handleRemoveAttribute}
                     title="Öznitelikler"
                     emptyMessage="Bu kategoriye atanmış öznitelik bulunmamaktadır."
@@ -2034,9 +1752,7 @@ const CategoryDetailsPage: React.FC = () => {
                       attributes: g.attributes
                     }))}
                     isEditing={isEditing}
-                    onAdd={async (groupId: string) => {
-                      await handleAddAttributeGroup([groupId]);
-                    }}
+                    onAdd={handleAddAttributeGroup}
                     onRemove={handleRemoveAttributeGroup}
                     title="Öznitelik Grupları"
                     emptyMessage="Bu kategoriye atanmış öznitelik grubu bulunmamaktadır."
@@ -2055,9 +1771,7 @@ const CategoryDetailsPage: React.FC = () => {
                       isRequired: false
                     }))}
                     isEditing={isEditing}
-                    onAdd={async (attributeId: string) => {
-                      await handleAddAttribute([attributeId]);
-                    }}
+                    onAdd={handleAddAttribute}
                     onRemove={handleRemoveAttribute}
                     title="Öznitelikler"
                     emptyMessage="Bu kategoriye atanmış öznitelik bulunmamaktadır."
@@ -2073,10 +1787,7 @@ const CategoryDetailsPage: React.FC = () => {
         </CardBody>
       </Card>
       
-      {/* Modallar */}
-      {renderAttributeModal()}
-      {renderAttributeGroupModal()}
-      {renderCommentModal()}
+
     </div>
   );
 };

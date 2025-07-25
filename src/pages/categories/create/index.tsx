@@ -26,45 +26,25 @@ interface TreeNode {
 
 interface CategoryOption {
   _id: string;
-  name: { 
-    _id: string; 
-    key: string; 
-    namespace: string; 
-    translations: Record<string, string> 
-  };
+  name: any;
   code: string;
 }
 
 interface AttributeOption {
   _id: string;
-  name: { 
-    _id: string; 
-    key: string; 
-    namespace: string; 
-    translations: Record<string, string> 
-  };
+  name: any;
   code: string;
 }
 
 interface AttributeGroupOption {
   _id: string;
-  name: { 
-    _id: string; 
-    key: string; 
-    namespace: string; 
-    translations: Record<string, string> 
-  };
+  name: any;
   code: string;
 }
 
 interface FamilyOption {
   _id: string;
-  name: { 
-    _id: string; 
-    key: string; 
-    namespace: string; 
-    translations: Record<string, string> 
-  };
+  name: any;
   code: string;
 }
 
@@ -609,7 +589,10 @@ const CategoryCreatePage: React.FC = () => {
                       <div>
                         <h4 className="text-sm font-medium text-blue-700 dark:text-blue-300">Seçili Üst Kategori</h4>
                         <p className="mt-1 text-sm text-blue-600 dark:text-blue-400">
-                          {parentCategoryOptions.find(category => category._id === formData.parentCategory)?.name || 'Seçili kategori'}
+                          {(() => {
+                            const category = parentCategoryOptions.find(category => category._id === formData.parentCategory);
+                            return category ? getEntityName(category, currentLanguage) || 'Seçili kategori' : 'Seçili kategori';
+                          })()}
                         </p>
                       </div>
                     </div>
@@ -876,7 +859,7 @@ const CategoryCreatePage: React.FC = () => {
                     {formData.parentCategory 
                       ? (() => {
                           const cat = parentCategoryOptions.find(cat => cat._id === formData.parentCategory);
-                          return cat ? getEntityName(cat, currentLanguage) || cat.name || 'Bilinmiyor' : 'Bilinmiyor';
+                          return cat ? getEntityName(cat, currentLanguage) || 'Bilinmiyor' : 'Bilinmiyor';
                         })()
                       : 'Seçilmedi'
                     }
@@ -890,7 +873,7 @@ const CategoryCreatePage: React.FC = () => {
                     {formData.family 
                       ? (() => {
                           const family = familyOptions.find(family => family._id === formData.family);
-                          return family ? getEntityName(family, currentLanguage) || family.name || 'Bilinmiyor' : 'Bilinmiyor';
+                          return family ? getEntityName(family, currentLanguage) || 'Bilinmiyor' : 'Bilinmiyor';
                         })()
                       : 'Seçilmedi'
                     }
@@ -908,7 +891,7 @@ const CategoryCreatePage: React.FC = () => {
                     const group = attributeGroupOptions.find(g => g._id === groupId);
                     return (
                       <span key={groupId} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
-                        {group ? getEntityName(group, currentLanguage) || group.name || 'Bilinmiyor' : 'Bilinmiyor'}
+                        {group ? getEntityName(group, currentLanguage) || 'Bilinmiyor' : 'Bilinmiyor'}
                       </span>
                     );
                   })}
@@ -927,7 +910,7 @@ const CategoryCreatePage: React.FC = () => {
                     const attribute = attributeOptions.find(a => a._id === attrId);
                     return (
                       <span key={attrId} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400">
-                        {attribute ? getEntityName(attribute, currentLanguage) || attribute.name || 'Bilinmiyor' : 'Bilinmiyor'}
+                        {attribute ? getEntityName(attribute, currentLanguage) || 'Bilinmiyor' : 'Bilinmiyor'}
                       </span>
                     );
                   })}

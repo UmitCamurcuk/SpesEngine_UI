@@ -218,6 +218,8 @@ const FamilyCreatePage: React.FC = () => {
         ...formData,
         name: nameId,
         description: descriptionId || '',
+        itemType: formData.itemType || undefined,
+        category: formData.category || undefined,
         parent: formData.parent || undefined,
         attributeGroups: selectedAttributeGroups,
         attributes: selectedAttributes
@@ -278,10 +280,7 @@ const FamilyCreatePage: React.FC = () => {
     const errors: Record<string, string> = {};
     
     // itemType artık zorunlu değil
-    
-    if (!formData.category) {
-      errors.category = 'Kategori seçimi zorunludur';
-    }
+    // category artık zorunlu değil
     
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -482,17 +481,16 @@ const FamilyCreatePage: React.FC = () => {
             {/* Kategori Seçimi */}
             <div>
               <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Kategori <span className="text-red-500">*</span>
+                Kategori
               </label>
               <select
                 id="category"
                 name="category"
                 value={formData.category}
                 onChange={handleChange}
-                required
                 className={`bg-gray-50 border ${formErrors.category ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} text-gray-900 text-sm rounded-lg focus:ring-primary-light focus:border-primary-light block w-full p-2.5 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-dark dark:focus:border-primary-dark`}
               >
-                <option value="">Kategori seçin</option>
+                <option value="">Kategori seçin (opsiyonel)</option>
                 {categoryOptions.map((category) => (
                   <option key={category._id} value={category._id}>
                     {getEntityName(category, currentLanguage)} ({category.code})
@@ -503,7 +501,7 @@ const FamilyCreatePage: React.FC = () => {
                 <p className="mt-1 text-sm text-red-500">{formErrors.category}</p>
               )}
               <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                Ailenin bağlı olduğu kategoriyi seçin. Bu, ailenin organizasyonel yapısını belirler.
+                Ailenin bağlı olduğu kategoriyi seçebilirsiniz. Bu, ailenin organizasyonel yapısını belirler.
               </p>
             </div>
           </div>

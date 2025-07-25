@@ -3,6 +3,9 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
 import Breadcrumb from '../../../components/common/Breadcrumb';
 import EntityHistoryList from '../../../components/common/EntityHistoryList';
+import AttributeGroupsTab from '../../../components/common/AttributeGroupsTab';
+import AttributesTab from '../../../components/common/AttributesTab';
+import { useNotification } from '../../../components/notifications';
 import familyService from '../../../services/api/familyService';
 import attributeService from '../../../services/api/attributeService';
 import attributeGroupService from '../../../services/api/attributeGroupService';
@@ -50,6 +53,7 @@ const FamilyDetailsPage: React.FC = () => {
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [initialFormState, setInitialFormState] = useState<any>(null);
   
   // Edit form data
   const [editableFields, setEditableFields] = useState({
@@ -60,14 +64,25 @@ const FamilyDetailsPage: React.FC = () => {
   });
 
   // Attributes and AttributeGroups state
-  const [attributes, setAttributes] = useState<{id: string, name: string, type: string}[]>([]);
+  const [attributes, setAttributes] = useState<{
+    _id: string, 
+    name: any, 
+    type: any,
+    code?: string,
+    description?: any,
+    isActive?: boolean,
+    isRequired?: boolean
+  }[]>([]);
   const [attributeGroups, setAttributeGroups] = useState<{
-    id: string, 
-    name: string, 
+    _id: string, 
+    name: any, 
     code: string, 
-    description?: string, 
+    description?: any, 
     attributes?: any[]
   }[]>([]);
+  
+  // Notification hook
+  const { showToast, showCommentModal } = useNotification();
   
   // HELPER FUNCTIONS
   const formatDate = (dateString?: string) => {
@@ -124,9 +139,13 @@ const FamilyDetailsPage: React.FC = () => {
               for (const attributeId of data.attributes) {
               const attributeData = await attributeService.getAttributeById(attributeId._id || attributeId);
               fetchedAttributes.push({ 
-                  id: attributeId._id || attributeId, 
+                  _id: attributeId._id || attributeId, 
                 name: attributeData.name,
-                type: attributeData.type
+                type: attributeData.type,
+                code: attributeData.code,
+                description: attributeData.description,
+                isActive: attributeData.isActive,
+                isRequired: attributeData.isRequired
               });
             }
             setAttributes(fetchedAttributes);
@@ -142,7 +161,7 @@ const FamilyDetailsPage: React.FC = () => {
               for (const groupData of data.attributeGroups) {
               // API'den gelen grup verisi direkt olarak kullanılıyor
               fetchedGroups.push({ 
-                  id: groupData._id || groupData.id, 
+                  _id: groupData._id || groupData.id, 
                   name: groupData.name,
                   code: groupData.code,
                   description: groupData.description,
@@ -268,31 +287,122 @@ const FamilyDetailsPage: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
   
+  // Değişiklik kontrolü
+  const hasChanges = () => {
+    if (!initialFormState || !editableFields) return false;
+    
+    const currentState = {
+      name: editableFields.name,
+      code: editableFields.code,
+      description: editableFields.description,
+      isActive: editableFields.isActive
+    };
+
+    const initialState = {
+      name: initialFormState.name,
+      code: initialFormState.code,
+      description: initialFormState.description,
+      isActive: initialFormState.isActive
+    };
+
+    return JSON.stringify(currentState) !== JSON.stringify(initialState);
+  };
+
+  // Değişiklik detaylarını al
+  const getChangeDetails = () => {
+    if (!initialFormState) return [];
+    
+    const changes: string[] = [];
+    
+    // İsim değişikliği
+    if (editableFields.name !== initialFormState.name) {
+      changes.push(`İsim: ${initialFormState.name} → ${editableFields.name}`);
+    }
+    
+    // Kod değişikliği
+    if (editableFields.code !== initialFormState.code) {
+      changes.push(`Kod: ${initialFormState.code} → ${editableFields.code}`);
+    }
+    
+    // Açıklama değişikliği
+    if (editableFields.description !== initialFormState.description) {
+      changes.push(`Açıklama: ${initialFormState.description || 'Boş'} → ${editableFields.description || 'Boş'}`);
+    }
+    
+    // Aktif durum değişikliği
+    if (editableFields.isActive !== initialFormState.isActive) {
+      changes.push(`Aktif: ${initialFormState.isActive ? 'Evet' : 'Hayır'} → ${editableFields.isActive ? 'Evet' : 'Hayır'}`);
+    }
+
+    return changes;
+  };
+  
   // Save changes
   const handleSave = async () => {
     if (!id || !validateForm()) return;
-    
+    if (!hasChanges()) return; // Değişiklik yoksa kaydetme
+
     setIsSaving(true);
-    setError(null);
-    
-    try {
-      const updateData: Partial<CreateFamilyDto> = {
-        name: editableFields.name.trim(),
-        code: editableFields.code.trim(),
-        description: editableFields.description.trim(),
-        isActive: editableFields.isActive
-      };
-      
-      const updatedFamily = await familyService.updateFamily(id, updateData);
-      setFamily(updatedFamily);
-      setIsEditing(false);
-      toast.success('Aile başarıyla güncellendi');
-    } catch (err: any) {
-      setError(err.message || 'Aile güncellenirken bir hata oluştu');
-      toast.error('Aile güncellenirken bir hata oluştu');
-    } finally {
-      setIsSaving(false);
-    }
+
+    const changes = getChangeDetails();
+
+    // Comment modal göster
+    showCommentModal({
+      title: 'Değişiklik Yorumu',
+      changes: changes,
+      onSave: async (comment: string) => {
+        try {
+          // Sadece değişen alanları gönder
+          const updateData: any = {};
+          
+          if (editableFields.name !== initialFormState.name) {
+            updateData.name = editableFields.name.trim();
+          }
+          if (editableFields.code !== initialFormState.code) {
+            updateData.code = editableFields.code.trim();
+          }
+          if (editableFields.description !== initialFormState.description) {
+            updateData.description = editableFields.description.trim();
+          }
+          if (editableFields.isActive !== initialFormState.isActive) {
+            updateData.isActive = editableFields.isActive;
+          }
+          
+          // Comment ekle
+          updateData.comment = comment;
+          
+          const updatedFamily = await familyService.updateFamily(id, updateData);
+          setFamily(updatedFamily);
+          
+          // Initial state'i güncelle
+          setInitialFormState({
+            name: editableFields.name,
+            code: editableFields.code,
+            description: editableFields.description,
+            isActive: editableFields.isActive
+          });
+          
+          setIsEditing(false);
+          
+          showToast({
+            type: 'success',
+            title: 'Başarılı',
+            message: 'Aile başarıyla güncellendi',
+            duration: 3000
+          });
+        } catch (err: any) {
+          setError(err.message || 'Aile güncellenirken bir hata oluştu');
+          showToast({
+            type: 'error',
+            title: 'Hata',
+            message: err.message || 'Aile güncellenirken bir hata oluştu',
+            duration: 5000
+          });
+        } finally {
+          setIsSaving(false);
+        }
+      }
+    });
   };
 
   // Cancel editing
@@ -314,13 +424,15 @@ const FamilyDetailsPage: React.FC = () => {
   const handleStartEdit = () => {
     if (!family) return;
     
-    setEditableFields({
+    const initialFields = {
       name: getEntityName(family, currentLanguage),
       code: family.code || '',
       description: getEntityDescription(family, currentLanguage),
       isActive: family.isActive
-    });
+    };
     
+    setEditableFields(initialFields);
+    setInitialFormState(initialFields);
     setIsEditing(true);
   };
 
@@ -338,6 +450,32 @@ const FamilyDetailsPage: React.FC = () => {
         toast.error('Aile silinirken bir hata oluştu');
       }
     }
+  };
+
+  // Handle attribute group operations
+  const handleAddAttributeGroup = (groupId: string) => {
+    console.log('Add attribute group:', groupId);
+    // TODO: Implement add logic
+    toast.success('Öznitelik grubu eklendi');
+  };
+
+  const handleRemoveAttributeGroup = (groupId: string) => {
+    console.log('Remove attribute group:', groupId);
+    // TODO: Implement remove logic
+    toast.success('Öznitelik grubu kaldırıldı');
+  };
+
+  // Handle attribute operations
+  const handleAddAttribute = (attributeId: string) => {
+    console.log('Add attribute:', attributeId);
+    // TODO: Implement add logic
+    toast.success('Öznitelik eklendi');
+  };
+
+  const handleRemoveAttribute = (attributeId: string) => {
+    console.log('Remove attribute:', attributeId);
+    // TODO: Implement remove logic
+    toast.success('Öznitelik kaldırıldı');
   };
   
   // MAIN RENDER
@@ -446,7 +584,7 @@ const FamilyDetailsPage: React.FC = () => {
                 className="flex items-center"
                 onClick={handleSave}
                 loading={isSaving}
-                disabled={isSaving}
+                disabled={isSaving || !hasChanges()}
               >
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -1063,173 +1201,28 @@ const FamilyDetailsPage: React.FC = () => {
 
       {/* TAB CONTENT - ATTRIBUTE GROUPS */}
       {activeTab === 'attributeGroups' && (
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Öznitelik Grupları</h3>
-      
-      {attributeGroups.length > 0 ? (
-        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 overflow-hidden">
-          <div className="grid grid-cols-1 gap-4">
-            {attributeGroups.map(group => (
-              <div 
-                key={group.id} 
-                className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                        <h4 className="font-medium text-gray-900 dark:text-white">{getEntityName(group, currentLanguage) || group.name}</h4>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{group.code}</p>
-                  </div>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                        onClick={() => console.log('Remove group:', group.id)}
-                    className={`flex items-center ${!isEditing && 'opacity-50 cursor-not-allowed'}`}
-                    disabled={!isEditing}
-                  >
-                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    Kaldır
-                  </Button>
-                </div>
-                
-                {/* Grup açıklaması */}
-                    {getEntityDescription(group, currentLanguage) && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-3 border-t border-gray-100 dark:border-gray-700 pt-3">
-                        {getEntityDescription(group, currentLanguage)}
-                  </p>
-                )}
-                
-                {/* Gruba ait öznitelikler */}
-                {group.attributes && group.attributes.length > 0 ? (
-                  <div className="mt-4 border-t border-gray-100 dark:border-gray-700 pt-3">
-                    <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Grup Öznitelikleri ({group.attributes.length})
-                    </h5>
-                    <ul className="ml-2 space-y-1">
-                      {group.attributes.map((attr: any) => (
-                        <li key={attr._id} className="flex items-center justify-between">
-                          <div className="flex items-center">
-                            <span className="h-1.5 w-1.5 rounded-full bg-primary-light dark:bg-primary-dark mr-2"></span>
-                                <span className="text-sm text-gray-700 dark:text-gray-300">{getEntityName(attr, currentLanguage) || attr.name}</span>
-                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">({attr.type})</span>
-                          </div>
-                          <Button
-                            variant="danger"
-                            size="sm"
-                                onClick={() => console.log('Remove attribute from group:', attr._id, group.id)}
-                            className={`flex items-center ${!isEditing && 'opacity-50 cursor-not-allowed'}`}
-                            disabled={!isEditing}
-                          >
-                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                            Kaldır
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : (
-                  <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 text-sm text-gray-500 dark:text-gray-400">
-                    Bu gruba atanmış öznitelik bulunmamaktadır.
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg">
-          <svg className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-          </svg>
-          <p className="text-gray-500 dark:text-gray-400">Bu aileye atanmış öznitelik grubu bulunmamaktadır.</p>
-          <Button
-            variant="outline"
-                onClick={() => console.log('Add attribute group')}
-            className={`mt-4 flex items-center ${!isEditing && 'opacity-50 cursor-not-allowed'}`}
-            disabled={!isEditing}
-          >
-                <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Grup Ekle
-          </Button>
-        </div>
-      )}
-    </div>
+        <AttributeGroupsTab
+          attributeGroups={attributeGroups}
+          isEditing={isEditing}
+          onAdd={handleAddAttributeGroup}
+          onRemove={handleRemoveAttributeGroup}
+          title="Öznitelik Grupları"
+          emptyMessage="Bu aileye atanmış öznitelik grubu bulunmamaktadır."
+          showAddButton={true}
+        />
       )}
 
       {/* TAB CONTENT - ATTRIBUTES */}
       {activeTab === 'attributes' && (
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Öznitelikler</h3>
-      
-      {attributes.length > 0 ? (
-        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-800">
-              <tr>
-                <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                  Öznitelik Adı
-                </th>
-                <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                  Tip
-                </th>
-                <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                  İşlemler
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
-              {attributes.map(attr => (
-                <tr key={attr.id}>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {getEntityName(attr, currentLanguage) || attr.name}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    {attr.type}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
-                    <Button
-                      variant="danger"
-                      size="sm"
-                          onClick={() => console.log('Remove attribute:', attr.id)}
-                      className={`flex items-center ${!isEditing && 'opacity-50 cursor-not-allowed'}`}
-                      disabled={!isEditing}
-                    >
-                      <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      Kaldır
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg">
-          <svg className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          <p className="text-gray-500 dark:text-gray-400">Bu aileye atanmış öznitelik bulunmamaktadır.</p>
-          <Button
-            variant="outline"
-                onClick={() => console.log('Add attribute')}
-            className={`mt-4 flex items-center ${!isEditing && 'opacity-50 cursor-not-allowed'}`}
-            disabled={!isEditing}
-          >
-                <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Öznitelik Ekle
-          </Button>
-        </div>
-      )}
-    </div>
+        <AttributesTab
+          attributes={attributes}
+          isEditing={isEditing}
+          onAdd={handleAddAttribute}
+          onRemove={handleRemoveAttribute}
+          title="Öznitelikler"
+          emptyMessage="Bu aileye atanmış öznitelik bulunmamaktadır."
+          showAddButton={true}
+        />
       )}
 
       {/* TAB CONTENT - PERMISSIONS */}

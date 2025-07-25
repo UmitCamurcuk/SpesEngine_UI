@@ -54,6 +54,8 @@ const FamilyDetailsPage: React.FC = () => {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [initialFormState, setInitialFormState] = useState<any>(null);
+  const [initialAttributeGroups, setInitialAttributeGroups] = useState<string[]>([]);
+  const [initialAttributes, setInitialAttributes] = useState<string[]>([]);
   
   // Edit form data
   const [editableFields, setEditableFields] = useState({
@@ -305,7 +307,20 @@ const FamilyDetailsPage: React.FC = () => {
       isActive: initialFormState.isActive
     };
 
-    return JSON.stringify(currentState) !== JSON.stringify(initialState);
+    // Form alanları değişikliği kontrolü
+    const formChanged = JSON.stringify(currentState) !== JSON.stringify(initialState);
+    
+    // AttributeGroups değişikliği kontrolü
+    const currentGroupIds = attributeGroups.map(g => g._id).sort();
+    const initialGroupIds = initialAttributeGroups.sort();
+    const groupsChanged = JSON.stringify(currentGroupIds) !== JSON.stringify(initialGroupIds);
+
+    // Attributes değişikliği kontrolü
+    const currentAttributeIds = attributes.map(a => a._id).sort();
+    const initialAttributeIds = initialAttributes.sort();
+    const attributesChanged = JSON.stringify(currentAttributeIds) !== JSON.stringify(initialAttributeIds);
+
+    return formChanged || groupsChanged || attributesChanged;
   };
 
   // Değişiklik detaylarını al
@@ -332,6 +347,54 @@ const FamilyDetailsPage: React.FC = () => {
     // Aktif durum değişikliği
     if (editableFields.isActive !== initialFormState.isActive) {
       changes.push(`Aktif: ${initialFormState.isActive ? 'Evet' : 'Hayır'} → ${editableFields.isActive ? 'Evet' : 'Hayır'}`);
+    }
+
+    // AttributeGroups değişikliği
+    const currentGroupIds = attributeGroups.map(g => g._id).sort();
+    const initialGroupIds = initialAttributeGroups.sort();
+    if (JSON.stringify(currentGroupIds) !== JSON.stringify(initialGroupIds)) {
+      const addedGroups = currentGroupIds.filter(id => !initialGroupIds.includes(id));
+      const removedGroups = initialGroupIds.filter(id => !currentGroupIds.includes(id));
+      
+      if (addedGroups.length > 0) {
+        const addedNames = addedGroups.map(id => {
+          const group = attributeGroups.find(g => g._id === id);
+          return group ? getEntityName(group, currentLanguage) : id;
+        });
+        changes.push(`Eklenen öznitelik grupları: ${addedNames.join(', ')}`);
+      }
+      
+      if (removedGroups.length > 0) {
+        const removedNames = removedGroups.map(id => {
+          const group = attributeGroups.find(g => g._id === id);
+          return group ? getEntityName(group, currentLanguage) : id;
+        });
+        changes.push(`Kaldırılan öznitelik grupları: ${removedNames.join(', ')}`);
+      }
+    }
+
+    // Attributes değişikliği
+    const currentAttributeIds = attributes.map(a => a._id).sort();
+    const initialAttributeIds = initialAttributes.sort();
+    if (JSON.stringify(currentAttributeIds) !== JSON.stringify(initialAttributeIds)) {
+      const addedAttributes = currentAttributeIds.filter(id => !initialAttributeIds.includes(id));
+      const removedAttributes = initialAttributeIds.filter(id => !currentAttributeIds.includes(id));
+      
+      if (addedAttributes.length > 0) {
+        const addedNames = addedAttributes.map(id => {
+          const attribute = attributes.find(a => a._id === id);
+          return attribute ? getEntityName(attribute, currentLanguage) : id;
+        });
+        changes.push(`Eklenen öznitelikler: ${addedNames.join(', ')}`);
+      }
+      
+      if (removedAttributes.length > 0) {
+        const removedNames = removedAttributes.map(id => {
+          const attribute = attributes.find(a => a._id === id);
+          return attribute ? getEntityName(attribute, currentLanguage) : id;
+        });
+        changes.push(`Kaldırılan öznitelikler: ${removedNames.join(', ')}`);
+      }
     }
 
     return changes;
@@ -368,19 +431,35 @@ const FamilyDetailsPage: React.FC = () => {
             updateData.isActive = editableFields.isActive;
           }
           
+          // AttributeGroups değişikliği varsa ekle
+          const currentGroupIds = attributeGroups.map(g => g._id);
+          const initialGroupIds = initialAttributeGroups;
+          if (JSON.stringify(currentGroupIds.sort()) !== JSON.stringify(initialGroupIds.sort())) {
+            updateData.attributeGroups = currentGroupIds;
+          }
+          
+          // Attributes değişikliği varsa ekle
+          const currentAttributeIds = attributes.map(a => a._id);
+          const initialAttributeIds = initialAttributes;
+          if (JSON.stringify(currentAttributeIds.sort()) !== JSON.stringify(initialAttributeIds.sort())) {
+            updateData.attributes = currentAttributeIds;
+          }
+          
           // Comment ekle
           updateData.comment = comment;
           
           const updatedFamily = await familyService.updateFamily(id, updateData);
           setFamily(updatedFamily);
           
-          // Initial state'i güncelle
+          // Initial state'leri güncelle
           setInitialFormState({
             name: editableFields.name,
             code: editableFields.code,
             description: editableFields.description,
             isActive: editableFields.isActive
           });
+          setInitialAttributeGroups(currentGroupIds);
+          setInitialAttributes(currentAttributeIds);
           
           setIsEditing(false);
           
@@ -433,6 +512,8 @@ const FamilyDetailsPage: React.FC = () => {
     
     setEditableFields(initialFields);
     setInitialFormState(initialFields);
+    setInitialAttributeGroups(attributeGroups.map(g => g._id));
+    setInitialAttributes(attributes.map(a => a._id));
     setIsEditing(true);
   };
 
@@ -453,29 +534,65 @@ const FamilyDetailsPage: React.FC = () => {
   };
 
   // Handle attribute group operations
-  const handleAddAttributeGroup = (groupId: string) => {
-    console.log('Add attribute group:', groupId);
-    // TODO: Implement add logic
-    toast.success('Öznitelik grubu eklendi');
+  const handleAddAttributeGroup = async (groupId: string) => {
+    try {
+      // AttributeGroup'u API'den getir
+      const groupData = await attributeGroupService.getAttributeGroupById(groupId);
+      
+      // State'e ekle
+      const newGroup = {
+        _id: groupData._id,
+        name: groupData.name,
+        code: groupData.code,
+        description: groupData.description,
+        attributes: groupData.attributes || []
+      };
+      
+      setAttributeGroups(prev => [...prev, newGroup]);
+    } catch (error: any) {
+      showToast({
+        type: 'error',
+        title: 'Hata',
+        message: error.message || 'Öznitelik grubu eklenirken bir hata oluştu',
+        duration: 5000
+      });
+    }
   };
 
   const handleRemoveAttributeGroup = (groupId: string) => {
-    console.log('Remove attribute group:', groupId);
-    // TODO: Implement remove logic
-    toast.success('Öznitelik grubu kaldırıldı');
+    setAttributeGroups(prev => prev.filter(group => group._id !== groupId));
   };
 
   // Handle attribute operations
-  const handleAddAttribute = (attributeId: string) => {
-    console.log('Add attribute:', attributeId);
-    // TODO: Implement add logic
-    toast.success('Öznitelik eklendi');
+  const handleAddAttribute = async (attributeId: string) => {
+    try {
+      // Attribute'u API'den getir
+      const attributeData = await attributeService.getAttributeById(attributeId);
+      
+      // State'e ekle
+      const newAttribute = {
+        _id: attributeData._id,
+        name: attributeData.name,
+        type: attributeData.type,
+        code: attributeData.code,
+        description: attributeData.description,
+        isActive: attributeData.isActive,
+        isRequired: attributeData.isRequired
+      };
+      
+      setAttributes(prev => [...prev, newAttribute]);
+    } catch (error: any) {
+      showToast({
+        type: 'error',
+        title: 'Hata',
+        message: error.message || 'Öznitelik eklenirken bir hata oluştu',
+        duration: 5000
+      });
+    }
   };
 
   const handleRemoveAttribute = (attributeId: string) => {
-    console.log('Remove attribute:', attributeId);
-    // TODO: Implement remove logic
-    toast.success('Öznitelik kaldırıldı');
+    setAttributes(prev => prev.filter(attribute => attribute._id !== attributeId));
   };
   
   // MAIN RENDER
@@ -672,10 +789,10 @@ const FamilyDetailsPage: React.FC = () => {
             <div className="flex items-center">
               <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-              Dokümantasyon
-      </div>
-                </button>
+          </svg>
+                 Dökümantasyon
+        
+      </div></button>
           <button
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'relationships'

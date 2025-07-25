@@ -641,6 +641,14 @@ const ItemCreatePage: React.FC = () => {
     try {
       setIsSubmitting(true);
       
+      // Debug: Payload'ı kontrol et
+      console.log('🔍 Submitting item data:', {
+        itemType: formData.itemType,
+        category: formData.category,
+        family: formData.family,
+        attributes: formData.attributes
+      });
+      
       const itemData: CreateItemDto = {
         itemType: formData.itemType!,
         category: formData.category!,
@@ -653,7 +661,14 @@ const ItemCreatePage: React.FC = () => {
       navigate('/items');
     } catch (error: any) {
       console.error('Item oluşturulurken hata:', error);
-      toast.error(error.message || 'Öğe oluşturulurken hata oluştu');
+      
+      // Backend error response'unu daha detaylı göster
+      if (error.response?.data) {
+        console.error('Backend error details:', error.response.data);
+        toast.error(error.response.data.message || 'Öğe oluşturulurken hata oluştu');
+      } else {
+        toast.error(error.message || 'Öğe oluşturulurken hata oluştu');
+      }
     } finally {
       setIsSubmitting(false);
     }

@@ -12,7 +12,7 @@ interface AttributeGroupSectionProps {
   disabled?: boolean;
 }
 
-const AttributeGroupSection: React.FC<AttributeGroupSectionProps> = ({
+const AttributeGroupSection: React.FC<AttributeGroupSectionProps> = React.memo(({
   attributeGroup,
   attributes,
   values,
@@ -75,6 +75,6 @@ const AttributeGroupSection: React.FC<AttributeGroupSectionProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export default AttributeGroupSection; 

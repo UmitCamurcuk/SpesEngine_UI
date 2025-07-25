@@ -47,6 +47,9 @@ const categoryService = {
         if (options.populateAttributeGroupsAttributes) {
           params = { ...params, populateAttributeGroupsAttributes: 'true' };
         }
+        if (options.includeFamilies) {
+          params = { ...params, includeFamilies: 'true' };
+        }
       }
       
       const response = await api.get<ApiResponse<any>>(`/categories/${id}`, { params });

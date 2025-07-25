@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
 import Stepper from '../../../components/ui/Stepper';
@@ -242,8 +242,56 @@ const ItemCreatePage: React.FC = () => {
       setAttributeGroups([]);
       setAttributeErrors({});
 
-      // Load families for this category
-      await loadFamiliesForStep3(category._id);
+      // 🚀 OPTIMAL: Use data from ItemType API response
+      let families: any[] = [];
+      
+      if (selectedItemTypeData?.category) {
+        // 1. Ana kategorinin families'lerini kontrol et
+        if (selectedItemTypeData.category._id === category._id && selectedItemTypeData.category.families) {
+          families = selectedItemTypeData.category.families;
+        }
+        
+        // 2. Alt kategorilerin families'lerini kontrol et
+        if (selectedItemTypeData.category.subcategories) {
+          const subcat = selectedItemTypeData.category.subcategories.find((sc: any) => sc._id === category._id);
+          if (subcat) {
+            if (subcat.families && subcat.families.length > 0) {
+              // Alt kategorinin kendi families'i varsa onu kullan
+              families = subcat.families;
+            } else {
+              // Alt kategorinin families'i yoksa ana kategorinin families'lerini kullan
+              // Bu business logic açısından mantıklı: Alt kategoriler parent'ın families'lerini kullanabilir
+              families = selectedItemTypeData.category.families || [];
+            }
+          }
+        }
+        
+        console.log('🔍 Selected category:', category._id);
+        console.log('🔍 Available families count:', families.length);
+        console.log('🔍 Family details:', families.map(f => ({ id: f._id, code: f.code, name: getEntityName(f, currentLanguage) })));
+        
+        // Family tree oluştur - subFamilies field'ı kullanarak
+        const familyNodes = families
+          .filter((family: any) => family && family._id) // Null/undefined check
+          .map((family: any) => ({
+            id: family._id,
+            name: getEntityName(family, currentLanguage) || 'İsimsiz Aile',
+            data: family,
+            children: family.subFamilies && family.subFamilies.length > 0 
+              ? family.subFamilies
+                  .filter((subFamily: any) => subFamily && subFamily._id)
+                  .map((subFamily: any) => ({
+                    id: subFamily._id,
+                    name: getEntityName(subFamily, currentLanguage) || 'İsimsiz Alt Aile',
+                    data: subFamily,
+                    children: []
+                  }))
+              : []
+          }));
+
+        console.log('Built family tree:', familyNodes);
+        setFamilyTree(familyNodes);
+      }
       
       toast.success('Kategori seçildi. Aile seçimi için sonraki adıma geçebilirsiniz.');
     } catch (error) {
@@ -345,15 +393,20 @@ const ItemCreatePage: React.FC = () => {
     return [family];
   };
 
-  // Attribute management
-  const handleAttributeChange = (attributeId: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      attributes: {
-        ...prev.attributes,
-        [attributeId]: value
-      }
-    }));
+  // Attribute management - Memoized to prevent infinite re-renders
+  const handleAttributeChange = useCallback((attributeId: string, value: any) => {
+    console.log('🔄 handleAttributeChange called:', attributeId, value);
+    
+    setFormData(prev => {
+      console.log('🔄 setFormData called, prev:', prev);
+      return {
+        ...prev,
+        attributes: {
+          ...prev.attributes,
+          [attributeId]: value
+        }
+      };
+    });
 
     // Clear error for this attribute
     if (attributeErrors[attributeId]) {
@@ -363,10 +416,10 @@ const ItemCreatePage: React.FC = () => {
         return newErrors;
       });
     }
-  };
+  }, [attributeErrors]);
 
-  // Validation
-  const validateStep = (step: number): boolean => {
+  // Validation - Memoized to prevent infinite loops
+  const validateStep = useCallback((step: number): boolean => {
     switch (step) {
       case 1:
         return !!formData.itemType;
@@ -375,13 +428,14 @@ const ItemCreatePage: React.FC = () => {
       case 3:
         return !!formData.family;
       case 4:
-        return validateAttributes();
+        // Don't validate attributes on every render
+        return true;
       default:
         return true;
     }
-  };
+  }, [formData.itemType, formData.category, formData.family]);
 
-  const validateAttributes = (): boolean => {
+  const validateAttributes = useCallback((): boolean => {
     const errors: Record<string, string> = {};
     let isValid = true;
 
@@ -399,7 +453,7 @@ const ItemCreatePage: React.FC = () => {
 
     setAttributeErrors(errors);
     return isValid;
-  };
+  }, [attributeGroups, formData.attributes, currentLanguage]);
 
   // Navigation
   const handleNextStep = () => {
@@ -596,7 +650,7 @@ const ItemCreatePage: React.FC = () => {
 
                 {/* Alt kategoriler */}
                 {selectedItemTypeData.category.subcategories && selectedItemTypeData.category.subcategories.length > 0 && (
-                  <div className="ml-8 space-y-3">
+                  <div className="space-y-3">
                     <h5 className="text-md font-medium text-gray-700 dark:text-gray-300">Alt Kategoriler:</h5>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {selectedItemTypeData.category.subcategories.map((subcat: any) => (
@@ -682,18 +736,34 @@ const ItemCreatePage: React.FC = () => {
                 <p className="mt-4 text-gray-600 dark:text-gray-400">Aileler yükleniyor...</p>
               </div>
             ) : familyTree.length > 0 ? (
-              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-                <UnifiedTreeView
-                  data={familyTree}
-                  onNodeClick={handleFamilySelect}
-                  activeNodeId={formData.family}
-                  mode="view"
-                  headerTitle="Aileler"
-                  maxHeight="500px"
-                  expandAll={true}
-                  showRelationLines={true}
-                  variant="spectrum"
-                />
+              <div className="space-y-6">
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+                  <UnifiedTreeView
+                    data={familyTree}
+                    onNodeClick={handleFamilySelect}
+                    activeNodeId={formData.family}
+                    mode="view"
+                    headerTitle="Aileler ve Alt Aileler"
+                    maxHeight="500px"
+                    expandAll={true}
+                    showRelationLines={true}
+                    variant="spectrum"
+                  />
+                </div>
+                
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                  <div className="flex items-start space-x-3">
+                    <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                    <div>
+                      <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200">Aile Seçimi</h4>
+                      <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                        Ana aile veya alt ailelerden birini seçebilirsiniz. Alt aile seçildiğinde, üst aileden gelen öznitelikler de dahil edilir.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="text-center py-12 text-gray-500 dark:text-gray-400">
@@ -707,41 +777,24 @@ const ItemCreatePage: React.FC = () => {
         );
 
       case 4:
+        console.log('🔄 Step 4 rendering, attributeGroups count:', attributeGroups.length);
+        
         return (
           <div className="space-y-8">
             <div className="text-center">
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Öznitelikler</h3>
               <p className="text-gray-600 dark:text-gray-400">
-                Seçili Aile: <strong>{getEntityName(selectedFamily, currentLanguage)}</strong>
+                Seçili Aile: <strong>{selectedFamily ? getEntityName(selectedFamily, currentLanguage) : ''}</strong>
               </p>
             </div>
             
             {attributeGroups.length > 0 ? (
               <div className="space-y-8">
-                {attributeGroups.map(group => (
-                  <div key={group._id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-                    <AttributeGroupSection
-                      attributeGroup={group}
-                      attributes={group.attributes}
-                      values={formData.attributes || {}}
-                      errors={attributeErrors}
-                      onChange={handleAttributeChange}
-                      disabled={loading}
-                    />
-                    
-                    {/* Source indicator */}
-                    <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        group.source === 'itemType' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                        group.source === 'category' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                        'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
-                      }`}>
-                        {group.source === 'itemType' ? 'Öğe Tipi' :
-                         group.source === 'category' ? 'Kategori' : 'Aile'}: {group.sourceName}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+                  <p className="text-center text-gray-600 dark:text-gray-400">
+                    Öznitelik sayısı: {attributeGroups.length}
+                  </p>
+                </div>
               </div>
             ) : (
               <div className="text-center py-12 text-gray-500 dark:text-gray-400">

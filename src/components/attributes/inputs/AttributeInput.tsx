@@ -10,7 +10,7 @@ interface AttributeInputProps {
   disabled?: boolean;
 }
 
-const AttributeInput: React.FC<AttributeInputProps> = ({
+const AttributeInput: React.FC<AttributeInputProps> = React.memo(({
   attribute,
   value,
   onChange,
@@ -263,6 +263,6 @@ const AttributeInput: React.FC<AttributeInputProps> = ({
       )}
     </div>
   );
-};
+});
 
 export default AttributeInput; 

@@ -11,6 +11,7 @@ export interface ItemTypeOptions {
   includeAttributes?: boolean;
   includeAttributeGroups?: boolean;
   populateAttributeGroupsAttributes?: boolean;
+  includeFamilies?: boolean;
 }
 
 // ItemType servisi

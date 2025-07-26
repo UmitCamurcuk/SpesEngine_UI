@@ -374,6 +374,15 @@ const AttributeCreatePage: React.FC = () => {
           : undefined
       };
       
+      // Debug: TABLE tipi için payload'ı logla
+      if (formData.type === AttributeType.TABLE) {
+        console.log('🔍 TABLE Attribute Payload:', {
+          type: attributeData.type,
+          validations: attributeData.validations,
+          formDataValidations: formData.validations
+        });
+      }
+      
       // Öznitelik grubu varsa ekle
       if (formData.attributeGroup) {
         attributeData.attributeGroup = formData.attributeGroup;
@@ -448,6 +457,7 @@ const AttributeCreatePage: React.FC = () => {
       [AttributeType.JSON]: 'Serbest yapılandırılmış veri için kullanılır. Örnek: Ayarlar, metadata',
       [AttributeType.FORMULA]: 'Dinamik hesaplama için kullanılır. Örnek: Toplam fiyat = fiyat * miktar',
       [AttributeType.EXPRESSION]: 'Koşullu yapılar için kullanılır. Örnek: IF(durum == "aktif", "Yeşil", "Gri")',
+      [AttributeType.TABLE]: 'Tablo formatında veri için kullanılır. Örnek: Sipariş ölçüleri, en boy tablosu',
       
       // UI Types
       [AttributeType.COLOR]: 'Renk seçici için kullanılır. Örnek: Tema rengi, kategori rengi',

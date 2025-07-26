@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from '../../../context/i18nContext';
 import { getEntityName, getEntityDescription } from '../../../utils/translationUtils';
+import TableInput from './TableInput';
 
 interface AttributeInputProps {
   attribute: any;
@@ -217,6 +218,22 @@ const AttributeInput: React.FC<AttributeInputProps> = React.memo(({
               Değer: {value || 0}
             </div>
           </div>
+        );
+
+      case 'table':
+        return (
+          <TableInput
+            value={value}
+            onChange={onChange}
+            columns={attribute.validations?.columns || []}
+            minRows={attribute.validations?.minRows}
+            maxRows={attribute.validations?.maxRows}
+            allowAddRows={attribute.validations?.allowAddRows}
+            allowDeleteRows={attribute.validations?.allowDeleteRows}
+            allowEditRows={attribute.validations?.allowEditRows}
+            disabled={disabled}
+            error={error}
+          />
         );
 
       default:

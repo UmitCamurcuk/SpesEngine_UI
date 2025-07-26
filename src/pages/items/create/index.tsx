@@ -547,12 +547,14 @@ const ItemCreatePage: React.FC = () => {
     return path || [];
   };
 
-  // Attribute management - Memoized to prevent infinite re-renders
+    // Attribute management - Memoized to prevent infinite re-renders
   const handleAttributeChange = useCallback((attributeId: string, value: any) => {
-    console.log('🔄 handleAttributeChange called:', attributeId, value);
-    
     setFormData(prev => {
-      console.log('🔄 setFormData called, prev:', prev);
+      // Avoid unnecessary updates if value hasn't changed
+      if (prev.attributes?.[attributeId] === value) {
+        return prev;
+      }
+      
       return {
         ...prev,
         attributes: {
@@ -604,9 +606,28 @@ const ItemCreatePage: React.FC = () => {
       group.attributes.forEach(attribute => {
         if (attribute.isRequired) {
           const value = formData.attributes?.[attribute._id];
-          if (value === undefined || value === null || value === '') {
-            errors[attribute._id] = `${getEntityName(attribute, currentLanguage)} zorunludur`;
-            isValid = false;
+          
+          // Special handling for table type
+          if (attribute.type === 'table') {
+            if (!Array.isArray(value) || value.length === 0) {
+              errors[attribute._id] = `${getEntityName(attribute, currentLanguage)} için en az bir satır girmelisiniz`;
+              isValid = false;
+            } else {
+              // Check if there are any rows with actual data
+              const hasValidRows = value.some(row => 
+                Array.isArray(row) && row.some(cell => cell !== '' && cell != null && cell !== undefined)
+              );
+              if (!hasValidRows) {
+                errors[attribute._id] = `${getEntityName(attribute, currentLanguage)} için veri girmelisiniz`;
+                isValid = false;
+              }
+            }
+          } else {
+            // Standard validation for other types
+            if (value === undefined || value === null || value === '') {
+              errors[attribute._id] = `${getEntityName(attribute, currentLanguage)} zorunludur`;
+              isValid = false;
+            }
           }
         }
       });
@@ -649,11 +670,29 @@ const ItemCreatePage: React.FC = () => {
         attributes: formData.attributes
       });
       
+      // Clean up table attributes by removing empty rows
+      const cleanedAttributes = { ...formData.attributes };
+      
+      attributeGroups.forEach(group => {
+        group.attributes.forEach(attribute => {
+          if (attribute.type === 'table' && cleanedAttributes[attribute._id]) {
+            const tableValue = cleanedAttributes[attribute._id];
+            if (Array.isArray(tableValue)) {
+              // Filter out completely empty rows
+              const filteredRows = tableValue.filter(row => 
+                Array.isArray(row) && row.some(cell => cell !== '' && cell != null && cell !== undefined)
+              );
+              cleanedAttributes[attribute._id] = filteredRows;
+            }
+          }
+        });
+      });
+
       const itemData: CreateItemDto = {
         itemType: formData.itemType!,
         category: formData.category!,
         family: formData.family!,
-        attributes: formData.attributes || {}
+        attributes: cleanedAttributes
       };
       
       await itemService.createItem(itemData);
@@ -966,134 +1005,168 @@ const ItemCreatePage: React.FC = () => {
         const familyGroups = attributeGroups.filter(group => group.source === 'family');
         
         return (
-          <div className="space-y-8">
-            {/* Header */}
-            <div className="text-center">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Öznitelikler</h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Seçili Aile: <strong>{selectedFamily ? getEntityName(selectedFamily, currentLanguage) : ''}</strong>
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Lütfen tüm zorunlu alanları doldurun
-              </p>
+          <div className="max-w-full space-y-8">
+            {/* Modern Header */}
+            <div className="bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-900/20 dark:to-primary-800/20 rounded-xl p-6 border border-primary-200 dark:border-primary-800">
+              <div className="text-center">
+                <div className="flex items-center justify-center w-16 h-16 bg-primary-500 rounded-full mx-auto mb-4 shadow-lg">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Öznitelikler</h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-2">
+                  Seçili Aile: <strong className="text-primary-700 dark:text-primary-300">{selectedFamily ? getEntityName(selectedFamily, currentLanguage) : ''}</strong>
+                </p>
+                <div className="flex items-center justify-center space-x-6 text-sm">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                    <span className="text-gray-600 dark:text-gray-400">Öğe Tipi: {itemTypeGroups.length} grup</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <span className="text-gray-600 dark:text-gray-400">Kategori: {categoryGroups.length} grup</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                    <span className="text-gray-600 dark:text-gray-400">Aile: {familyGroups.length} grup</span>
+                  </div>
+                </div>
+              </div>
             </div>
             
             {/* ItemType Attribute Groups */}
             {itemTypeGroups.length > 0 && (
               <div className="space-y-6">
-                <div className="flex items-center space-x-3">
-                  <div className="flex items-center justify-center w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full">
-                    <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex items-center space-x-4 py-3 px-6 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <div className="flex items-center justify-center w-10 h-10 bg-blue-500 rounded-lg shadow-md">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                     </svg>
                   </div>
-                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    Öğe Tipi Öznitelikleri
-                  </h4>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                    {selectedItemType ? getEntityName(selectedItemType, currentLanguage) : 'Öğe Tipi'}
-                  </span>
+                  <div className="flex-1">
+                    <h4 className="text-lg font-bold text-gray-900 dark:text-white">
+                      Öğe Tipi Öznitelikleri
+                    </h4>
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      {selectedItemType ? getEntityName(selectedItemType, currentLanguage) : 'Öğe Tipi'} • {itemTypeGroups.length} grup
+                    </p>
+                  </div>
                 </div>
                 
-                {itemTypeGroups.map(group => (
-                  <AttributeGroupSection
-                    key={group._id}
-                    attributeGroup={group}
-                    attributes={group.attributes}
-                    values={formData.attributes || {}}
-                    errors={attributeErrors}
-                    onChange={handleAttributeChange}
-                    disabled={loading}
-                  />
-                ))}
+                <div className="space-y-6">
+                  {itemTypeGroups.map(group => (
+                    <AttributeGroupSection
+                      key={group._id}
+                      attributeGroup={group}
+                      attributes={group.attributes}
+                      values={formData.attributes || {}}
+                      errors={attributeErrors}
+                      onChange={handleAttributeChange}
+                      disabled={loading}
+                    />
+                  ))}
+                </div>
               </div>
             )}
             
             {/* Category Attribute Groups */}
             {categoryGroups.length > 0 && (
               <div className="space-y-6">
-                <div className="flex items-center space-x-3">
-                  <div className="flex items-center justify-center w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full">
-                    <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex items-center space-x-4 py-3 px-6 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                  <div className="flex items-center justify-center w-10 h-10 bg-green-500 rounded-lg shadow-md">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                     </svg>
                   </div>
-                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    Kategori Öznitelikleri
-                  </h4>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                    {selectedCategory ? getEntityName(selectedCategory, currentLanguage) : 'Kategori'}
-                  </span>
+                  <div className="flex-1">
+                    <h4 className="text-lg font-bold text-gray-900 dark:text-white">
+                      Kategori Öznitelikleri
+                    </h4>
+                    <p className="text-sm text-green-700 dark:text-green-300">
+                      {selectedCategory ? getEntityName(selectedCategory, currentLanguage) : 'Kategori'} • {categoryGroups.length} grup
+                    </p>
+                  </div>
                 </div>
                 
-                {categoryGroups.map(group => (
-                  <AttributeGroupSection
-                    key={group._id}
-                    attributeGroup={group}
-                    attributes={group.attributes}
-                    values={formData.attributes || {}}
-                    errors={attributeErrors}
-                    onChange={handleAttributeChange}
-                    disabled={loading}
-                  />
-                ))}
+                <div className="space-y-6">
+                  {categoryGroups.map(group => (
+                    <AttributeGroupSection
+                      key={group._id}
+                      attributeGroup={group}
+                      attributes={group.attributes}
+                      values={formData.attributes || {}}
+                      errors={attributeErrors}
+                      onChange={handleAttributeChange}
+                      disabled={loading}
+                    />
+                  ))}
+                </div>
               </div>
             )}
             
             {/* Family Attribute Groups */}
             {familyGroups.length > 0 && (
               <div className="space-y-6">
-                <div className="flex items-center space-x-3">
-                  <div className="flex items-center justify-center w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-full">
-                    <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex items-center space-x-4 py-3 px-6 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                  <div className="flex items-center justify-center w-10 h-10 bg-purple-500 rounded-lg shadow-md">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
                   </div>
-                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    Aile Öznitelikleri
-                  </h4>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-                    {selectedFamily ? getEntityName(selectedFamily, currentLanguage) : 'Aile'}
-                  </span>
+                  <div className="flex-1">
+                    <h4 className="text-lg font-bold text-gray-900 dark:text-white">
+                      Aile Öznitelikleri
+                    </h4>
+                    <p className="text-sm text-purple-700 dark:text-purple-300">
+                      {selectedFamily ? getEntityName(selectedFamily, currentLanguage) : 'Aile'} • {familyGroups.length} grup
+                    </p>
+                  </div>
                 </div>
                 
-                {familyGroups.map(group => (
-                  <AttributeGroupSection
-                    key={group._id}
-                    attributeGroup={group}
-                    attributes={group.attributes}
-                    values={formData.attributes || {}}
-                    errors={attributeErrors}
-                    onChange={handleAttributeChange}
-                    disabled={loading}
-                  />
-                ))}
+                <div className="space-y-6">
+                  {familyGroups.map(group => (
+                    <AttributeGroupSection
+                      key={group._id}
+                      attributeGroup={group}
+                      attributes={group.attributes}
+                      values={formData.attributes || {}}
+                      errors={attributeErrors}
+                      onChange={handleAttributeChange}
+                      disabled={loading}
+                    />
+                  ))}
+                </div>
               </div>
             )}
             
             {/* No Attributes Message */}
             {attributeGroups.length === 0 && (
-              <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                <svg className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <p className="text-lg font-medium mb-2">Henüz öznitelik bulunamadı</p>
-                <p className="text-sm">Seçili hiyerarşi için tanımlanmış öznitelik bulunmuyor.</p>
+              <div className="text-center py-16 bg-gray-50 dark:bg-gray-800 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600">
+                <div className="flex items-center justify-center w-20 h-20 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto mb-6">
+                  <svg className="w-10 h-10 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Henüz öznitelik bulunamadı</h3>
+                <p className="text-gray-500 dark:text-gray-400">Seçili hiyerarşi için tanımlanmış öznitelik bulunmuyor.</p>
               </div>
             )}
             
             {/* Validation Summary */}
             {Object.keys(attributeErrors).length > 0 && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                <div className="flex items-start space-x-3">
-                  <svg className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
+              <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded-lg p-6 shadow-sm">
+                <div className="flex items-start space-x-4">
+                  <div className="flex items-center justify-center w-10 h-10 bg-red-100 dark:bg-red-900/50 rounded-full">
+                    <svg className="w-5 h-5 text-red-600 dark:text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
                   <div className="flex-1">
-                    <h4 className="text-sm font-medium text-red-800 dark:text-red-200">
-                      Validation Hataları ({Object.keys(attributeErrors).length})
+                    <h4 className="text-lg font-semibold text-red-900 dark:text-red-200 mb-2">
+                      Doğrulama Hataları ({Object.keys(attributeErrors).length})
                     </h4>
-                    <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                    <p className="text-red-700 dark:text-red-300">
                       Lütfen tüm zorunlu alanları doldurun ve hataları düzeltin.
                     </p>
                   </div>

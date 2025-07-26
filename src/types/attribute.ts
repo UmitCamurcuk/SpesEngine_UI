@@ -25,6 +25,7 @@ export enum AttributeType {
   JSON = 'json',              // json - Serbest yapılandırılmış veri
   FORMULA = 'formula',        // formula - Dinamik hesaplama / formül
   EXPRESSION = 'expression',   // expression - Koşullu yapı, gösterim kuralları
+  TABLE = 'table',            // table - Tablo formatında veri (sipariş ölçüleri için)
   
   // UI / Görsel Bileşen Tipleri
   COLOR = 'color',            // color - Renk seçici
@@ -115,6 +116,20 @@ export interface AttributeValidation {
   // Array için
   uniqueItems?: boolean; // tekrar eden öğelere izin verme
   allowEmpty?: boolean; // boş diziye izin ver
+  
+  // Table için
+  columns?: Array<{
+    name: string;
+    type: 'text' | 'number' | 'date' | 'select';
+    required?: boolean;
+    options?: string[]; // select tipi için seçenekler
+    width?: number; // piksel cinsinden genişlik
+  }>;
+  minRows?: number;
+  maxRows?: number;
+  allowAddRows?: boolean;
+  allowDeleteRows?: boolean;
+  allowEditRows?: boolean;
   
   // Readonly için
   defaultValue?: any; // varsayılan değer
@@ -231,6 +246,7 @@ export const AttributeTypeLabels: Record<AttributeType, { namespace: string; key
   [AttributeType.JSON]: { namespace: 'attribute_types', key: 'json' },
   [AttributeType.FORMULA]: { namespace: 'attribute_types', key: 'formula' },
   [AttributeType.EXPRESSION]: { namespace: 'attribute_types', key: 'expression' },
+  [AttributeType.TABLE]: { namespace: 'attribute_types', key: 'table' },
   
   // UI Types
   [AttributeType.COLOR]: { namespace: 'attribute_types', key: 'color' },
@@ -297,6 +313,10 @@ export function getDefaultValueForType(type: AttributeType): any {
       return '';
     case AttributeType.RATING:
       return 0;
+    
+    // Table Type
+    case AttributeType.TABLE:
+      return [];
     case AttributeType.BARCODE:
     case AttributeType.QR:
       return '';

@@ -9,6 +9,7 @@ import SelectValidation from './SelectValidation';
 import FormulaValidation from './FormulaValidation';
 import ArrayValidation from './ArrayValidation';
 import ObjectValidation from './ObjectValidation';
+import TableValidation from './TableValidation';
 
 interface ValidationFactoryProps {
   type: AttributeType;
@@ -279,6 +280,9 @@ const ValidationFactory: React.FC<ValidationFactoryProps> = ({ type, validation,
             </div>
           </div>
         );
+      
+      case AttributeType.TABLE:
+        return <TableValidation validation={validation} onChange={onChange} />;
       
       // UI Types
       case AttributeType.COLOR:

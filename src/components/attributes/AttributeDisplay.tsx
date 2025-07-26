@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from '../../context/i18nContext';
 import { getEntityName, getEntityDescription } from '../../utils/translationUtils';
 import { AttributeInput } from './inputs';
+import TableDisplay from './TableDisplay';
 
 interface AttributeDisplayProps {
   attribute: any;
@@ -106,6 +107,17 @@ const AttributeDisplay: React.FC<AttributeDisplayProps> = React.memo(({
           </a>
         );
       
+      case 'table':
+        return (
+          <TableDisplay
+            value={value}
+            columns={attribute.validations?.columns || []}
+            isEditing={isEditing}
+            onChange={onChange}
+            disabled={disabled}
+          />
+        );
+      
       case 'textarea':
       case 'text':
       case 'string':
@@ -135,44 +147,158 @@ const AttributeDisplay: React.FC<AttributeDisplayProps> = React.memo(({
       'email': 'E-posta',
       'url': 'URL',
       'textarea': 'Uzun Metin',
-      'password': 'Şifre'
+      'password': 'Şifre',
+      'table': 'Tablo'
     };
     return typeMap[attribute.type] || attribute.type;
   };
 
+  // Special handling for table type
+  if (attribute.type === 'table') {
+    return (
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-sm">
+        <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <div className="flex items-center space-x-3">
+                <div className="h-8 w-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 className="text-base font-semibold text-gray-900 dark:text-white">
+                    {getEntityName(attribute, currentLanguage)}
+                    {attribute.isRequired && (
+                      <span className="text-red-500 ml-1">*</span>
+                    )}
+                  </h4>
+                  {getEntityDescription(attribute, currentLanguage) && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      {getEntityDescription(attribute, currentLanguage)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300">
+                📊 {getTypeDisplayName()}
+              </span>
+              <span className="text-sm text-gray-500 dark:text-gray-400 font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                {attribute.code}
+              </span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="p-6">
+          <TableDisplay
+            value={value}
+            columns={attribute.validations?.columns || []}
+            isEditing={isEditing}
+            onChange={onChange}
+            disabled={disabled}
+          />
+          {error && (
+            <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+              <p className="text-sm text-red-600 dark:text-red-400 flex items-center">
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {error}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Get type icon
+  const getTypeIcon = () => {
+    const iconMap: Record<string, string> = {
+      'text': '📝',
+      'string': '📝',
+      'number': '🔢',
+      'integer': '🔢',
+      'decimal': '🔢',
+      'boolean': '✅',
+      'select': '📋',
+      'multiselect': '📋',
+      'date': '📅',
+      'datetime': '🕐',
+      'time': '⏰',
+      'email': '📧',
+      'url': '🌐',
+      'textarea': '📄',
+      'password': '🔒'
+    };
+    return iconMap[attribute.type] || '📋';
+  };
+
+  // Get type color
+  const getTypeColor = () => {
+    const colorMap: Record<string, string> = {
+      'text': 'blue',
+      'string': 'blue',
+      'number': 'green',
+      'integer': 'green',
+      'decimal': 'green',
+      'boolean': 'purple',
+      'select': 'indigo',
+      'multiselect': 'indigo',
+      'date': 'pink',
+      'datetime': 'pink',
+      'time': 'pink',
+      'email': 'yellow',
+      'url': 'cyan',
+      'textarea': 'gray',
+      'password': 'red'
+    };
+    return colorMap[attribute.type] || 'gray';
+  };
+
+  const typeColor = getTypeColor();
+
   return (
-    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-      <div className="bg-gray-50 dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+      <div className={`bg-gradient-to-r from-${typeColor}-50 to-${typeColor}-100 dark:from-${typeColor}-900/30 dark:to-${typeColor}-800/30 px-5 py-4 border-b border-gray-200 dark:border-gray-700`}>
         <div className="flex items-center justify-between">
           <div className="flex-1">
-            <div className="flex items-center space-x-2">
-              <h4 className="text-sm font-medium text-gray-900 dark:text-white">
-                {getEntityName(attribute, currentLanguage)}
-              </h4>
-              {attribute.isRequired && (
-                <span className="text-red-500 text-xs">*</span>
-              )}
+            <div className="flex items-center space-x-3">
+              <div className={`h-8 w-8 rounded-lg bg-${typeColor}-100 dark:bg-${typeColor}-900/50 flex items-center justify-center`}>
+                <span className="text-sm">{getTypeIcon()}</span>
+              </div>
+              <div>
+                <h4 className="text-base font-semibold text-gray-900 dark:text-white">
+                  {getEntityName(attribute, currentLanguage)}
+                  {attribute.isRequired && (
+                    <span className="text-red-500 ml-1">*</span>
+                  )}
+                </h4>
+                {getEntityDescription(attribute, currentLanguage) && (
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    {getEntityDescription(attribute, currentLanguage)}
+                  </p>
+                )}
+              </div>
             </div>
-            {getEntityDescription(attribute, currentLanguage) && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                {getEntityDescription(attribute, currentLanguage)}
-              </p>
-            )}
           </div>
-          <div className="flex items-center space-x-2">
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+          <div className="flex items-center space-x-3">
+            <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-${typeColor}-100 text-${typeColor}-800 dark:bg-${typeColor}-900/50 dark:text-${typeColor}-300`}>
               {getTypeDisplayName()}
             </span>
-            <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+            <span className="text-sm text-gray-500 dark:text-gray-400 font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
               {attribute.code}
             </span>
           </div>
         </div>
       </div>
       
-      <div className="p-4">
+      <div className="p-5">
         {isEditing ? (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <AttributeInput
               attribute={attribute}
               value={value}
@@ -181,12 +307,21 @@ const AttributeDisplay: React.FC<AttributeDisplayProps> = React.memo(({
               disabled={disabled}
             />
             {error && (
-              <p className="text-sm text-red-500 dark:text-red-400">{error}</p>
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <p className="text-sm text-red-600 dark:text-red-400 flex items-center">
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {error}
+                </p>
+              </div>
             )}
           </div>
         ) : (
-          <div className="min-h-[2.5rem] flex items-center">
-            {renderValue()}
+          <div className="min-h-[3rem] flex items-center">
+            <div className="w-full">
+              {renderValue()}
+            </div>
           </div>
         )}
       </div>

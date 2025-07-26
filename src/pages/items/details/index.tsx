@@ -472,75 +472,222 @@ const ItemDetailsPage: React.FC = () => {
 
       {/* TAB CONTENT */}
       {activeTab === 'details' && (
-        <div className="space-y-6">
-          {/* Ana Bilgiler */}
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Sol Taraf - Temel Bilgiler */}
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                    <svg className="h-5 w-5 mr-2 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <div className="space-y-8">
+          {/* Modern Hero Section */}
+          <div className="bg-gradient-to-br from-white via-blue-50 to-indigo-100 dark:from-gray-800 dark:via-gray-800 dark:to-gray-900 rounded-2xl p-8 border border-gray-200 dark:border-gray-700 shadow-sm">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Ana Bilgiler */}
+              <div className="lg:col-span-2">
+                <div className="flex items-start space-x-4 mb-6">
+                  <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
+                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                     </svg>
-                    Temel Bilgiler
-                  </h3>
-                  
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
-                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Durum</span>
-                      <div className="flex items-center">
-                        <div className={`w-2 h-2 rounded-full mr-2 ${
-                          item?.isActive ? 'bg-green-500' : 'bg-red-500'
-                        }`}></div>
-                        <span className={`text-sm font-medium ${
-                          item?.isActive ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'
-                        }`}>
-                          {item?.isActive ? 'Aktif' : 'Pasif'}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
-                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Öğe ID</span>
-                      <span className="text-sm font-mono text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                        #{item?._id?.slice(-8)}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {item?.itemType ? getEntityName(item.itemType, currentLanguage) : 'Öğe Detayları'}
+                      </h2>
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                        item?.isActive 
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                      }`}>
+                        {item?.isActive ? '✓ Aktif' : '✗ Pasif'}
                       </span>
                     </div>
-
-                    <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
-                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Kategori</span>
-                      <div className="flex items-center">
-                        <div className="h-6 w-6 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center mr-2">
-                          <span className="text-xs">📁</span>
-                        </div>
-                        <span className="text-sm font-medium text-gray-900 dark:text-white">
-                          {item?.category ? getEntityName(item.category, currentLanguage) : 'Belirtilmemiş'}
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">
+                      {item?.description || 'Bu öğe için açıklama bulunmuyor.'}
+                    </p>
+                    <div className="flex items-center space-x-6 text-sm">
+                      <div className="flex items-center space-x-2">
+                        <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+                        <span className="text-gray-600 dark:text-gray-400">ID: #{item?._id?.slice(-8)}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                        <span className="text-gray-600 dark:text-gray-400">
+                          {item?.category ? getEntityName(item.category, currentLanguage) : 'Kategori Yok'}
                         </span>
                       </div>
-                    </div>
-
-                    <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
-                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Aile</span>
-                      <div className="flex items-center">
-                        <div className="h-6 w-6 rounded-full bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center mr-2">
-                          <span className="text-xs">👥</span>
-                        </div>
-                        <span className="text-sm font-medium text-gray-900 dark:text-white">
-                          {item?.family ? getEntityName(item.family, currentLanguage) : 'Belirtilmemiş'}
+                      <div className="flex items-center space-x-2">
+                        <div className="h-2 w-2 bg-purple-500 rounded-full"></div>
+                        <span className="text-gray-600 dark:text-gray-400">
+                          {item?.family ? getEntityName(item.family, currentLanguage) : 'Aile Yok'}
                         </span>
                       </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
-                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Açıklama</span>
-                      <span className="text-sm text-gray-900 dark:text-white max-w-xs text-right">
-                        {item?.description || 'Açıklama bulunmuyor'}
-                      </span>
                     </div>
                   </div>
                 </div>
               </div>
+
+              {/* Tarih Bilgileri */}
+              <div className="space-y-4">
+                <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-xl p-4 border border-white/20 dark:border-gray-700/50">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Oluşturulma</span>
+                    <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
+                      <svg className="h-4 w-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-gray-900 dark:text-white">
+                      {item?.createdAt ? new Date(item.createdAt).toLocaleDateString('tr-TR', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                      }) : '-'}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      {item?.createdAt ? new Date(item.createdAt).toLocaleTimeString('tr-TR', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      }) : '-'}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-xl p-4 border border-white/20 dark:border-gray-700/50">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Son Güncelleme</span>
+                    <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center">
+                      <svg className="h-4 w-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-gray-900 dark:text-white">
+                      {item?.updatedAt ? new Date(item.updatedAt).toLocaleDateString('tr-TR', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                      }) : '-'}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      {item?.updatedAt ? new Date(item.updatedAt).toLocaleTimeString('tr-TR', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      }) : '-'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Hiyerarşi Kartları */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Öğe Tipi */}
+            <div className="group bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-200">
+              <div className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 p-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center space-x-3">
+                  <div className="h-10 w-10 rounded-xl bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <span className="text-lg">📦</span>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 dark:text-white">Öğe Tipi</h4>
+                    <p className="text-xs text-blue-600 dark:text-blue-400">Ana kategori</p>
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 space-y-3">
+                {item?.itemType ? (
+                  <>
+                    <div>
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Ad</span>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {getEntityName(item.itemType, currentLanguage)}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Kod</span>
+                      <p className="font-mono text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded">
+                        {item.itemType.code}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-400 italic py-4">Bilgi bulunamadı</p>
+                )}
+              </div>
+            </div>
+
+            {/* Kategori */}
+            <div className="group bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-200">
+              <div className="bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 p-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center space-x-3">
+                  <div className="h-10 w-10 rounded-xl bg-green-100 dark:bg-green-900/50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <span className="text-lg">📁</span>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 dark:text-white">Kategori</h4>
+                    <p className="text-xs text-green-600 dark:text-green-400">Sınıflandırma</p>
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 space-y-3">
+                {item?.category ? (
+                  <>
+                    <div>
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Ad</span>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {getEntityName(item.category, currentLanguage)}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Kod</span>
+                      <p className="font-mono text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded">
+                        {item.category.code}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-400 italic py-4">Bilgi bulunamadı</p>
+                )}
+              </div>
+            </div>
+
+            {/* Aile */}
+            <div className="group bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-200">
+              <div className="bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30 p-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center space-x-3">
+                  <div className="h-10 w-10 rounded-xl bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <span className="text-lg">👥</span>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 dark:text-white">Aile</h4>
+                    <p className="text-xs text-purple-600 dark:text-purple-400">Ürün grubu</p>
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 space-y-3">
+                {item?.family ? (
+                  <>
+                    <div>
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Ad</span>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {getEntityName(item.family, currentLanguage)}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Kod</span>
+                      <p className="font-mono text-sm text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded">
+                        {item.family.code}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-400 italic py-4">Bilgi bulunamadı</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
               {/* Sağ Taraf - Tarih ve Kullanıcı Bilgileri */}
               <div className="space-y-6">
@@ -759,20 +906,45 @@ const ItemDetailsPage: React.FC = () => {
       )}
 
       {activeTab === 'attributes' && (
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-lg font-medium text-gray-900 dark:text-white">
-                  Öznitelikler
-                </h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {attributeGroups.reduce((total, group) => total + group.attributes.length, 0)} öznitelik • {attributeGroups.length} grup
-                </p>
+        <div className="space-y-8">
+          {/* Modern Header */}
+          <div className="bg-gradient-to-r from-gray-50 via-white to-gray-50 dark:from-gray-800 dark:via-gray-900 dark:to-gray-800 rounded-2xl p-8 border border-gray-200 dark:border-gray-700 shadow-sm">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl mb-4 shadow-lg">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Öznitelikler</h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                Bu öğenin hiyerarşisinden gelen tüm öznitelik değerleri
+              </p>
+              <div className="flex items-center justify-center space-x-8 text-sm">
+                <div className="flex items-center space-x-2">
+                  <div className="h-3 w-3 bg-blue-500 rounded-full"></div>
+                  <span className="text-gray-600 dark:text-gray-400">
+                    {attributeGroups.reduce((total, group) => total + group.attributes.length, 0)} öznitelik
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="h-3 w-3 bg-green-500 rounded-full"></div>
+                  <span className="text-gray-600 dark:text-gray-400">
+                    {attributeGroups.length} grup
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="h-3 w-3 bg-purple-500 rounded-full"></div>
+                  <span className="text-gray-600 dark:text-gray-400">
+                    {attributeGroups.filter(g => g.source === 'itemType').length + 
+                     attributeGroups.filter(g => g.source === 'category').length + 
+                     attributeGroups.filter(g => g.source === 'family').length} kaynak
+                  </span>
+                </div>
               </div>
             </div>
-          </CardHeader>
-          <CardBody>
+          </div>
+
+          <div>
             {error && (
               <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
                 <div className="flex items-center space-x-2">
@@ -785,44 +957,91 @@ const ItemDetailsPage: React.FC = () => {
             )}
 
             {attributeGroups.length > 0 ? (
-              <div className="space-y-6">
+              <div className="space-y-12">
                 {/* Group by source */}
                 {['itemType', 'category', 'family'].map(source => {
                   const sourceGroups = attributeGroups.filter(group => group.source === source);
                   if (sourceGroups.length === 0) return null;
 
+                  const sourceConfig = {
+                    itemType: { 
+                      title: 'Öğe Tipi Öznitelikleri', 
+                      color: 'blue', 
+                      icon: '📦',
+                      description: 'Ana öğe tipinden gelen öznitelikler'
+                    },
+                    category: { 
+                      title: 'Kategori Öznitelikleri', 
+                      color: 'green', 
+                      icon: '📁',
+                      description: 'Kategori hiyerarşisinden gelen öznitelikler'
+                    },
+                    family: { 
+                      title: 'Aile Öznitelikleri', 
+                      color: 'purple', 
+                      icon: '👥',
+                      description: 'Aile hiyerarşisinden gelen öznitelikler'
+                    }
+                  }[source];
+
                   return (
-                    <div key={source} className="space-y-4">
-                      <div className="flex items-center space-x-2">
-                        <h4 className="text-base font-medium text-gray-900 dark:text-white">
-                          {source === 'itemType' ? 'Öğe Tipi' : source === 'category' ? 'Kategori' : 'Aile'} Öznitelikleri
-                        </h4>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          ({sourceGroups.length} grup)
-                        </span>
+                    <div key={source} className="space-y-6">
+                      {/* Source Header */}
+                      <div className={`bg-gradient-to-r from-${sourceConfig?.color}-50 to-${sourceConfig?.color}-100 dark:from-${sourceConfig?.color}-900/30 dark:to-${sourceConfig?.color}-800/30 rounded-xl p-6 border border-${sourceConfig?.color}-200 dark:border-${sourceConfig?.color}-800`}>
+                        <div className="flex items-center space-x-4">
+                          <div className={`h-12 w-12 rounded-xl bg-${sourceConfig?.color}-100 dark:bg-${sourceConfig?.color}-900/50 flex items-center justify-center`}>
+                            <span className="text-xl">{sourceConfig?.icon}</span>
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white">{sourceConfig?.title}</h3>
+                            <p className="text-gray-600 dark:text-gray-400 mt-1">{sourceConfig?.description}</p>
+                          </div>
+                          <div className="text-right">
+                            <div className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-${sourceConfig?.color}-100 text-${sourceConfig?.color}-800 dark:bg-${sourceConfig?.color}-900/50 dark:text-${sourceConfig?.color}-300`}>
+                              {sourceGroups.length} grup • {sourceGroups.reduce((total, group) => total + group.attributes.length, 0)} öznitelik
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {/* Attribute Groups */}
+                      <div className="space-y-8">
                         {sourceGroups.map(group => (
-                          <div key={group._id} className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                            <div className="bg-gray-100 dark:bg-gray-700 px-4 py-3 border-b border-gray-200 dark:border-gray-600">
+                          <div key={group._id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+                            {/* Group Header */}
+                            <div className="bg-gray-50 dark:bg-gray-700 px-6 py-4 border-b border-gray-200 dark:border-gray-600">
                               <div className="flex items-center justify-between">
-                                <h5 className="text-sm font-medium text-gray-900 dark:text-white">
-                                  {getEntityName(group, currentLanguage)}
-                                </h5>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">
-                                  {group.attributes.length} öznitelik
-                                </span>
+                                <div className="flex items-center space-x-3">
+                                  <div className="h-8 w-8 rounded-lg bg-gray-100 dark:bg-gray-600 flex items-center justify-center">
+                                    <svg className="w-4 h-4 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                    </svg>
+                                  </div>
+                                  <div>
+                                    <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                      {getEntityName(group, currentLanguage)}
+                                    </h4>
+                                    {getEntityDescription(group, currentLanguage) && (
+                                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                        {getEntityDescription(group, currentLanguage)}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center space-x-3">
+                                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-300">
+                                    {group.attributes.length} öznitelik
+                                  </span>
+                                  <span className="text-sm text-gray-500 dark:text-gray-400 font-mono">
+                                    {group.code}
+                                  </span>
+                                </div>
                               </div>
-                              {getEntityDescription(group, currentLanguage) && (
-                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                  {getEntityDescription(group, currentLanguage)}
-                                </p>
-                              )}
                             </div>
 
-                            <div className="p-4">
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Attributes */}
+                            <div className="p-6">
+                              <div className="space-y-6">
                                 {group.attributes.map((attribute: any) => {
                                   const value = formData.attributes?.[attribute._id];
                                   const error = attributeErrors[attribute._id];
@@ -849,18 +1068,20 @@ const ItemDetailsPage: React.FC = () => {
                 })}
               </div>
             ) : (
-              <div className="text-center py-12">
-                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                </svg>
-                <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">Öznitelik bulunamadı</h3>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Bu öğe için tanımlanmış öznitelik bulunmuyor.
-                </p>
+              <div className="text-center py-24 bg-gray-50 dark:bg-gray-800 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-600">
+                <div className="max-w-md mx-auto">
+                  <div className="w-20 h-20 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <svg className="w-10 h-10 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Henüz öznitelik yok</h3>
+                  <p className="text-gray-500 dark:text-gray-400">Bu öğe için tanımlanmış öznitelik bulunmuyor.</p>
+                </div>
               </div>
             )}
-          </CardBody>
-        </Card>
+          </div>
+        </div>
       )}
 
       {activeTab === 'hierarchy' && (

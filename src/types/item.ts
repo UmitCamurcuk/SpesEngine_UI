@@ -18,16 +18,36 @@ export interface AttributeValue {
   value: any;
 }
 
+// Localization tipi
+export interface Localization {
+  _id: string;
+  key: string;
+  namespace: string;
+  translations: Record<string, string>;
+}
+
 // Item modeli
 export interface Item {
   _id: string;
   itemType: string;
-  family?: string;
-  category?: string;
+  family?: string | { 
+    _id: string; 
+    name: string | Localization; 
+    code: string; 
+    description?: string | Localization;
+  };
+  category?: string | { 
+    _id: string; 
+    name: string | Localization; 
+    code: string; 
+    description?: string | Localization;
+  };
   attributes: Record<string, any>;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  createdBy?: string | { _id: string; name: string; email: string; firstName?: string; lastName?: string };
+  updatedBy?: string | { _id: string; name: string; email: string; firstName?: string; lastName?: string };
 }
 
 // Response için tip tanımı

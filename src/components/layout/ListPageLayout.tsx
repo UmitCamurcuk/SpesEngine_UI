@@ -18,7 +18,7 @@ interface StatItem {
 interface ListPageLayoutProps {
   // Header
   title: string;
-  description?: string;
+  description?: string | React.ReactNode;
   icon?: React.ReactNode;
   breadcrumbItems: BreadcrumbItem[];
   

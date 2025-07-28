@@ -9,6 +9,7 @@ export { default as LanguageSwitcher } from './LanguageSwitcher';
 export { default as PermissionsTab } from './PermissionsTab';
 export { default as RelationshipsTab } from './RelationshipsTab';
 export { default as SearchForm } from './SearchForm';
+export { default as LocalizationSearchForm } from './LocalizationSearchForm';
 export { default as StatisticsTab } from './StatisticsTab';
 export { default as TranslationFields } from './TranslationFields';
 export { default as UsersTab } from './UsersTab';

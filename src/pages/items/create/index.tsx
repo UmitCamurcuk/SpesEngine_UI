@@ -697,7 +697,7 @@ const ItemCreatePage: React.FC = () => {
       
       await itemService.createItem(itemData);
       toast.success('Öğe başarıyla oluşturuldu');
-      navigate('/items');
+      navigate('/items/list');
     } catch (error: any) {
       console.error('Item oluşturulurken hata:', error);
       
@@ -1256,7 +1256,7 @@ const ItemCreatePage: React.FC = () => {
             <Breadcrumb 
               items={[
                 { label: 'Ana Sayfa', path: '/' },
-                { label: 'Öğeler', path: '/items' },
+                { label: 'Öğeler', path: '/items/list' },
                 { label: 'Yeni Öğe Oluştur' }
               ]} 
             />
@@ -1280,7 +1280,7 @@ const ItemCreatePage: React.FC = () => {
               <Button
                 variant="outline"
                 className="flex items-center mt-4 md:mt-0"
-                onClick={() => navigate('/items')}
+                onClick={() => navigate('/items/list')}
               >
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -1322,7 +1322,7 @@ const ItemCreatePage: React.FC = () => {
 
                 <div className="flex space-x-3">
                   <Button
-                    onClick={() => navigate('/items')}
+                    onClick={() => navigate('/items/list')}
                     variant="outline"
                   >
                     İptal

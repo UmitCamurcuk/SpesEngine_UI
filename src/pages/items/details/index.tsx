@@ -215,7 +215,7 @@ const ItemDetailsPage: React.FC = () => {
     try {
       await itemService.deleteItem(item._id);
       toast.success('Öğe başarıyla silindi');
-      navigate('/items');
+      navigate('/items/list');
     } catch (err: any) {
       console.error('❌ Error deleting item:', err);
       const errorMessage = err.response?.data?.message || err.message || 'Öğe silinirken bir hata oluştu';
@@ -251,7 +251,7 @@ const ItemDetailsPage: React.FC = () => {
             <Button onClick={() => window.location.reload()} variant="primary">
               Tekrar Dene
             </Button>
-            <Button onClick={() => navigate('/items')} variant="secondary">
+            <Button onClick={() => navigate('/items/list')} variant="secondary">
               Listeye Dön
             </Button>
           </div>
@@ -266,7 +266,7 @@ const ItemDetailsPage: React.FC = () => {
         <div className="text-center">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Öğe Bulunamadı</h2>
           <p className="text-gray-600 dark:text-gray-400 mb-6">Aradığınız öğe mevcut değil veya silinmiş olabilir.</p>
-          <Button onClick={() => navigate('/items')} variant="primary">
+          <Button onClick={() => navigate('/items/list')} variant="primary">
             Listeye Dön
           </Button>
         </div>
@@ -281,7 +281,7 @@ const ItemDetailsPage: React.FC = () => {
         <div className="flex items-center justify-between">
           <Breadcrumb 
             items={[
-              { label: 'Öğeler', path: '/items' },
+              { label: 'Öğeler', path: '/items/list' },
               { label: getEntityName(item.itemType, currentLanguage) || 'Öğe Detayı' }
             ]} 
           />
@@ -290,7 +290,7 @@ const ItemDetailsPage: React.FC = () => {
         {/* HEADER */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center">
-            <Link to="/items" className="mr-4">
+            <Link to="/items/list" className="mr-4">
               <Button variant="outline" size="sm" className="flex items-center">
                 <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />

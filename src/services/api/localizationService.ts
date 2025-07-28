@@ -95,6 +95,59 @@ const localizationService = {
       console.error('[localizationService] Çeviri güncellenirken hata oluştu:', error);
       throw error;
     }
+  },
+
+  // Tüm çevirileri getir (liste sayfası için)
+  getLocalizations: async (params?: { 
+    page?: number; 
+    limit?: number; 
+    search?: string; 
+    namespace?: string;
+    key?: string;
+    translationValue?: string;
+    language?: string;
+    sortBy?: string; 
+    sortOrder?: 'asc' | 'desc' 
+  }) => {
+    try {
+      const queryParams = new URLSearchParams();
+      
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.search) queryParams.append('search', params.search);
+      if (params?.namespace) queryParams.append('namespace', params.namespace);
+      if (params?.key) queryParams.append('key', params.key);
+      if (params?.translationValue) queryParams.append('translationValue', params.translationValue);
+      if (params?.language) queryParams.append('language', params.language);
+      if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+      if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+      
+      console.log('🔍 getLocalizations API call with params:', params);
+      console.log('🔍 Query string:', queryParams.toString());
+      
+      const response = await api.get(`${API_URL}/localizations?${queryParams.toString()}`, {
+        withCredentials: true
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('[localizationService] Çeviriler listesi getirilirken hata oluştu:', error);
+      throw error;
+    }
+  },
+
+  // Çeviri sil
+  deleteLocalization: async (id: string) => {
+    try {
+      const response = await api.delete(`${API_URL}/localizations/details/${id}`, {
+        withCredentials: true
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('[localizationService] Çeviri silinirken hata oluştu:', error);
+      throw error;
+    }
   }
 };
 

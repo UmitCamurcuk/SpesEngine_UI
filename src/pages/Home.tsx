@@ -29,7 +29,7 @@ const Home: React.FC = () => {
           </div>
         </Link>
         
-        <Link to="/items" className="bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800 rounded-lg p-4 hover:shadow-md transition-shadow">
+        <Link to="/items/list" className="bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800 rounded-lg p-4 hover:shadow-md transition-shadow">
           <div className="flex items-center">
             <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-full text-green-600 dark:text-green-300">
               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">

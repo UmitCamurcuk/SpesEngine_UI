@@ -80,6 +80,7 @@ const ModalNotification: React.FC<ModalNotificationProps> = ({
   title,
   message,
   icon,
+  customContent,
   primaryButton,
   secondaryButton
 }) => {
@@ -115,7 +116,7 @@ const ModalNotification: React.FC<ModalNotificationProps> = ({
     >
       <div 
         className="
-          bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full
+          bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto
           transform transition-all duration-200 ease-out
         "
         onClick={(e) => e.stopPropagation()}
@@ -147,9 +148,18 @@ const ModalNotification: React.FC<ModalNotificationProps> = ({
           </h3>
 
           {/* Message */}
-          <p className={`text-sm mb-6 ${styles.messageColor}`}>
-            {message}
-          </p>
+          {message && (
+            <p className={`text-sm mb-6 ${styles.messageColor}`}>
+              {message}
+            </p>
+          )}
+
+          {/* Custom Content */}
+          {customContent && (
+            <div className="mb-6">
+              {customContent}
+            </div>
+          )}
 
           {/* Buttons */}
           <div className="flex flex-col sm:flex-row gap-3 justify-center">

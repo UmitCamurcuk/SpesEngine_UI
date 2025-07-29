@@ -26,6 +26,26 @@ export interface Localization {
   translations: Record<string, string>;
 }
 
+// Populate edilmiş attribute tipi
+export interface PopulatedAttribute {
+  _id: string;
+  code: string;
+  type: string;
+  name: Localization;
+  description?: Localization;
+  isRequired: boolean;
+  options: any[];
+  validations?: any;
+  notificationSettings?: any;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  __v?: number;
+  value: any;
+  referencedValue?: any;
+  error?: string;
+}
+
 // Item modeli
 export interface Item {
   _id: string;
@@ -42,7 +62,7 @@ export interface Item {
     code: string; 
     description?: string | Localization;
   };
-  attributes: Record<string, any>;
+  attributes: PopulatedAttribute[];
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

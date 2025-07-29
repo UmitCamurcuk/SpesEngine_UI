@@ -237,12 +237,14 @@ function Table<T extends Record<string, any>>({
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                 >
                   {columns.map((column) => (
-                    <td key={`${String(row[keyField])}-${column.key}`} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
-                      {column.render
-                        ? column.render(row, rowIndex)
-                        : row[column.key] !== undefined
-                        ? String(row[column.key])
-                        : '-'}
+                    <td key={`${String(row[keyField])}-${column.key}`} className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                      <div className="max-w-xs">
+                        {column.render
+                          ? column.render(row, rowIndex)
+                          : row[column.key] !== undefined
+                          ? String(row[column.key])
+                          : '-'}
+                      </div>
                     </td>
                   ))}
                   {renderActions && (

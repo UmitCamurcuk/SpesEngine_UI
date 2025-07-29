@@ -51,6 +51,27 @@ const ItemTypeCreatePage: React.FC = () => {
     isActive: true
   });
   
+  // Settings state
+  const [settingsData, setSettingsData] = useState({
+    navigation: {
+      showInNavbar: false,
+      navbarLabel: '',
+      navbarIcon: 'cube',
+      navbarOrder: 1,
+      menuGroup: ''
+    },
+    display: {
+      listTitle: '',
+      listDescription: '',
+      itemsPerPage: 10,
+      defaultSortField: 'createdAt',
+      defaultSortOrder: 'desc' as 'asc' | 'desc',
+      showAdvancedFilters: false,
+      showExportButton: false,
+      showImportButton: false
+    }
+  });
+  
   // Seçenekler
   const [attributeGroupOptions, setAttributeGroupOptions] = useState<AttributeGroupOption[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
@@ -71,6 +92,7 @@ const ItemTypeCreatePage: React.FC = () => {
     { title: t('general_info', 'itemTypes'), description: t('name_code_description', 'itemTypes') },
     { title: t('category_selection', 'itemTypes'), description: t('select_category_for_item_type', 'itemTypes') },
     { title: t('attribute_groups', 'itemTypes'), description: t('select_attribute_groups', 'itemTypes') },
+    { title: t('settings', 'itemTypes'), description: t('navigation_and_display_settings', 'itemTypes') },
     { title: t('review_and_create', 'itemTypes'), description: t('review_before_creating', 'itemTypes') },
   ], [t, currentLanguage]);
 
@@ -142,6 +164,17 @@ const ItemTypeCreatePage: React.FC = () => {
     }
   };
   
+  // Settings değişiklik handler
+  const handleSettingsChange = (section: 'navigation' | 'display', field: string, value: any) => {
+    setSettingsData(prev => ({
+      ...prev,
+      [section]: {
+        ...prev[section],
+        [field]: value
+      }
+    }));
+  };
+  
 
   
   // Form gönderme handler
@@ -158,7 +191,8 @@ const ItemTypeCreatePage: React.FC = () => {
         ...formData,
         name: nameTranslations.nameId,
         description: descriptionTranslations.descriptionId || nameTranslations.nameId,
-        attributeGroups: selectedAttributeGroups
+        attributeGroups: selectedAttributeGroups,
+        settings: settingsData
       };
       
       // API'ye gönder
@@ -254,6 +288,18 @@ const ItemTypeCreatePage: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
   
+  const validateStep4 = (): boolean => {
+    const errors: Record<string, string> = {};
+    
+    // Settings validasyonu opsiyonel - özellikle navigation için
+    if (settingsData.navigation.showInNavbar && !settingsData.navigation.navbarLabel.trim()) {
+      errors.navbarLabel = t('navbar_label_required_when_show_in_navbar', 'itemTypes');
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+  
   const handleNextStep = () => {
     let isValid = false;
     
@@ -264,6 +310,8 @@ const ItemTypeCreatePage: React.FC = () => {
       isValid = validateStep2();
     } else if (currentStep === 2) {
       isValid = validateStep3();
+    } else if (currentStep === 3) {
+      isValid = validateStep4();
     }
     
     if (isValid) {
@@ -406,6 +454,169 @@ const ItemTypeCreatePage: React.FC = () => {
         return (
           <div className="space-y-6">
             <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+              {t('settings', 'itemTypes')}
+            </h3>
+            
+            {/* Navigation Settings */}
+            <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+              <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">
+                {t('navigation_settings', 'itemTypes')}
+              </h4>
+              
+              <div className="space-y-4">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="showInNavbar"
+                    checked={settingsData.navigation.showInNavbar}
+                    onChange={(e) => handleSettingsChange('navigation', 'showInNavbar', e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="showInNavbar" className="ml-2 block text-sm text-gray-900 dark:text-white">
+                    {t('show_in_navbar', 'itemTypes')}
+                  </label>
+                </div>
+                
+                {settingsData.navigation.showInNavbar && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ml-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        {t('navbar_label', 'itemTypes')} <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={settingsData.navigation.navbarLabel}
+                        onChange={(e) => handleSettingsChange('navigation', 'navbarLabel', e.target.value)}
+                        className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                          formErrors.navbarLabel
+                            ? 'border-red-300 focus:ring-red-500 dark:border-red-700'
+                            : 'border-gray-300 focus:ring-blue-500 dark:border-gray-600'
+                        } dark:bg-gray-700 dark:text-white`}
+                        placeholder={t('enter_navbar_label', 'itemTypes')}
+                      />
+                      {formErrors.navbarLabel && (
+                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.navbarLabel}</p>
+                      )}
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        {t('navbar_order', 'itemTypes')}
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={settingsData.navigation.navbarOrder}
+                        onChange={(e) => handleSettingsChange('navigation', 'navbarOrder', parseInt(e.target.value) || 1)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Display Settings */}
+            <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+              <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">
+                {t('display_settings', 'itemTypes')}
+              </h4>
+              
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      {t('list_title', 'itemTypes')}
+                    </label>
+                    <input
+                      type="text"
+                      value={settingsData.display.listTitle}
+                      onChange={(e) => handleSettingsChange('display', 'listTitle', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                      placeholder={t('enter_list_title', 'itemTypes')}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      {t('items_per_page', 'itemTypes')}
+                    </label>
+                    <select
+                      value={settingsData.display.itemsPerPage}
+                      onChange={(e) => handleSettingsChange('display', 'itemsPerPage', parseInt(e.target.value))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    >
+                      <option value={5}>5</option>
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t('list_description', 'itemTypes')}
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={settingsData.display.listDescription}
+                    onChange={(e) => handleSettingsChange('display', 'listDescription', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    placeholder={t('enter_list_description', 'itemTypes')}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="showAdvancedFilters"
+                      checked={settingsData.display.showAdvancedFilters}
+                      onChange={(e) => handleSettingsChange('display', 'showAdvancedFilters', e.target.checked)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showAdvancedFilters" className="ml-2 block text-sm text-gray-900 dark:text-white">
+                      {t('show_advanced_filters', 'itemTypes')}
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="showExportButton"
+                      checked={settingsData.display.showExportButton}
+                      onChange={(e) => handleSettingsChange('display', 'showExportButton', e.target.checked)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showExportButton" className="ml-2 block text-sm text-gray-900 dark:text-white">
+                      {t('show_export_button', 'itemTypes')}
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="showImportButton"
+                      checked={settingsData.display.showImportButton}
+                      onChange={(e) => handleSettingsChange('display', 'showImportButton', e.target.checked)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showImportButton" className="ml-2 block text-sm text-gray-900 dark:text-white">
+                      {t('show_import_button', 'itemTypes')}
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+        
+      case 4:
+        return (
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
               {t('review_and_create', 'itemTypes')}
             </h3>
             
@@ -459,6 +670,28 @@ const ItemTypeCreatePage: React.FC = () => {
                         }).filter(Boolean).join(', ')
                       : '-'
                     }
+                  </dd>
+                </div>
+                
+                <div>
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    {t('navigation_settings', 'itemTypes')}
+                  </dt>
+                  <dd className="mt-1 text-sm text-gray-900 dark:text-white">
+                    {settingsData.navigation.showInNavbar 
+                      ? `${t('show_in_navbar', 'itemTypes')}: ${settingsData.navigation.navbarLabel || '-'}`
+                      : t('not_shown_in_navbar', 'itemTypes')
+                    }
+                  </dd>
+                </div>
+                
+                <div>
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    {t('display_settings', 'itemTypes')}
+                  </dt>
+                  <dd className="mt-1 text-sm text-gray-900 dark:text-white">
+                    {settingsData.display.listTitle || t('default_list_title', 'itemTypes')} 
+                    ({settingsData.display.itemsPerPage} {t('items_per_page', 'itemTypes')})
                   </dd>
                 </div>
               </dl>

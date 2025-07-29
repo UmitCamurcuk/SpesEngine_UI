@@ -65,6 +65,35 @@ const ItemTypeDetailsPage: React.FC = () => {
     isActive: true,
     category: ''
   });
+  
+  // Settings edit state
+  const [editableSettings, setEditableSettings] = useState({
+    navigation: {
+      showInNavbar: false,
+      navbarLabel: '',
+      navbarIcon: 'cube',
+      navbarOrder: 1,
+      menuGroup: ''
+    },
+    display: {
+      listTitle: '',
+      listDescription: '',
+      itemsPerPage: 10,
+      defaultSortField: 'createdAt',
+      defaultSortOrder: 'desc' as 'asc' | 'desc',
+      showAdvancedFilters: false,
+      showExportButton: false,
+      showImportButton: false,
+      tableColumns: [] as Array<{
+        key: string;
+        title: string;
+        visible: boolean;
+        order: number;
+        sortable?: boolean;
+        filterable?: boolean;
+      }>
+    }
+  });
 
   // Attributes, AttributeGroups and Category state
   const [attributes, setAttributes] = useState<{id: string, name: string, type?: string}[]>([]);
@@ -179,6 +208,45 @@ const ItemTypeDetailsPage: React.FC = () => {
             category: (data.category && typeof data.category === 'object') ? (data.category as any)._id : (data.category || '')
           });
           
+          // Varsayılan sütunları hazırla
+          const defaultColumns = [
+            { key: 'itemType', title: 'Öğe Tipi', visible: true, order: 1, sortable: true, filterable: true },
+            { key: 'family', title: 'Aile', visible: true, order: 2, sortable: true, filterable: true },
+            { key: 'category', title: 'Kategori', visible: true, order: 3, sortable: true, filterable: true },
+            { key: 'createdBy', title: 'Oluşturan', visible: true, order: 4, sortable: true, filterable: true },
+            { key: 'updatedBy', title: 'Güncelleyen', visible: true, order: 5, sortable: true, filterable: true },
+            { key: 'createdAt', title: 'Oluşturma Tarihi', visible: true, order: 6, sortable: true, filterable: false },
+            { key: 'updatedAt', title: 'Güncelleme Tarihi', visible: true, order: 7, sortable: true, filterable: false }
+          ];
+          
+          // Mevcut tableColumns varsa kullan, yoksa varsayılan sütunları ekle
+          let tableColumns = data.settings?.display?.tableColumns || [];
+          if (tableColumns.length === 0) {
+            tableColumns = defaultColumns;
+          }
+
+          // Initialize settings
+          setEditableSettings({
+            navigation: {
+              showInNavbar: data.settings?.navigation?.showInNavbar || false,
+              navbarLabel: data.settings?.navigation?.navbarLabel || '',
+              navbarIcon: data.settings?.navigation?.navbarIcon || 'cube',
+              navbarOrder: data.settings?.navigation?.navbarOrder || 1,
+              menuGroup: data.settings?.navigation?.menuGroup || ''
+            },
+            display: {
+              listTitle: data.settings?.display?.listTitle || '',
+              listDescription: data.settings?.display?.listDescription || '',
+              itemsPerPage: data.settings?.display?.itemsPerPage || 10,
+              defaultSortField: data.settings?.display?.defaultSortField || 'createdAt',
+              defaultSortOrder: data.settings?.display?.defaultSortOrder || 'desc',
+              showAdvancedFilters: data.settings?.display?.showAdvancedFilters || false,
+              showExportButton: data.settings?.display?.showExportButton || false,
+              showImportButton: data.settings?.display?.showImportButton || false,
+              tableColumns: tableColumns
+            }
+          });
+          
           // Initialize notification settings
           const currentNotificationSettings = data.settings?.notifications?.settings || {};
           setNotificationSettings(currentNotificationSettings);
@@ -206,14 +274,77 @@ const ItemTypeDetailsPage: React.FC = () => {
           }
           
           // İlişkili öznitelikleri set et - Backend'den populate olmuş halde geliyor
+          let allAttributes: any[] = [];
+          
+          // Direkt attributes'dan al
           if (data.attributes && data.attributes.length > 0) {
-            const fetchedAttributes = data.attributes.map((attribute: any) => ({
+            allAttributes = [...data.attributes];
+          }
+          
+          // AttributeGroups içindeki attributes'ları da ekle
+          if (data.attributeGroups && data.attributeGroups.length > 0) {
+            data.attributeGroups.forEach((group: any) => {
+              if (group.attributes && group.attributes.length > 0) {
+                allAttributes = [...allAttributes, ...group.attributes];
+              }
+            });
+          }
+          
+          // Kategori içindeki attributeGroups'lardan da al
+          if (data.category && typeof data.category === 'object' && data.category.subcategories) {
+            data.category.subcategories.forEach((subcategory: any) => {
+              if (subcategory.attributeGroups && subcategory.attributeGroups.length > 0) {
+                subcategory.attributeGroups.forEach((group: any) => {
+                  if (group.attributes && group.attributes.length > 0) {
+                    allAttributes = [...allAttributes, ...group.attributes];
+                  }
+                });
+              }
+            });
+          }
+          
+          // Families içindeki attributeGroups'lardan da al
+          if (data.category && typeof data.category === 'object' && data.category.subcategories) {
+            data.category.subcategories.forEach((subcategory: any) => {
+              if (subcategory.families && subcategory.families.length > 0) {
+                subcategory.families.forEach((family: any) => {
+                  if (family.attributeGroups && family.attributeGroups.length > 0) {
+                    family.attributeGroups.forEach((group: any) => {
+                      if (group.attributes && group.attributes.length > 0) {
+                        allAttributes = [...allAttributes, ...group.attributes];
+                      }
+                    });
+                  }
+                  // SubFamilies içindeki attributeGroups'lardan da al
+                  if (family.subFamilies && family.subFamilies.length > 0) {
+                    family.subFamilies.forEach((subFamily: any) => {
+                      if (subFamily.attributeGroups && subFamily.attributeGroups.length > 0) {
+                        subFamily.attributeGroups.forEach((group: any) => {
+                          if (group.attributes && group.attributes.length > 0) {
+                            allAttributes = [...allAttributes, ...group.attributes];
+                          }
+                        });
+                      }
+                    });
+                  }
+                });
+              }
+            });
+          }
+          
+          // Duplicate'leri kaldır ve set et
+          const uniqueAttributes = allAttributes.filter((attr, index, self) => 
+            index === self.findIndex(a => a._id === attr._id)
+          );
+          
+          if (uniqueAttributes.length > 0) {
+            const fetchedAttributes = uniqueAttributes.map((attribute: any) => ({
               id: attribute._id, 
               name: getEntityName(attribute, currentLanguage),
               type: attribute.type || 'text'
             }));
-              setAttributes(fetchedAttributes);
-            }
+            setAttributes(fetchedAttributes);
+          }
           }
       } catch (err: any) {
         if (isMounted) {
@@ -333,6 +464,40 @@ const ItemTypeDetailsPage: React.FC = () => {
       if (JSON.stringify(tempNotificationSettings) !== JSON.stringify(notificationSettings)) {
         changes.push(`Bildirim ayarları güncellendi`);
       }
+      
+      // Settings değişiklik kontrolü
+      const currentSettings = {
+        navigation: itemType.settings?.navigation || {},
+        display: itemType.settings?.display || {}
+      };
+      
+      // Navigation değişikliklerini kontrol et
+      const hasNavigationChanges = 
+        editableSettings.navigation.showInNavbar !== currentSettings.navigation.showInNavbar ||
+        editableSettings.navigation.navbarLabel !== currentSettings.navigation.navbarLabel ||
+        editableSettings.navigation.navbarIcon !== currentSettings.navigation.navbarIcon ||
+        editableSettings.navigation.navbarOrder !== currentSettings.navigation.navbarOrder ||
+        editableSettings.navigation.menuGroup !== currentSettings.navigation.menuGroup;
+      
+      // Display değişikliklerini kontrol et
+      const hasDisplayChanges = 
+        editableSettings.display.listTitle !== currentSettings.display.listTitle ||
+        editableSettings.display.listDescription !== currentSettings.display.listDescription ||
+        editableSettings.display.itemsPerPage !== currentSettings.display.itemsPerPage ||
+        editableSettings.display.defaultSortField !== currentSettings.display.defaultSortField ||
+        editableSettings.display.defaultSortOrder !== currentSettings.display.defaultSortOrder ||
+        editableSettings.display.showAdvancedFilters !== currentSettings.display.showAdvancedFilters ||
+        editableSettings.display.showExportButton !== currentSettings.display.showExportButton ||
+        editableSettings.display.showImportButton !== currentSettings.display.showImportButton ||
+        JSON.stringify(editableSettings.display.tableColumns) !== JSON.stringify(currentSettings.display.tableColumns);
+      
+      if (hasNavigationChanges) {
+        changes.push(`Navigasyon ayarları güncellendi`);
+      }
+      
+      if (hasDisplayChanges) {
+        changes.push(`Görüntüleme ayarları güncellendi`);
+      }
     }
 
     if (changes.length === 0) {
@@ -399,16 +564,45 @@ const ItemTypeDetailsPage: React.FC = () => {
           updateData.comment = comment.trim();
         }
         
-        // Notification settings değişmişse ekle
-        if (JSON.stringify(tempNotificationSettings) !== JSON.stringify(notificationSettings)) {
-          updateData.settings = {
-            ...itemType.settings,
-            notifications: {
-              ...itemType.settings?.notifications,
-              settings: tempNotificationSettings
-            }
-          };
-        }
+              // Settings değişmişse ekle - daha detaylı karşılaştırma
+      const currentSettings = {
+        navigation: itemType.settings?.navigation || {},
+        display: itemType.settings?.display || {}
+      };
+      
+      // Navigation değişikliklerini kontrol et
+      const hasNavigationChanges = 
+        editableSettings.navigation.showInNavbar !== currentSettings.navigation.showInNavbar ||
+        editableSettings.navigation.navbarLabel !== currentSettings.navigation.navbarLabel ||
+        editableSettings.navigation.navbarIcon !== currentSettings.navigation.navbarIcon ||
+        editableSettings.navigation.navbarOrder !== currentSettings.navigation.navbarOrder ||
+        editableSettings.navigation.menuGroup !== currentSettings.navigation.menuGroup;
+      
+      // Display değişikliklerini kontrol et
+      const hasDisplayChanges = 
+        editableSettings.display.listTitle !== currentSettings.display.listTitle ||
+        editableSettings.display.listDescription !== currentSettings.display.listDescription ||
+        editableSettings.display.itemsPerPage !== currentSettings.display.itemsPerPage ||
+        editableSettings.display.defaultSortField !== currentSettings.display.defaultSortField ||
+        editableSettings.display.defaultSortOrder !== currentSettings.display.defaultSortOrder ||
+        editableSettings.display.showAdvancedFilters !== currentSettings.display.showAdvancedFilters ||
+        editableSettings.display.showExportButton !== currentSettings.display.showExportButton ||
+        editableSettings.display.showImportButton !== currentSettings.display.showImportButton ||
+        JSON.stringify(editableSettings.display.tableColumns) !== JSON.stringify(currentSettings.display.tableColumns);
+      
+      const hasNotificationChanges = JSON.stringify(tempNotificationSettings) !== JSON.stringify(notificationSettings);
+      
+      if (hasNavigationChanges || hasDisplayChanges || hasNotificationChanges) {
+        updateData.settings = {
+          ...itemType.settings,
+          navigation: editableSettings.navigation,
+          display: editableSettings.display,
+          notifications: {
+            ...itemType.settings?.notifications,
+            settings: tempNotificationSettings
+          }
+        };
+      }
       }
       
       const updatedItemType = await itemTypeService.updateItemType(id!, updateData);
@@ -452,11 +646,88 @@ const ItemTypeDetailsPage: React.FC = () => {
       category: (itemType.category && typeof itemType.category === 'object') ? (itemType.category as any)._id : (itemType.category || '')
     });
     
+    // Varsayılan sütunları hazırla
+    const defaultColumns = [
+      { key: 'itemType', title: 'Öğe Tipi', visible: true, order: 1, sortable: true, filterable: true },
+      { key: 'family', title: 'Aile', visible: true, order: 2, sortable: true, filterable: true },
+      { key: 'category', title: 'Kategori', visible: true, order: 3, sortable: true, filterable: true },
+      { key: 'createdBy', title: 'Oluşturan', visible: true, order: 4, sortable: true, filterable: true },
+      { key: 'updatedBy', title: 'Güncelleyen', visible: true, order: 5, sortable: true, filterable: true },
+      { key: 'createdAt', title: 'Oluşturma Tarihi', visible: true, order: 6, sortable: true, filterable: false },
+      { key: 'updatedAt', title: 'Güncelleme Tarihi', visible: true, order: 7, sortable: true, filterable: false }
+    ];
+    
+    let resetTableColumns = itemType.settings?.display?.tableColumns || [];
+    if (resetTableColumns.length === 0) {
+      resetTableColumns = defaultColumns;
+    }
+
+    // Reset settings to original values
+    setEditableSettings({
+      navigation: {
+        showInNavbar: itemType.settings?.navigation?.showInNavbar || false,
+        navbarLabel: itemType.settings?.navigation?.navbarLabel || '',
+        navbarIcon: itemType.settings?.navigation?.navbarIcon || 'cube',
+        navbarOrder: itemType.settings?.navigation?.navbarOrder || 1,
+        menuGroup: itemType.settings?.navigation?.menuGroup || ''
+      },
+      display: {
+        listTitle: itemType.settings?.display?.listTitle || '',
+        listDescription: itemType.settings?.display?.listDescription || '',
+        itemsPerPage: itemType.settings?.display?.itemsPerPage || 10,
+        defaultSortField: itemType.settings?.display?.defaultSortField || 'createdAt',
+        defaultSortOrder: itemType.settings?.display?.defaultSortOrder || 'desc',
+        showAdvancedFilters: itemType.settings?.display?.showAdvancedFilters || false,
+        showExportButton: itemType.settings?.display?.showExportButton || false,
+        showImportButton: itemType.settings?.display?.showImportButton || false,
+        tableColumns: resetTableColumns
+      }
+    });
+    
     // Reset notification settings
     setTempNotificationSettings(notificationSettings);
     
     setFormErrors({});
     setIsEditing(false);
+  };
+
+  // Save edit for settings
+  const handleSaveSettings = async () => {
+    if (!id || !itemType) return;
+    
+    setIsSaving(true);
+    
+    try {
+      const updateData = {
+        settings: {
+          ...itemType.settings,
+          navigation: editableSettings.navigation,
+          display: editableSettings.display
+        }
+      };
+      
+      const updatedItemType = await itemTypeService.updateItemType(id, updateData);
+      setItemType(updatedItemType);
+      setFormErrors({});
+      
+      // Success notification
+      showToast({
+        type: 'success',
+        title: 'Başarıyla Güncellendi',
+        message: 'Ayarlar başarıyla güncellendi',
+        duration: 3000
+      });
+      
+    } catch (err: any) {
+      showToast({
+        type: 'error',
+        title: 'Güncelleme Hatası',
+        message: err.message || 'Ayarlar güncellenirken bir hata oluştu',
+        duration: 5000
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Start editing
@@ -815,6 +1086,22 @@ const ItemTypeDetailsPage: React.FC = () => {
                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                </svg>
                İstatistikler
+             </div>
+           </button>
+           <button
+             className={`py-4 px-1 border-b-2 font-medium text-sm ${
+               activeTab === 'settings'
+                 ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                 : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+             }`}
+             onClick={() => setActiveTab('settings')}
+           >
+             <div className="flex items-center">
+               <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+               </svg>
+               Ayarlar
              </div>
            </button>
            <button
@@ -1196,6 +1483,479 @@ const ItemTypeDetailsPage: React.FC = () => {
             entityType="itemType"
           />
         )}
+
+        {/* TAB CONTENT - SETTINGS */}
+        {activeTab === 'settings' && (
+          <Card>
+            <div className="border-b border-gray-200 dark:border-gray-700 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-medium text-gray-900 dark:text-white">Ayarlar</h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    Navigasyon ve görüntüleme ayarlarını yönetin
+                  </p>
+                </div>
+                                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  Sayfa üzerindeki "Düzenle" butonu ile ayarları düzenleyebilirsiniz
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              {/* Navigation Settings */}
+              <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                <h3 className="text-md font-medium text-gray-900 dark:text-white mb-4">
+                  Navigasyon Ayarları
+                </h3>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="showInNavbar"
+                      checked={isEditing ? editableSettings.navigation.showInNavbar : (itemType?.settings?.navigation?.showInNavbar || false)}
+                      onChange={(e) => {
+                        if (isEditing) {
+                          setEditableSettings(prev => ({
+                            ...prev,
+                            navigation: {
+                              ...prev.navigation,
+                              showInNavbar: e.target.checked
+                            }
+                          }));
+                        }
+                      }}
+                      disabled={!isEditing}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
+                    />
+                    <label htmlFor="showInNavbar" className="ml-2 block text-sm text-gray-900 dark:text-white">
+                      Navbar'da Göster
+                    </label>
+                  </div>
+                  
+                  {(isEditing ? editableSettings.navigation.showInNavbar : (itemType?.settings?.navigation?.showInNavbar || false)) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ml-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Navbar Etiketi
+                        </label>
+                        <input
+                          type="text"
+                          value={isEditing ? editableSettings.navigation.navbarLabel : (itemType?.settings?.navigation?.navbarLabel || '')}
+                          onChange={(e) => {
+                            if (isEditing) {
+                              setEditableSettings(prev => ({
+                                ...prev,
+                                navigation: {
+                                  ...prev.navigation,
+                                  navbarLabel: e.target.value
+                                }
+                              }));
+                            }
+                          }}
+                          disabled={!isEditing}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                          placeholder="Navbar'da görünecek isim"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Navbar Sırası
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={isEditing ? editableSettings.navigation.navbarOrder : (itemType?.settings?.navigation?.navbarOrder || 1)}
+                          onChange={(e) => {
+                            if (isEditing) {
+                              setEditableSettings(prev => ({
+                                ...prev,
+                                navigation: {
+                                  ...prev.navigation,
+                                  navbarOrder: parseInt(e.target.value) || 1
+                                }
+                              }));
+                            }
+                          }}
+                          disabled={!isEditing}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Display Settings */}
+              <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                <h3 className="text-md font-medium text-gray-900 dark:text-white mb-4">
+                  Görüntüleme Ayarları
+                </h3>
+                
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Liste Başlığı
+                      </label>
+                      <input
+                        type="text"
+                        value={isEditing ? editableSettings.display.listTitle : (itemType?.settings?.display?.listTitle || '')}
+                        onChange={(e) => {
+                          if (isEditing) {
+                            setEditableSettings(prev => ({
+                              ...prev,
+                              display: {
+                                ...prev.display,
+                                listTitle: e.target.value
+                              }
+                            }));
+                          }
+                        }}
+                        disabled={!isEditing}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                        placeholder="Özel liste başlığı"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Sayfa Başına Öğe
+                      </label>
+                      <select
+                        value={isEditing ? editableSettings.display.itemsPerPage : (itemType?.settings?.display?.itemsPerPage || 10)}
+                        onChange={(e) => {
+                          if (isEditing) {
+                            setEditableSettings(prev => ({
+                              ...prev,
+                              display: {
+                                ...prev.display,
+                                itemsPerPage: parseInt(e.target.value)
+                              }
+                            }));
+                          }
+                        }}
+                        disabled={!isEditing}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <option value={5}>5</option>
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Liste Açıklaması
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={isEditing ? editableSettings.display.listDescription : (itemType?.settings?.display?.listDescription || '')}
+                      onChange={(e) => {
+                        if (isEditing) {
+                          setEditableSettings(prev => ({
+                            ...prev,
+                            display: {
+                              ...prev.display,
+                              listDescription: e.target.value
+                            }
+                          }));
+                        }
+                      }}
+                      disabled={!isEditing}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                      placeholder="Liste sayfası açıklaması"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="showAdvancedFilters"
+                        checked={isEditing ? editableSettings.display.showAdvancedFilters : (itemType?.settings?.display?.showAdvancedFilters || false)}
+                        onChange={(e) => {
+                          if (isEditing) {
+                            setEditableSettings(prev => ({
+                              ...prev,
+                              display: {
+                                ...prev.display,
+                                showAdvancedFilters: e.target.checked
+                              }
+                            }));
+                          }
+                        }}
+                        disabled={!isEditing}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
+                      />
+                      <label htmlFor="showAdvancedFilters" className="ml-2 block text-sm text-gray-900 dark:text-white">
+                        Gelişmiş Filtreler
+                      </label>
+                    </div>
+                    
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="showExportButton"
+                        checked={isEditing ? editableSettings.display.showExportButton : (itemType?.settings?.display?.showExportButton || false)}
+                        onChange={(e) => {
+                          if (isEditing) {
+                            setEditableSettings(prev => ({
+                              ...prev,
+                              display: {
+                                ...prev.display,
+                                showExportButton: e.target.checked
+                              }
+                            }));
+                          }
+                        }}
+                        disabled={!isEditing}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
+                      />
+                      <label htmlFor="showExportButton" className="ml-2 block text-sm text-gray-900 dark:text-white">
+                        Export Butonu
+                      </label>
+                    </div>
+                    
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="showImportButton"
+                        checked={isEditing ? editableSettings.display.showImportButton : (itemType?.settings?.display?.showImportButton || false)}
+                        onChange={(e) => {
+                          if (isEditing) {
+                            setEditableSettings(prev => ({
+                              ...prev,
+                              display: {
+                                ...prev.display,
+                                showImportButton: e.target.checked
+                              }
+                            }));
+                          }
+                        }}
+                        disabled={!isEditing}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
+                      />
+                      <label htmlFor="showImportButton" className="ml-2 block text-sm text-gray-900 dark:text-white">
+                        Import Butonu
+                      </label>
+                    </div>
+                                   </div>
+               </div>
+               
+               {/* Table Column Settings */}
+               <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                 <h3 className="text-md font-medium text-gray-900 dark:text-white mb-4">
+                   Tablo Sütun Ayarları
+                 </h3>
+                 
+                 <div className="space-y-4">
+                   <div className="flex items-center justify-between">
+                     <span className="text-sm text-gray-700 dark:text-gray-300">
+                       Mevcut Öznitelikler: {attributes.length}
+                     </span>
+                     {isEditing && (
+                       <Button
+                         variant="outline"
+                         size="sm"
+                         onClick={() => {
+                                                                                   // Varsayılan sütunları koru ve öznitelikleri ekle
+                            const defaultColumns = [
+                              { key: 'itemType', title: 'Öğe Tipi', visible: true, order: 1, sortable: true, filterable: true },
+                              { key: 'family', title: 'Aile', visible: true, order: 2, sortable: true, filterable: true },
+                              { key: 'category', title: 'Kategori', visible: true, order: 3, sortable: true, filterable: true },
+                              { key: 'createdBy', title: 'Oluşturan', visible: true, order: 4, sortable: true, filterable: true },
+                              { key: 'updatedBy', title: 'Güncelleyen', visible: true, order: 5, sortable: true, filterable: true },
+                              { key: 'createdAt', title: 'Oluşturma Tarihi', visible: true, order: 6, sortable: true, filterable: false },
+                              { key: 'updatedAt', title: 'Güncelleme Tarihi', visible: true, order: 7, sortable: true, filterable: false }
+                            ];
+                            
+                            const attributeColumns = attributes.map((attr, index) => ({
+                              key: attr.id, // Bu zaten _id'den geliyor
+                              title: attr.name,
+                              visible: true,
+                              order: defaultColumns.length + index + 1,
+                              sortable: true,
+                              filterable: true
+                            }));
+                            
+                            const newColumns = [...defaultColumns, ...attributeColumns];
+                            setEditableSettings(prev => ({
+                              ...prev,
+                              display: {
+                                ...prev.display,
+                                tableColumns: newColumns
+                              }
+                            }));
+                         }}
+                       >
+                         Tümünü Ekle
+                       </Button>
+                     )}
+                   </div>
+                   
+                   {isEditing ? (
+                     <div className="space-y-2">
+                       {editableSettings.display.tableColumns.map((column, index) => (
+                         <div key={column.key} className="flex items-center space-x-3 p-3 bg-white dark:bg-gray-600 rounded border">
+                           <input
+                             type="checkbox"
+                             checked={column.visible}
+                             onChange={(e) => {
+                               const newColumns = [...editableSettings.display.tableColumns];
+                               newColumns[index].visible = e.target.checked;
+                               setEditableSettings(prev => ({
+                                 ...prev,
+                                 display: {
+                                   ...prev.display,
+                                   tableColumns: newColumns
+                                 }
+                               }));
+                             }}
+                             className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                           />
+                           <input
+                             type="text"
+                             value={column.title}
+                             onChange={(e) => {
+                               const newColumns = [...editableSettings.display.tableColumns];
+                               newColumns[index].title = e.target.value;
+                               setEditableSettings(prev => ({
+                                 ...prev,
+                                 display: {
+                                   ...prev.display,
+                                   tableColumns: newColumns
+                                 }
+                               }));
+                             }}
+                             className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                           />
+                           <input
+                             type="number"
+                             min="1"
+                             value={column.order}
+                             onChange={(e) => {
+                               const newColumns = [...editableSettings.display.tableColumns];
+                               newColumns[index].order = parseInt(e.target.value) || 1;
+                               setEditableSettings(prev => ({
+                                 ...prev,
+                                 display: {
+                                   ...prev.display,
+                                   tableColumns: newColumns
+                                 }
+                               }));
+                             }}
+                             className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                           />
+                           <div className="flex space-x-2">
+                             <input
+                               type="checkbox"
+                               checked={column.sortable}
+                               onChange={(e) => {
+                                 const newColumns = [...editableSettings.display.tableColumns];
+                                 newColumns[index].sortable = e.target.checked;
+                                 setEditableSettings(prev => ({
+                                   ...prev,
+                                   display: {
+                                     ...prev.display,
+                                     tableColumns: newColumns
+                                   }
+                                 }));
+                               }}
+                               className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                             />
+                             <span className="text-xs text-gray-500">Sıralanabilir</span>
+                           </div>
+                           <div className="flex space-x-2">
+                             <input
+                               type="checkbox"
+                               checked={column.filterable}
+                               onChange={(e) => {
+                                 const newColumns = [...editableSettings.display.tableColumns];
+                                 newColumns[index].filterable = e.target.checked;
+                                 setEditableSettings(prev => ({
+                                   ...prev,
+                                   display: {
+                                     ...prev.display,
+                                     tableColumns: newColumns
+                                   }
+                                 }));
+                               }}
+                               className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                             />
+                             <span className="text-xs text-gray-500">Filtrelenebilir</span>
+                           </div>
+                           <button
+                             onClick={() => {
+                               const newColumns = editableSettings.display.tableColumns.filter((_, i) => i !== index);
+                               setEditableSettings(prev => ({
+                                 ...prev,
+                                 display: {
+                                   ...prev.display,
+                                   tableColumns: newColumns
+                                 }
+                               }));
+                             }}
+                             className="text-red-500 hover:text-red-700 p-1"
+                           >
+                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                             </svg>
+                           </button>
+                         </div>
+                       ))}
+                       
+                       {editableSettings.display.tableColumns.length === 0 && (
+                         <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                           Henüz sütun eklenmemiş. "Tümünü Ekle" butonuna tıklayarak mevcut öznitelikleri ekleyebilirsiniz.
+                         </p>
+                       )}
+                     </div>
+                                        ) : (
+                       <div className="space-y-2">
+                         {itemType?.settings?.display?.tableColumns && itemType.settings.display.tableColumns.length > 0 ? (
+                           itemType.settings.display.tableColumns
+                             .filter(col => col.visible)
+                             .sort((a, b) => a.order - b.order)
+                             .map((column) => (
+                             <div key={column.key} className="flex items-center justify-between p-3 bg-white dark:bg-gray-600 rounded border">
+                               <div className="flex items-center space-x-3">
+                                 <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                   {column.title}
+                                 </span>
+                                 <span className="text-xs text-gray-500">
+                                   Sıra: {column.order}
+                                 </span>
+                                 {column.sortable && (
+                                   <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                     Sıralanabilir
+                                   </span>
+                                 )}
+                                 {column.filterable && (
+                                   <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                     Filtrelenebilir
+                                   </span>
+                                 )}
+                               </div>
+                             </div>
+                           ))
+                         ) : (
+                           <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                             Henüz tablo sütun ayarı yapılmamış.
+                           </p>
+                         )}
+                       </div>
+                     )}
+                   </div>
+                 </div>
+               </div>
+             </div>
+           </Card>
+         )}
 
         {/* TAB CONTENT - HISTORY */}
         {activeTab === 'history' && (

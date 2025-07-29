@@ -94,6 +94,36 @@ const itemTypeService = {
       console.error(`${id} ID'li öğe tipi silinirken hata oluştu:`, error);
       throw error;
     }
+  },
+
+  // Navbar için itemType'ları getir
+  getItemTypesForNavbar: async (): Promise<ItemType[]> => {
+    const response = await api.get<ApiResponse<ItemType[]>>('/itemtypes/navbar');
+    return response.data.data;
+  },
+
+  // Code'a göre ItemType getir
+  getItemTypeByCode: async (code: string, options?: ItemTypeOptions): Promise<any> => {
+    try {
+      let params = {};
+      if (options) {
+        if (options.includeAttributes) {
+          params = { ...params, includeAttributes: 'true' };
+        }
+        if (options.includeAttributeGroups) {
+          params = { ...params, includeAttributeGroups: 'true' };
+        }
+        if (options.populateAttributeGroupsAttributes) {
+          params = { ...params, populateAttributeGroupsAttributes: 'true' };
+        }
+      }
+      
+      const response = await api.get<ApiResponse<any>>(`/itemtypes/code/${code}`, { params });
+      return response.data.data;
+    } catch (error) {
+      console.error(`${code} kodlu öğe tipi getirilirken hata oluştu:`, error);
+      throw error;
+    }
   }
 };
 

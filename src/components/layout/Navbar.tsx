@@ -3,6 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../redux/store';
 import { useTranslation } from '../../context/i18nContext';
 import systemSettingsService from '../../services/api/systemSettingsService';
+import itemTypeService from '../../services/api/itemTypeService';
+import { getEntityName } from '../../utils/translationUtils';
+import type { ItemType } from '../../types/itemType';
 
 interface NavbarProps {
   toggleSidebar: () => void;
@@ -13,10 +16,11 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const { t } = useTranslation();
+  const { t, currentLanguage } = useTranslation();
   const [systemTitle, setSystemTitle] = useState('SpesEngine');
   const [logoUrl, setLogoUrl] = useState<string | null>('/logo.png');
   const [logoError, setLogoError] = useState(false);
+  const [dynamicItemTypes, setDynamicItemTypes] = useState<ItemType[]>([]);
 
   const loadSystemSettings = async () => {
     try {
@@ -55,8 +59,19 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
     }
   };
 
+  // Dinamik itemtype'ları yükle
+  const loadDynamicItemTypes = async () => {
+    try {
+      const itemTypes = await itemTypeService.getItemTypesForNavbar();
+      setDynamicItemTypes(itemTypes);
+    } catch (error) {
+      console.error('Navbar itemTypes yüklenirken hata:', error);
+    }
+  };
+
   useEffect(() => {
     loadSystemSettings();
+    loadDynamicItemTypes();
 
     const handleSystemSettingsUpdate = () => {
       loadSystemSettings();
@@ -80,8 +95,8 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
   return (
     <nav className="fixed top-0 left-0 right-0 h-14 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 z-50">
       <div className="h-full px-3 flex items-center justify-between">
-        {/* Sol Taraf: Hamburger ve Logo */}
-        <div className="flex items-center">
+        {/* Sol Taraf: Hamburger, Logo ve Dinamik ItemType Linkleri */}
+        <div className="flex items-center space-x-4">
           <button
             type="button"
             className="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none rounded-lg text-sm p-2.5 mr-2"
@@ -109,6 +124,23 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
             )}
             <span className="text-primary-light dark:text-primary-dark text-xl font-semibold whitespace-nowrap">{systemTitle}</span>
           </Link>
+          
+          {/* Dinamik ItemType Linkleri */}
+          {dynamicItemTypes.length > 0 && (
+            <div className="hidden md:flex items-center space-x-1">
+              {dynamicItemTypes
+                .sort((a, b) => (a.settings?.navigation?.navbarOrder || 999) - (b.settings?.navigation?.navbarOrder || 999))
+                .map((itemType) => (
+                <Link
+                  key={itemType._id}
+                  to={`/items/type/${itemType.code}`}
+                  className="px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary-light dark:hover:text-primary-dark hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors duration-200"
+                >
+                  {itemType.settings?.navigation?.navbarLabel || getEntityName(itemType, currentLanguage)}
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Sağ Taraf: Bildirimler ve Kullanıcı Menü */}

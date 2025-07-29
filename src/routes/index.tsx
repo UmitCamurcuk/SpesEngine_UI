@@ -20,6 +20,7 @@ import ItemTypeDetailsPage from '../pages/itemtypes/details';
 import ItemsListPage from '../pages/items/list';
 import ItemDetailsPage from '../pages/items/details';
 import ItemCreatePage from '../pages/items/create';
+import DynamicItemListPage from '../pages/items/dynamic/[itemTypeCode]';
 import CategoriesListPage from '../pages/categories/list';
 import CategoryCreatePage from '../pages/categories/create';
 import CategoryDetailsPage from '../pages/categories/details';
@@ -176,6 +177,10 @@ const routes: RouteObject[] = [
           {
             path: 'items/details/:id',
             element: <ItemDetailsPage />
+          },
+          {
+            path: 'items/type/:itemTypeCode',
+            element: <DynamicItemListPage />
           },
           
           // Kategoriler

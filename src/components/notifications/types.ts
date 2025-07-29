@@ -19,6 +19,7 @@ export interface ModalNotificationProps {
   title: string;
   message: string;
   icon?: React.ReactNode;
+  customContent?: React.ReactNode;
   primaryButton?: {
     text: string;
     onClick: () => void;

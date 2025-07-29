@@ -11,6 +11,39 @@ export interface ItemTypeApiParams {
   [key: string]: any;
 }
 
+// Table Column interface
+export interface TableColumn {
+  key: string;
+  title: string;
+  visible: boolean;
+  order: number;
+  width?: number;
+  sortable?: boolean;
+  filterable?: boolean;
+}
+
+// Navigation Settings
+export interface NavigationSettings {
+  showInNavbar?: boolean;
+  navbarLabel?: string;
+  navbarIcon?: string;
+  navbarOrder?: number;
+  menuGroup?: string;
+}
+
+// Display Settings
+export interface DisplaySettings {
+  listTitle?: string;
+  listDescription?: string;
+  itemsPerPage?: number;
+  defaultSortField?: string;
+  defaultSortOrder?: 'asc' | 'desc';
+  tableColumns?: TableColumn[];
+  showAdvancedFilters?: boolean;
+  showExportButton?: boolean;
+  showImportButton?: boolean;
+}
+
 // Notification Settings
 export interface NotificationSettings {
   onUpdate?: boolean;
@@ -57,6 +90,8 @@ export interface ItemTypeSettings {
     requireApproval?: boolean;
     autoPublish?: boolean;
   };
+  navigation?: NavigationSettings;
+  display?: DisplaySettings;
 }
 
 // ItemType modeli
@@ -92,5 +127,6 @@ export interface CreateItemTypeDto {
   description: string;
   category?: string;
   attributeGroups?: string[];
+  settings?: ItemTypeSettings;
   isActive?: boolean;
 } 

@@ -17,6 +17,7 @@ export interface Family {
   description: any; // Localization object veya string
   parentFamily?: string;
   parent?: string;
+  subFamilies?: any[]; // Alt family'ler
   itemType?: string;
   category?: string;
   attributeGroups?: string[];

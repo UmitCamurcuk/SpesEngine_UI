@@ -14,7 +14,6 @@ import { useNotification } from '../../../components/notifications';
 import ListPageLayout from '../../../components/layout/ListPageLayout';
 import SearchForm from '../../../components/common/SearchForm';
 import useListPage from '../../../hooks/useListPage';
-import { useAttributeRenderer } from '../../../hooks/useAttributeRenderer';
 
 // UTILITY COMPONENTS
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
@@ -30,7 +29,39 @@ const DynamicItemListPage: React.FC = () => {
   const navigate = useNavigate();
   const { t, currentLanguage } = useTranslation();
   const { showToast } = useNotification();
-  const { renderAttributeValue } = useAttributeRenderer();
+
+  // Basit attribute render fonksiyonu
+  const renderAttributeValue = (value: any, attribute: any) => {
+    if (value === null || value === undefined || value === '') {
+      return <span className="text-gray-400 italic">-</span>;
+    }
+
+    switch (attribute.type) {
+      case 'boolean':
+        return (
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+            value ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
+                  : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+          }`}>
+            {value ? 'Evet' : 'Hayır'}
+          </span>
+        );
+      case 'date':
+        return new Date(value).toLocaleDateString('tr-TR');
+      case 'datetime':
+        return new Date(value).toLocaleString('tr-TR');
+      case 'number':
+      case 'integer':
+      case 'decimal':
+        return (
+          <span className="font-mono">
+            {typeof value === 'number' ? value.toLocaleString('tr-TR') : value}
+          </span>
+        );
+      default:
+        return <span className="whitespace-pre-wrap">{String(value)}</span>;
+    }
+  };
 
   // State
   const [itemType, setItemType] = useState<ItemType | null>(null);

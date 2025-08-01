@@ -181,6 +181,30 @@ const FamiliesListPage: React.FC = () => {
       )
     },
     {
+      key: 'subFamilies',
+      header: 'Alt Aileler',
+      render: (row) => (
+        <div className="text-sm text-gray-600 dark:text-gray-400">
+          {row.subFamilies && Array.isArray(row.subFamilies) && row.subFamilies.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {row.subFamilies.slice(0, 3).map((subFamily: any, index: number) => (
+                <span key={subFamily._id || index} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                  {getEntityName(subFamily, currentLanguage)}
+                </span>
+              ))}
+              {row.subFamilies.length > 3 && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                  +{row.subFamilies.length - 3} daha
+                </span>
+              )}
+            </div>
+          ) : (
+            <span className="text-gray-400 italic">Alt aile yok</span>
+          )}
+        </div>
+      )
+    },
+    {
       key: 'isActive',
       header: 'Durum',
       sortable: true,

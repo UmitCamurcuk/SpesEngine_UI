@@ -22,13 +22,13 @@ const relationshipService = {
   // Yeni ilişki tipi oluştur
   createRelationshipType: async (data: Partial<IRelationshipType>): Promise<IRelationshipType> => {
     const response = await api.post(RELATIONSHIP_TYPE_URL, data);
-    return response.data;
+    return response.data.data || response.data;
   },
   
   // İlişki tipini güncelle
   updateRelationshipType: async (id: string, data: Partial<IRelationshipType>): Promise<IRelationshipType> => {
     const response = await api.put(`${RELATIONSHIP_TYPE_URL}/${id}`, data);
-    return response.data;
+    return response.data.data || response.data;
   },
   
   // İlişki tipini sil

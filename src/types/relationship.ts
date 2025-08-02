@@ -4,9 +4,12 @@ export interface IRelationshipType {
   name: string;
   description?: string;
   isDirectional: boolean;
+  relationshipType?: 'one-to-one' | 'one-to-many' | 'many-to-one' | 'many-to-many';
   allowedSourceTypes: string[];
   allowedTargetTypes: string[];
   metadata?: Record<string, any>;
+  createdBy?: any;
+  updatedBy?: any;
   createdAt: Date;
   updatedAt: Date;
 }

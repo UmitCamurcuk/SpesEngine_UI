@@ -9,12 +9,14 @@ import itemTypeService from '../../../../services/api/itemTypeService';
 import { IRelationshipType } from '../../../../types/relationship';
 import { useTranslation } from '../../../../context/i18nContext';
 import { getEntityName } from '../../../../utils/translationUtils';
+import TranslationFields from '../../../../components/common/TranslationFields';
+import { useTranslationForm } from '../../../../hooks/useTranslationForm';
 
 // Form data interfaces
 interface Step1FormData {
-  name: string;
+  nameTranslations: Record<string, string>;
   code: string;
-  description: string;
+  descriptionTranslations: Record<string, string>;
 }
 
 interface Step2FormData {
@@ -24,6 +26,7 @@ interface Step2FormData {
 interface Step3FormData {
   allowedSourceTypes: string[];
   allowedTargetTypes: string[];
+  relationshipType: 'one-to-one' | 'one-to-many' | 'many-to-one' | 'many-to-many';
 }
 
 interface FormData extends Step1FormData, Step2FormData, Step3FormData {
@@ -31,12 +34,13 @@ interface FormData extends Step1FormData, Step2FormData, Step3FormData {
 }
 
 const initialFormData: FormData = {
-  name: '',
+  nameTranslations: {},
   code: '',
-  description: '',
+  descriptionTranslations: {},
   isDirectional: true,
   allowedSourceTypes: [],
   allowedTargetTypes: [],
+  relationshipType: 'one-to-many',
   metadata: {}
 };
 
@@ -44,6 +48,14 @@ const RelationshipTypeCreatePage: React.FC = () => {
   const navigate = useNavigate();
   const { t, currentLanguage } = useTranslation();
   const { showToast } = useNotification();
+  
+  // Translation hook'unu kullan
+  const {
+    supportedLanguages,
+    translationData,
+    handleTranslationChange,
+    createTranslations
+  } = useTranslationForm();
   
   // Form durumu
   const [formData, setFormData] = useState<FormData>(initialFormData);
@@ -63,11 +75,11 @@ const RelationshipTypeCreatePage: React.FC = () => {
 
   // Stepper adımları
   const steps = useMemo(() => [
-    { title: 'Genel Bilgiler', description: 'İsim, kod ve açıklama' },
-    { title: 'Yönlülük', description: 'İlişkinin yönlü olup olmadığı' },
-    { title: 'İzin Verilen Tipler', description: 'Kaynak ve hedef varlık tipleri' },
-    { title: 'Önizleme', description: 'Bilgileri kontrol edin' },
-  ], []);
+    { title: t('general_info'), description: t('name_code_description') },
+    { title: t('directionality'), description: t('relationship_direction') },
+    { title: t('relationship_type_and_types'), description: t('relationship_type_and_types_short') },
+    { title: t('preview'), description: t('check_information') },
+  ], [t]);
   
   // Load ItemTypes for dropdown
   useEffect(() => {
@@ -97,8 +109,10 @@ const RelationshipTypeCreatePage: React.FC = () => {
 
     switch (step) {
       case 0: // General info
-        if (!formData.name.trim()) {
-          errors.name = 'İsim gereklidir';
+        // En az bir dilde isim olmalı
+        const hasName = Object.values(translationData.nameTranslations).some(name => name.trim());
+        if (!hasName) {
+          errors.nameTranslations = 'En az bir dilde isim gereklidir';
         }
         if (!formData.code.trim()) {
           errors.code = 'Kod gereklidir';
@@ -110,6 +124,9 @@ const RelationshipTypeCreatePage: React.FC = () => {
         // No validation needed
         break;
       case 2: // Allowed types
+        if (!formData.relationshipType) {
+          errors.relationshipType = 'İlişki tipi seçilmelidir';
+        }
         if (formData.allowedSourceTypes.length === 0) {
           errors.allowedSourceTypes = 'En az bir kaynak tip seçmelisiniz';
         }
@@ -167,11 +184,15 @@ const RelationshipTypeCreatePage: React.FC = () => {
       setIsSubmitting(true);
       setError(null);
       
+      // Çevirileri oluştur
+      const { nameId, descriptionId } = await createTranslations(formData.code, 'relationship_types');
+
       const relationshipTypeData: Partial<IRelationshipType> = {
-        name: formData.name,
+        name: nameId,
         code: formData.code,
-        description: formData.description,
+        description: descriptionId || '',
         isDirectional: formData.isDirectional,
+        relationshipType: formData.relationshipType,
         allowedSourceTypes: formData.allowedSourceTypes,
         allowedTargetTypes: formData.allowedTargetTypes,
         metadata: formData.metadata
@@ -198,36 +219,31 @@ const RelationshipTypeCreatePage: React.FC = () => {
   const renderStepContent = () => {
     switch (currentStep) {
       case 0:
-  return (
+          return (
           <div className="space-y-6">
             <div className="text-center">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Genel Bilgiler</h3>
-              <p className="text-gray-600 dark:text-gray-400">İlişki tipinin temel bilgilerini girin</p>
-      </div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">{t('general_info')}</h3>
+              <p className="text-gray-600 dark:text-gray-400">{t('enter_basic_relationship_type_info')}</p>
+            </div>
       
             <div className="max-w-2xl mx-auto space-y-6">
-          <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  İsim *
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
-                    formErrors.name ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="İlişki tipinin ismini girin"
-                />
-                {formErrors.name && (
-                  <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
-                )}
-            </div>
+              {/* NAME TRANSLATIONS */}
+              <TranslationFields
+                label={t('relationship_type_name')}
+                fieldType="input"
+                translations={translationData.nameTranslations}
+                supportedLanguages={supportedLanguages}
+                currentLanguage={currentLanguage}
+                onChange={(language, value) => handleTranslationChange('nameTranslations', language, value)}
+                error={formErrors.nameTranslations}
+                placeholder={t('enter_relationship_type_name')}
+                required
+              />
             
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Kod *
-              </label>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {t('code')} *
+                </label>
               <input
                 type="text"
                 value={formData.code}
@@ -235,28 +251,27 @@ const RelationshipTypeCreatePage: React.FC = () => {
                   className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
                     formErrors.code ? 'border-red-500' : 'border-gray-300'
                   }`}
-                  placeholder="unique_code"
+                                    placeholder={t('unique_code')}
                 />
                 {formErrors.code && (
                   <p className="mt-1 text-sm text-red-600">{formErrors.code}</p>
                 )}
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Kod sadece harf, rakam, _ ve - karakterlerini içerebilir
-              </p>
+                  {t('code_validation_message')}
+                </p>
             </div>
             
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Açıklama
-              </label>
-              <textarea
-                value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
-                rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  placeholder="İlişki tipinin açıklamasını girin"
+              {/* DESCRIPTION TRANSLATIONS */}
+              <TranslationFields
+                label={t('description')}
+                fieldType="textarea"
+                translations={translationData.descriptionTranslations}
+                supportedLanguages={supportedLanguages}
+                currentLanguage={currentLanguage}
+                onChange={(language, value) => handleTranslationChange('descriptionTranslations', language, value)}
+                error={formErrors.descriptionTranslations}
+                placeholder={t('enter_relationship_type_description')}
               />
-              </div>
             </div>
           </div>
         );
@@ -265,8 +280,8 @@ const RelationshipTypeCreatePage: React.FC = () => {
         return (
           <div className="space-y-6">
             <div className="text-center">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Yönlülük</h3>
-              <p className="text-gray-600 dark:text-gray-400">İlişkinin yönlü olup olmadığını belirleyin</p>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">{t('directionality')}</h3>
+              <p className="text-gray-600 dark:text-gray-400">{t('determine_relationship_direction')}</p>
             </div>
 
             <div className="max-w-2xl mx-auto">
@@ -287,9 +302,9 @@ const RelationshipTypeCreatePage: React.FC = () => {
                         </svg>
                       </div>
                     </div>
-                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Yönlü İlişki</h4>
+                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">{t('directional_relationship')}</h4>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      A → B şeklinde tek yönlü ilişki. Kaynak ve hedef bellidir.
+                      {t('directional_relationship_description')}
                     </p>
                   </div>
                 </div>
@@ -310,9 +325,9 @@ const RelationshipTypeCreatePage: React.FC = () => {
                         </svg>
                       </div>
                     </div>
-                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Çift Yönlü İlişki</h4>
+                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">{t('bidirectional_relationship')}</h4>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      A ↔ B şeklinde çift yönlü ilişki. Her iki varlık da eşit seviyededir.
+                      {t('bidirectional_relationship_description')}
                     </p>
                   </div>
                 </div>
@@ -323,119 +338,185 @@ const RelationshipTypeCreatePage: React.FC = () => {
 
       case 2:
         return (
-          <div className="space-y-6">
+          <div className="space-y-8">
             <div className="text-center">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">İzin Verilen Tipler</h3>
-              <p className="text-gray-600 dark:text-gray-400">Bu ilişkide hangi varlık tiplerinin kullanılabileceğini seçin</p>
+              <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+                {t('relationship_type_and_types')}
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+                {t('relationship_type_and_types_description')}
+              </p>
             </div>
-        
-            <div className="max-w-4xl mx-auto space-y-8">
-              {/* Source Types */}
-          <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
-                  Kaynak Varlık Tipleri *
-                  {formData.isDirectional && (
-                    <span className="text-xs text-gray-500 ml-2">(İlişkiyi başlatan taraf)</span>
-                  )}
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {itemTypes.map((itemType) => (
+
+            <div className="max-w-5xl mx-auto space-y-6">
+              {/* Relationship Type Selection */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <div className="text-center mb-4">
+                  <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
+                    {t('relationship_type')} *
+                  </h4>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {t('select_relationship_type_description')}
+                  </p>
+                </div>
+                
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { 
+                      value: 'one-to-one', 
+                      label: t('one_to_one'), 
+                      description: '1:1', 
+                      icon: (
+                        <svg className="w-8 h-8 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                      )
+                    },
+                    { 
+                      value: 'one-to-many', 
+                      label: t('one_to_many'), 
+                      description: '1:N', 
+                      icon: (
+                        <svg className="w-8 h-8 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                      )
+                    },
+                    { 
+                      value: 'many-to-one', 
+                      label: t('many_to_one'), 
+                      description: 'N:1', 
+                      icon: (
+                        <svg className="w-8 h-8 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                      )
+                    },
+                    { 
+                      value: 'many-to-many', 
+                      label: t('many_to_many'), 
+                      description: 'N:N', 
+                      icon: (
+                        <svg className="w-8 h-8 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                      )
+                    }
+                  ].map((type) => (
                     <div
-                      key={itemType._id}
-                      className={`p-3 border rounded-lg cursor-pointer transition-all ${
-                        formData.allowedSourceTypes.includes(itemType.code)
-                          ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-primary-300'
+                      key={type.value}
+                      className={`p-4 border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${
+                        formData.relationshipType === type.value
+                          ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 shadow-md ring-2 ring-primary-200 dark:ring-primary-800'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-primary-300 hover:bg-gray-50 dark:hover:bg-gray-800'
                       }`}
-                      onClick={() => {
-                        console.log('Clicked itemType:', itemType);
-                        const currentTypes = formData.allowedSourceTypes;
-                        const newTypes = currentTypes.includes(itemType.code)
-                          ? currentTypes.filter(t => t !== itemType.code)
-                          : [...currentTypes, itemType.code];
-                        console.log('New types:', newTypes);
-                        handleMultiSelectChange('allowedSourceTypes', newTypes);
-                      }}
+                      onClick={() => handleInputChange('relationshipType', type.value)}
                     >
-                      <div className="flex items-center space-x-2">
-                        <div className={`w-4 h-4 border rounded ${
-                          formData.allowedSourceTypes.includes(itemType.code)
-                            ? 'bg-primary-500 border-primary-500'
-                            : 'border-gray-300'
-                        }`}>
-                          {formData.allowedSourceTypes.includes(itemType.code) && (
-                            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          )}
+                      <div className="text-center">
+                        <div className="flex justify-center mb-3">
+                          {type.icon}
                         </div>
-                        <span className="text-sm font-medium text-gray-900 dark:text-white">
-                          {getEntityName(itemType, currentLanguage)}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        {itemType.code}
-                      </p>
-                  </div>
-                ))}
-              </div>
-                {formErrors.allowedSourceTypes && (
-                  <p className="mt-2 text-sm text-red-600">{formErrors.allowedSourceTypes}</p>
-              )}
-            </div>
-            
-              {/* Target Types */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
-                  Hedef Varlık Tipleri *
-            {formData.isDirectional && (
-                    <span className="text-xs text-gray-500 ml-2">(İlişkinin hedeflediği taraf)</span>
-                  )}
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {itemTypes.map((itemType) => (
-                    <div
-                      key={itemType._id}
-                      className={`p-3 border rounded-lg cursor-pointer transition-all ${
-                        formData.allowedTargetTypes.includes(itemType.code)
-                          ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-primary-300'
-                      }`}
-                      onClick={() => {
-                        console.log('Clicked itemType:', itemType);
-                        const currentTypes = formData.allowedTargetTypes;
-                        const newTypes = currentTypes.includes(itemType.code)
-                          ? currentTypes.filter(t => t !== itemType.code)
-                          : [...currentTypes, itemType.code];
-                        console.log('New types:', newTypes);
-                        handleMultiSelectChange('allowedTargetTypes', newTypes);
-                      }}
-                    >
-                      <div className="flex items-center space-x-2">
-                        <div className={`w-4 h-4 border rounded ${
-                          formData.allowedTargetTypes.includes(itemType.code)
-                            ? 'bg-primary-500 border-primary-500'
-                            : 'border-gray-300'
-                        }`}>
-                          {formData.allowedTargetTypes.includes(itemType.code) && (
-                            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          )}
+                        <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                          {type.label}
                         </div>
-                        <span className="text-sm font-medium text-gray-900 dark:text-white">
-                          {getEntityName(itemType, currentLanguage)}
-                        </span>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+                          {type.description}
+                        </div>
                       </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        {itemType.code}
-                      </p>
                     </div>
                   ))}
                 </div>
-                {formErrors.allowedTargetTypes && (
-                  <p className="mt-2 text-sm text-red-600">{formErrors.allowedTargetTypes}</p>
-                )}
+              </div>
+
+              {/* Source and Target Types */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Source Types */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                  <div className="text-center mb-4">
+                    <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
+                      {t('source_entity_types')} *
+                    </h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {formData.isDirectional ? t('relationship_initiator_side') : t('first_entity_side')}
+                    </p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {itemTypes.map((itemType) => (
+                      <div
+                        key={itemType._id}
+                        className={`p-3 border rounded-md cursor-pointer transition-all duration-200 hover:shadow-sm ${
+                          formData.allowedSourceTypes.includes(itemType.code)
+                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 shadow-sm ring-1 ring-primary-200 dark:ring-primary-800'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-primary-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                        }`}
+                        onClick={() => {
+                          const currentTypes = formData.allowedSourceTypes;
+                          const newTypes = currentTypes.includes(itemType.code)
+                            ? currentTypes.filter(t => t !== itemType.code)
+                            : [...currentTypes, itemType.code];
+                          handleMultiSelectChange('allowedSourceTypes', newTypes);
+                        }}
+                      >
+                        <div className="text-center">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">
+                            {getEntityName(itemType, currentLanguage)}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+                            {itemType.code}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {formErrors.allowedSourceTypes && (
+                    <p className="mt-3 text-sm text-red-600 text-center">{formErrors.allowedSourceTypes}</p>
+                  )}
+                </div>
+
+                {/* Target Types */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                  <div className="text-center mb-4">
+                    <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
+                      {t('target_entity_types')} *
+                    </h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {formData.isDirectional ? t('relationship_target_side') : t('second_entity_side')}
+                    </p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {itemTypes.map((itemType) => (
+                      <div
+                        key={itemType._id}
+                        className={`p-3 border rounded-md cursor-pointer transition-all duration-200 hover:shadow-sm ${
+                          formData.allowedTargetTypes.includes(itemType.code)
+                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 shadow-sm ring-1 ring-primary-200 dark:ring-primary-800'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-primary-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                        }`}
+                        onClick={() => {
+                          const currentTypes = formData.allowedTargetTypes;
+                          const newTypes = currentTypes.includes(itemType.code)
+                            ? currentTypes.filter(t => t !== itemType.code)
+                            : [...currentTypes, itemType.code];
+                          handleMultiSelectChange('allowedTargetTypes', newTypes);
+                        }}
+                      >
+                        <div className="text-center">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">
+                            {getEntityName(itemType, currentLanguage)}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+                            {itemType.code}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {formErrors.allowedTargetTypes && (
+                    <p className="mt-3 text-sm text-red-600 text-center">{formErrors.allowedTargetTypes}</p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -445,8 +526,8 @@ const RelationshipTypeCreatePage: React.FC = () => {
         return (
           <div className="space-y-6">
             <div className="text-center">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Önizleme</h3>
-              <p className="text-gray-600 dark:text-gray-400">İlişki tipi bilgilerini kontrol edin ve oluşturun</p>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">{t('preview')}</h3>
+              <p className="text-gray-600 dark:text-gray-400">{t('check_relationship_type_info_and_create')}</p>
             </div>
             
             <div className="max-w-4xl mx-auto">
@@ -454,24 +535,47 @@ const RelationshipTypeCreatePage: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {/* General Info */}
                   <div>
-                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Genel Bilgiler</h4>
+                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">{t('general_info')}</h4>
                     <div className="space-y-3">
                       <div>
-                        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">İsim:</span>
-                        <p className="text-sm text-gray-900 dark:text-white">{formData.name}</p>
+                        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('name')}:</span>
+                        <div className="mt-1">
+                          {Object.entries(translationData.nameTranslations).map(([lang, value]) => (
+                            <div key={lang} className="flex items-center space-x-2">
+                              <span className="text-xs font-medium text-gray-400 uppercase">{lang}:</span>
+                              <span className="text-sm text-gray-900 dark:text-white">{value || '-'}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                       <div>
-                        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Kod:</span>
+                        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('code')}:</span>
                         <p className="text-sm text-gray-900 dark:text-white">{formData.code}</p>
                       </div>
                       <div>
-                        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Açıklama:</span>
-                        <p className="text-sm text-gray-900 dark:text-white">{formData.description || '-'}</p>
+                        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('description')}:</span>
+                        <div className="mt-1">
+                          {Object.entries(translationData.descriptionTranslations).map(([lang, value]) => (
+                            <div key={lang} className="flex items-center space-x-2">
+                              <span className="text-xs font-medium text-gray-400 uppercase">{lang}:</span>
+                              <span className="text-sm text-gray-900 dark:text-white">{value || '-'}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                       <div>
-                        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Yönlülük:</span>
+                        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('directionality')}:</span>
                         <p className="text-sm text-gray-900 dark:text-white">
-                          {formData.isDirectional ? 'Yönlü' : 'Çift Yönlü'}
+                          {formData.isDirectional ? t('directional') : t('bidirectional')}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('relationship_type')}:</span>
+                        <p className="text-sm text-gray-900 dark:text-white">
+                          {formData.relationshipType === 'one-to-one' && `${t('one_to_one')} (1:1)`}
+                          {formData.relationshipType === 'one-to-many' && `${t('one_to_many')} (1:N)`}
+                          {formData.relationshipType === 'many-to-one' && `${t('many_to_one')} (N:1)`}
+                          {formData.relationshipType === 'many-to-many' && `${t('many_to_many')} (N:N)`}
                         </p>
                       </div>
                     </div>
@@ -479,10 +583,10 @@ const RelationshipTypeCreatePage: React.FC = () => {
 
                   {/* Allowed Types */}
                   <div>
-                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">İzin Verilen Tipler</h4>
+                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">{t('allowed_types')}</h4>
                     <div className="space-y-4">
                       <div>
-                        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Kaynak Tipler:</span>
+                        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('source_types')}:</span>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {formData.allowedSourceTypes.map(type => (
                             <span key={type} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
@@ -492,7 +596,7 @@ const RelationshipTypeCreatePage: React.FC = () => {
                         </div>
                       </div>
                       <div>
-                        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Hedef Tipler:</span>
+                        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('target_types')}:</span>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {formData.allowedTargetTypes.map(type => (
                             <span key={type} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">
@@ -522,9 +626,9 @@ const RelationshipTypeCreatePage: React.FC = () => {
           <div className="flex items-center justify-between">
                         <Breadcrumb 
               items={[
-                { label: 'Ana Sayfa', path: '/' },
-                { label: 'İlişkiler', path: '/relationships' },
-                { label: 'Yeni İlişki Tipi Oluştur' }
+                { label: t('home'), path: '/' },
+                { label: t('relationships'), path: '/relationships' },
+                { label: t('create_new_relationship_type') }
               ]} 
             />
                 </div>

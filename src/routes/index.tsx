@@ -213,15 +213,15 @@ const routes: RouteObject[] = [
           
           // İlişkiler
           {
-            path: 'relationships/types/list',
+            path: 'relationships',
             element: <RelationshipTypesListPage />
           },
           {
-            path: 'relationships/types/create',
+            path: 'relationships/create',
             element: <CreateRelationshipTypePage />
           },
           {
-            path: 'relationships/types/details/:id',
+            path: 'relationships/details/:id',
             element: <RelationshipTypeDetailsPage />
           },
           

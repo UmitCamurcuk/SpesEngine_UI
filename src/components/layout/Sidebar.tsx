@@ -139,8 +139,8 @@ const Sidebar = ({ isOpen, closeSidebar }: SidebarProps) => {
         </svg>
       ),
       children: [
-        { name: t('relationship_type_list', 'menu'), path: '/relationships/types/list' },
-        { name: t('add_relationship_type', 'menu'), path: '/relationships/types/create' }
+        { name: t('relationship_type_list', 'menu'), path: '/relationships' },
+        { name: t('add_relationship_type', 'menu'), path: '/relationships/create' }
       ]
     },
     {

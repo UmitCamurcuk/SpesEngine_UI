@@ -10,13 +10,13 @@ const relationshipService = {
   // Tüm ilişki tiplerini getir
   getAllRelationshipTypes: async (): Promise<IRelationshipType[]> => {
     const response = await api.get(RELATIONSHIP_TYPE_URL);
-    return response.data;
+    return response.data.data || response.data;
   },
   
   // ID'ye göre ilişki tipini getir
   getRelationshipTypeById: async (id: string): Promise<IRelationshipType> => {
     const response = await api.get(`${RELATIONSHIP_TYPE_URL}/${id}`);
-    return response.data;
+    return response.data.data || response.data;
   },
   
   // Yeni ilişki tipi oluştur

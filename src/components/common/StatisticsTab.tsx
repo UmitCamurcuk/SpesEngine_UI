@@ -22,7 +22,7 @@ interface ChartData {
 }
 
 interface StatisticsTabProps {
-  entityType: 'attribute' | 'attributeGroup' | 'category' | 'family' | 'itemType' | 'item';
+  entityType: 'attribute' | 'attributeGroup' | 'category' | 'family' | 'itemType' | 'item' | 'relationship_type';
   entityId?: string;
   metrics?: StatisticMetric[];
   chartData?: ChartData;

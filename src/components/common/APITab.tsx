@@ -33,7 +33,7 @@ interface APIEndpoint {
 }
 
 interface APITabProps {
-  entityType: 'attribute' | 'attributeGroup' | 'category' | 'family' | 'itemType' | 'item';
+  entityType: 'attribute' | 'attributeGroup' | 'category' | 'family' | 'itemType' | 'item' | 'relationship_type';
   entityId?: string;
   endpoints?: APIEndpoint[];
   baseUrl?: string;
@@ -56,13 +56,13 @@ const APITab: React.FC<APITabProps> = ({
   const [testResult, setTestResult] = useState<string>('');
 
   const getDefaultEndpoints = (): APIEndpoint[] => {
-    const entityPlural = `${entityType}s`;
+    const entityPlural = entityType === 'relationship_type' ? 'relationship-types' : `${entityType}s`;
     
     return [
       {
         method: 'GET',
         path: `/${entityPlural}`,
-        description: `Tüm ${entityType} kayıtlarını getirir`,
+        description: `Tüm ${entityType === 'relationship_type' ? 'ilişki tipi' : entityType} kayıtlarını getirir`,
         parameters: [
           { name: 'page', type: 'number', required: false, description: 'Sayfa numarası' },
           { name: 'limit', type: 'number', required: false, description: 'Sayfa başına kayıt sayısı' },
@@ -89,7 +89,7 @@ const APITab: React.FC<APITabProps> = ({
       {
         method: 'GET',
         path: `/${entityPlural}/{id}`,
-        description: `Belirli bir ${entityType} kaydını getirir`,
+        description: `Belirli bir ${entityType === 'relationship_type' ? 'ilişki tipi' : entityType} kaydını getirir`,
         parameters: [
           { name: 'id', type: 'string', required: true, description: 'Kayıt ID\'si' }
         ],

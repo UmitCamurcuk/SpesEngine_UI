@@ -22,7 +22,7 @@ interface Role {
 
 interface PermissionsTabProps {
   entityId: string;
-  entityType: 'attribute' | 'attributeGroup' | 'category' | 'family' | 'itemType' | 'item';
+  entityType: 'attribute' | 'attributeGroup' | 'category' | 'family' | 'itemType' | 'item' | 'relationship_type';
   roles?: Role[];
   notificationSettings?: NotificationSettings;
   tempNotificationSettings?: NotificationSettings;

@@ -9,6 +9,10 @@ import relationshipService from '../../../../services/api/relationshipService';
 import dayjs from 'dayjs';
 import 'dayjs/locale/tr';
 import { useTranslation } from '../../../../context/i18nContext';
+import { getEntityName } from '../../../../utils/translationUtils';
+import UserInfoCell from '../../../../components/common/UserInfoCell';
+import { APITab, DocumentationTab, PermissionsTab, StatisticsTab } from '../../../../components/common';
+import Modal from '../../../../components/ui/Modal';
 
 // UTILITY COMPONENTS
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
@@ -40,9 +44,15 @@ const RelationshipTypeDetailsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [showJsonPreview, setShowJsonPreview] = useState<boolean>(false);
+  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [showCommentModal, setShowCommentModal] = useState<boolean>(false);
+  const [comment, setComment] = useState<string>('');
   
   // Data state
   const [relationshipType, setRelationshipType] = useState<IRelationshipType | null>(null);
+  const [editableFields, setEditableFields] = useState<Partial<IRelationshipType>>({});
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Load relationship type data
   useEffect(() => {
@@ -110,6 +120,118 @@ const RelationshipTypeDetailsPage: React.FC = () => {
     }
   };
 
+  // Edit functions
+  const hasChanges = () => {
+    if (!relationshipType) return false;
+    return (
+      editableFields.name !== relationshipType.name ||
+      editableFields.description !== relationshipType.description ||
+      editableFields.isDirectional !== relationshipType.isDirectional ||
+      editableFields.relationshipType !== relationshipType.relationshipType
+    );
+  };
+
+  const getChangeDetails = () => {
+    if (!relationshipType) return [];
+    const changes = [];
+    
+    if (editableFields.name !== relationshipType.name) {
+      changes.push(`İsim: "${getEntityName(relationshipType, currentLanguage)}" → "${editableFields.name}"`);
+    }
+    if (editableFields.description !== relationshipType.description) {
+      changes.push(`Açıklama değiştirildi`);
+    }
+    if (editableFields.isDirectional !== relationshipType.isDirectional) {
+      changes.push(`Yönlülük: ${relationshipType.isDirectional ? 'Yönlü' : 'Çift Yönlü'} → ${editableFields.isDirectional ? 'Yönlü' : 'Çift Yönlü'}`);
+    }
+    if (editableFields.relationshipType !== relationshipType.relationshipType) {
+      changes.push(`İlişki Tipi: ${relationshipType.relationshipType} → ${editableFields.relationshipType}`);
+    }
+    
+    return changes;
+  };
+
+  const handleEditClick = () => {
+    if (!relationshipType) return;
+    
+    setEditableFields({
+      name: relationshipType.name,
+      description: relationshipType.description,
+      isDirectional: relationshipType.isDirectional,
+      relationshipType: relationshipType.relationshipType
+    });
+    setFormErrors({});
+    setIsEditing(true);
+  };
+
+  const handleSave = async () => {
+    if (!relationshipType || !hasChanges()) return;
+    
+    setShowCommentModal(true);
+  };
+
+  const handleSaveWithComment = async () => {
+    if (!relationshipType) return;
+    
+    setIsSaving(true);
+    try {
+      const updatedData = await relationshipService.updateRelationshipType(relationshipType._id, {
+        ...editableFields
+      });
+      
+      setRelationshipType(updatedData);
+      setIsEditing(false);
+      setShowCommentModal(false);
+      setComment('');
+      setFormErrors({});
+      
+      showToast({
+        title: 'Başarılı!',
+        message: 'İlişki tipi başarıyla güncellendi',
+        type: 'success'
+      });
+    } catch (err: any) {
+      console.error('❌ Error updating relationship type:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'İlişki tipi güncellenirken bir hata oluştu';
+      showToast({
+        title: 'Hata!',
+        message: errorMessage,
+        type: 'error'
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    const checked = (e.target as HTMLInputElement).checked;
+    
+    setEditableFields(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+    
+    // Clear error when user starts typing
+    if (formErrors[name]) {
+      setFormErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
+  };
+
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    
+    if (!editableFields.name) {
+      errors.name = 'İsim gereklidir';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   // Loading state
   if (isLoading) {
     return (
@@ -162,27 +284,27 @@ const RelationshipTypeDetailsPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-6">
-      <div className="container mx-auto px-4">
+    <div className="space-y-6">
         {/* BREADCRUMB */}
-        <div className="flex items-center justify-between">
-                      <Breadcrumb 
-              items={[
-                { label: 'İlişkiler', path: '/relationships' },
-                { label: relationshipType.name || 'İlişki Tipi Detayı' }
-              ]} 
-            />
+        <div className="mb-6">
+          <Breadcrumb 
+            items={[
+              { label: t('home'), path: '/' },
+              { label: t('relationships'), path: '/relationships' },
+              { label: getEntityName(relationshipType, currentLanguage) || 'İlişki Tipi Detayı' }
+            ]} 
+          />
         </div>
 
         {/* HEADER */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-center">
             <Link to="/relationships" className="mr-4">
               <Button variant="outline" size="sm" className="flex items-center">
                 <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
-                Geri
+                {t('back_button', 'common')}
               </Button>
             </Link>
             <div className={`h-10 w-10 rounded-lg flex items-center justify-center mr-3 ${
@@ -201,69 +323,104 @@ const RelationshipTypeDetailsPage: React.FC = () => {
               )}
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                {relationshipType.name}
-              </h1>
+              {isEditing ? (
+                <div>
+                  <input
+                    type="text"
+                    name="name"
+                    value={editableFields.name}
+                    onChange={handleInputChange}
+                    className={`text-2xl font-bold bg-transparent border-b-2 ${
+                      formErrors.name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                    } text-gray-900 dark:text-white focus:outline-none focus:border-primary-500`}
+                    placeholder={t('name')}
+                  />
+                  {formErrors.name && (
+                    <p className="mt-1 text-sm text-red-500 dark:text-red-400">{formErrors.name}</p>
+                  )}
+                </div>
+              ) : (
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {getEntityName(relationshipType, currentLanguage)}
+                </h1>
+              )}
               <div className="flex items-center mt-1">
                 <span className="text-sm font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-gray-700 dark:text-gray-300">
                   {relationshipType.code}
                 </span>
                 <span className="mx-2 text-gray-300 dark:text-gray-600">•</span>
                 <Badge color={relationshipType.isDirectional ? 'success' : 'secondary'}>
-                  {relationshipType.isDirectional ? 'Yönlü' : 'Çift Yönlü'}
+                  {relationshipType.isDirectional ? t('directional') : t('bidirectional')}
                 </Badge>
               </div>
             </div>
           </div>
           
           <div className="flex items-center space-x-2">
-            <Button 
-              variant="outline" 
-              className="flex items-center"
-              onClick={() => setShowJsonPreview(!showJsonPreview)}
-            >
-              <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-              </svg>
-              JSON Görüntüle
-            </Button>
-            <Button
-              variant="secondary"
-              className="flex items-center text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900"
-              onClick={handleDeleteWithConfirmation}
-            >
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Sil
-            </Button>
+            {isEditing ? (
+              <>
+                <Button
+                  variant="primary"
+                  className="flex items-center"
+                  onClick={handleSave}
+                  loading={isSaving}
+                  disabled={isSaving || !hasChanges()}
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>{t('save', 'common')}</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex items-center"
+                  onClick={() => setIsEditing(false)}
+                  disabled={isSaving}
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <span>{t('cancel', 'common')}</span>
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button 
+                  variant="outline" 
+                  className="flex items-center"
+                  onClick={() => setShowJsonPreview(!showJsonPreview)}
+                >
+                  <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                  </svg>
+                  {t('view_json')}
+                </Button>
+                <Button
+                  variant="primary"
+                  className="flex items-center"
+                  onClick={handleEditClick}
+                >
+                  <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                  {t('edit', 'common')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  className="flex items-center text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900"
+                  onClick={handleDeleteWithConfirmation}
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  {t('delete', 'common')}
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
-        {/* JSON PREVIEW */}
-        {showJsonPreview && (
-          <Card>
-            <CardHeader className="flex items-center justify-between">
-              <h2 className="text-lg font-medium text-gray-900 dark:text-white">JSON Önizleme</h2>
-              <Button 
-                variant="outline" 
-                size="sm"
-                className="flex items-center"
-                onClick={() => navigator.clipboard.writeText(JSON.stringify(relationshipType, null, 2))}
-              >
-                <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                </svg>
-                Kopyala
-              </Button>
-            </CardHeader>
-            <CardBody>
-              <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto">
-                <code>{JSON.stringify(relationshipType, null, 2)}</code>
-              </pre>
-            </CardBody>
-          </Card>
-        )}
+
 
         {/* TABS NAVIGATION */}
         <div className="border-b border-gray-200 dark:border-gray-700">
@@ -281,7 +438,7 @@ const RelationshipTypeDetailsPage: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                 </svg>
-                Genel Bilgiler
+                {t('general_info')}
               </div>
             </button>
             <button
@@ -297,13 +454,73 @@ const RelationshipTypeDetailsPage: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
-                Yapılandırma
+                {t('configuration')}
+              </div>
+            </button>
+            <button
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'api'
+                  ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+              }`}
+              onClick={() => setActiveTab('api')}
+            >
+              <div className="flex items-center">
+                <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                </svg>
+                API
+              </div>
+            </button>
+            <button
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'documentation'
+                  ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+              }`}
+              onClick={() => setActiveTab('documentation')}
+            >
+              <div className="flex items-center">
+                <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                {t('documentation')}
+              </div>
+            </button>
+            <button
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'permissions'
+                  ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+              }`}
+              onClick={() => setActiveTab('permissions')}
+            >
+              <div className="flex items-center">
+                <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                {t('permissions')}
+              </div>
+            </button>
+            <button
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'statistics'
+                  ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+              }`}
+              onClick={() => setActiveTab('statistics')}
+            >
+              <div className="flex items-center">
+                <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                {t('statistics')}
               </div>
             </button>
           </nav>
         </div>
 
-        {/* TAB CONTENT - DETAILS */}
+                {/* TAB CONTENT - DETAILS */}
         {activeTab === 'details' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-2 space-y-6">
@@ -316,7 +533,7 @@ const RelationshipTypeDetailsPage: React.FC = () => {
                     <div>
                       <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Açıklama</h3>
                       <p className="mt-2 text-gray-900 dark:text-gray-100">
-                        {relationshipType.description || 'Bu ilişki tipi için açıklama bulunmuyor.'}
+                        {getEntityName({ name: relationshipType.description }, currentLanguage) || 'Bu ilişki tipi için açıklama bulunmuyor.'}
                       </p>
                     </div>
                     
@@ -345,6 +562,26 @@ const RelationshipTypeDetailsPage: React.FC = () => {
                         <p className="mt-2 text-gray-900 dark:text-gray-100">
                           {dayjs(relationshipType.updatedAt).format('DD MMMM YYYY')}
                         </p>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Oluşturan</h3>
+                        <div className="mt-2">
+                          <UserInfoCell 
+                            user={relationshipType.createdBy} 
+                            date={relationshipType.createdAt} 
+                            type="created" 
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Güncelleyen</h3>
+                        <div className="mt-2">
+                          <UserInfoCell 
+                            user={relationshipType.updatedBy} 
+                            date={relationshipType.updatedAt} 
+                            type="updated" 
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -388,6 +625,31 @@ const RelationshipTypeDetailsPage: React.FC = () => {
                   </div>
                 </CardBody>
               </Card>
+
+              {/* JSON Preview */}
+              {showJsonPreview && (
+                <Card>
+                  <CardHeader className="flex items-center justify-between">
+                    <h2 className="text-lg font-medium text-gray-900 dark:text-white">JSON Önizleme</h2>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="flex items-center"
+                      onClick={() => navigator.clipboard.writeText(JSON.stringify(relationshipType, null, 2))}
+                    >
+                      <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                      </svg>
+                      Kopyala
+                    </Button>
+                  </CardHeader>
+                  <CardBody>
+                    <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto">
+                      <code>{JSON.stringify(relationshipType, null, 2)}</code>
+                    </pre>
+                  </CardBody>
+                </Card>
+              )}
             </div>
           </div>
         )}
@@ -513,7 +775,95 @@ const RelationshipTypeDetailsPage: React.FC = () => {
             </Card>
           </div>
         )}
-      </div>
+
+        {/* TAB CONTENT - API */}
+        {activeTab === 'api' && (
+          <APITab
+            entityType="relationship_type"
+            entityId={relationshipType._id}
+          />
+        )}
+
+        {/* TAB CONTENT - DOCUMENTATION */}
+        {activeTab === 'documentation' && (
+          <DocumentationTab
+            entityType="relationship_type"
+            entityName={getEntityName(relationshipType, currentLanguage)}
+          />
+        )}
+
+        {/* TAB CONTENT - PERMISSIONS */}
+        {activeTab === 'permissions' && (
+          <PermissionsTab
+            entityType="relationship_type"
+            entityId={relationshipType._id}
+          />
+        )}
+
+        {/* TAB CONTENT - STATISTICS */}
+        {activeTab === 'statistics' && (
+          <StatisticsTab
+            entityType="relationship_type"
+            entityId={relationshipType._id}
+          />
+        )}
+
+        {/* COMMENT MODAL */}
+        <Modal
+          isOpen={showCommentModal}
+          onClose={() => setShowCommentModal(false)}
+          title={t('change_comment_title')}
+        >
+          <div className="p-6">
+            <div className="mb-4">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                {t('changes_made')}
+              </h3>
+              <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                  {getChangeDetails().map((change, index) => (
+                    <li key={index} className="flex items-start">
+                      <span className="text-blue-500 mr-2">•</span>
+                      {change}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            
+            <div className="mb-4">
+              <label htmlFor="comment" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                {t('change_comment_label')}
+              </label>
+              <textarea
+                id="comment"
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
+                rows={3}
+                placeholder={t('change_comment_placeholder')}
+              />
+            </div>
+            
+            <div className="flex justify-end space-x-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowCommentModal(false)}
+                disabled={isSaving}
+              >
+                İptal
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleSaveWithComment}
+                loading={isSaving}
+                disabled={isSaving}
+              >
+                Kaydet
+              </Button>
+            </div>
+          </div>
+        </Modal>
     </div>
   );
 };

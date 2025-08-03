@@ -6,6 +6,7 @@ import { useNotification } from '../../../../components/notifications';
 import { IRelationshipType } from '../../../../types/relationship';
 import Breadcrumb from '../../../../components/common/Breadcrumb';
 import relationshipService from '../../../../services/api/relationshipService';
+import itemTypeService from '../../../../services/api/itemTypeService';
 import dayjs from 'dayjs';
 import 'dayjs/locale/tr';
 import { useTranslation } from '../../../../context/i18nContext';
@@ -13,6 +14,7 @@ import { getEntityName } from '../../../../utils/translationUtils';
 import UserInfoCell from '../../../../components/common/UserInfoCell';
 import { APITab, DocumentationTab, PermissionsTab, StatisticsTab } from '../../../../components/common';
 import Modal from '../../../../components/ui/Modal';
+import DragDropColumn from '../../../../components/ui/DragDropColumn';
 
 // UTILITY COMPONENTS
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
@@ -53,6 +55,128 @@ const RelationshipTypeDetailsPage: React.FC = () => {
   const [relationshipType, setRelationshipType] = useState<IRelationshipType | null>(null);
   const [editableFields, setEditableFields] = useState<Partial<IRelationshipType>>({});
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  
+  // Display config state
+  const [sourceItemTypeAttributes, setSourceItemTypeAttributes] = useState<any[]>([]);
+  const [targetItemTypeAttributes, setTargetItemTypeAttributes] = useState<any[]>([]);
+  const [isLoadingAttributes, setIsLoadingAttributes] = useState(false);
+  const [editableDisplayConfig, setEditableDisplayConfig] = useState<any>(null);
+
+  // Fetch attributes for ItemTypes
+  const fetchItemTypeAttributes = async (relationshipTypeData: IRelationshipType) => {
+    setIsLoadingAttributes(true);
+    try {
+      const sourceTypeCode = relationshipTypeData.allowedSourceTypes[0];
+      const targetTypeCode = relationshipTypeData.allowedTargetTypes[0];
+      
+      console.log('🔍 Fetching attributes for:', { sourceTypeCode, targetTypeCode });
+      
+      // Fetch source ItemType attributes
+      if (sourceTypeCode) {
+        try {
+          const sourceItemType = await itemTypeService.getItemTypeByCode(sourceTypeCode);
+          const sourceAttrs = [];
+          
+          // Add default attributes
+          sourceAttrs.push(
+            { id: 'category', name: 'Kategori', type: 'text' },
+            { id: 'family', name: 'Aile', type: 'text' },
+            { id: 'createdAt', name: 'Oluşturulma Tarihi', type: 'date' }
+          );
+          
+          // Add custom attributes from ItemType
+          if (sourceItemType.attributeGroups) {
+            sourceItemType.attributeGroups.forEach((group: any) => {
+              if (group.attributes) {
+                group.attributes.forEach((attr: any) => {
+                  sourceAttrs.push({
+                    id: attr._id,
+                    name: attr.name?.translations?.tr || attr.name?.translations?.en || attr.code,
+                    type: attr.type || 'text'
+                  });
+                });
+              }
+            });
+          }
+          
+          setSourceItemTypeAttributes(sourceAttrs);
+          console.log('✅ Source attributes loaded:', sourceAttrs.length);
+        } catch (error) {
+          console.error('❌ Error fetching source attributes:', error);
+        }
+      }
+      
+      // Fetch target ItemType attributes
+      if (targetTypeCode) {
+        try {
+          const targetItemType = await itemTypeService.getItemTypeByCode(targetTypeCode);
+          const targetAttrs = [];
+          
+          // Add default attributes
+          targetAttrs.push(
+            { id: 'category', name: 'Kategori', type: 'text' },
+            { id: 'family', name: 'Aile', type: 'text' },
+            { id: 'createdAt', name: 'Oluşturulma Tarihi', type: 'date' }
+          );
+          
+          // Add custom attributes from ItemType
+          if (targetItemType.attributeGroups) {
+            targetItemType.attributeGroups.forEach((group: any) => {
+              if (group.attributes) {
+                group.attributes.forEach((attr: any) => {
+                  targetAttrs.push({
+                    id: attr._id,
+                    name: attr.name?.translations?.tr || attr.name?.translations?.en || attr.code,
+                    type: attr.type || 'text'
+                  });
+                });
+              }
+            });
+          }
+          
+          setTargetItemTypeAttributes(targetAttrs);
+          console.log('✅ Target attributes loaded:', targetAttrs.length);
+        } catch (error) {
+          console.error('❌ Error fetching target attributes:', error);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error in fetchItemTypeAttributes:', error);
+    } finally {
+      setIsLoadingAttributes(false);
+    }
+  };
+
+  // Update display config and mark as changed
+  const updateDisplayConfig = (newDisplayConfig: any) => {
+    setEditableDisplayConfig(newDisplayConfig);
+    setEditableFields(prev => ({
+      ...prev,
+      displayConfig: newDisplayConfig
+    }));
+  };
+
+  // Move columns (drag and drop)
+  const moveColumn = (direction: 'sourceToTarget' | 'targetToSource', fromIndex: number, toIndex: number) => {
+    const newDisplayConfig = { ...editableDisplayConfig };
+    const columns = [...newDisplayConfig[direction].columns];
+    const [moved] = columns.splice(fromIndex, 1);
+    columns.splice(toIndex, 0, moved);
+    
+    // Update order numbers
+    columns.forEach((col, index) => {
+      col.order = index + 1;
+    });
+    
+    newDisplayConfig[direction] = {
+      ...newDisplayConfig[direction],
+      columns
+    };
+    
+    updateDisplayConfig(newDisplayConfig);
+  };
+
+
 
   // Load relationship type data
   useEffect(() => {
@@ -68,6 +192,46 @@ const RelationshipTypeDetailsPage: React.FC = () => {
         console.log('✅ Relationship type data received:', data);
         
         setRelationshipType(data);
+        
+        // Initialize display config
+        const defaultDisplayConfig = {
+          sourceToTarget: {
+            enabled: false,
+            columns: [],
+            defaultSortBy: 'createdAt',
+            defaultSortOrder: 'desc',
+            pageSize: 10,
+            showSearch: true,
+            searchableColumns: []
+          },
+          targetToSource: {
+            enabled: false,
+            columns: [],
+            defaultSortBy: 'createdAt',
+            defaultSortOrder: 'desc',
+            pageSize: 10,
+            showSearch: true,
+            searchableColumns: []
+          }
+        };
+        
+        const displayConfig = data.displayConfig || defaultDisplayConfig;
+        setEditableDisplayConfig(displayConfig);
+        
+        // Initialize editable fields including displayConfig
+        setEditableFields({
+          code: data.code || '',
+          name: data.name || '',
+          description: data.description || '',
+          isDirectional: data.isDirectional ?? true,
+          relationshipType: data.relationshipType || 'one-to-many',
+          allowedSourceTypes: data.allowedSourceTypes || [],
+          allowedTargetTypes: data.allowedTargetTypes || [],
+          displayConfig: displayConfig
+        });
+        
+        // Fetch attributes for both ItemTypes
+        await fetchItemTypeAttributes(data);
       } catch (err: any) {
         console.error('❌ Error fetching relationship type:', err);
         setError('İlişki tipi verileri yüklenirken bir hata oluştu: ' + (err.message || err));
@@ -127,7 +291,8 @@ const RelationshipTypeDetailsPage: React.FC = () => {
       editableFields.name !== relationshipType.name ||
       editableFields.description !== relationshipType.description ||
       editableFields.isDirectional !== relationshipType.isDirectional ||
-      editableFields.relationshipType !== relationshipType.relationshipType
+      editableFields.relationshipType !== relationshipType.relationshipType ||
+      JSON.stringify(editableFields.displayConfig) !== JSON.stringify(relationshipType.displayConfig)
     );
   };
 
@@ -148,6 +313,26 @@ const RelationshipTypeDetailsPage: React.FC = () => {
       changes.push(`İlişki Tipi: ${relationshipType.relationshipType} → ${editableFields.relationshipType}`);
     }
     
+    // Display config changes
+    const currentDisplayConfig = JSON.stringify(relationshipType.displayConfig || {});
+    const newDisplayConfig = JSON.stringify(editableFields.displayConfig || {});
+    if (currentDisplayConfig !== newDisplayConfig) {
+      const sourceChanges = editableFields.displayConfig?.sourceToTarget?.columns?.length || 0;
+      const targetChanges = editableFields.displayConfig?.targetToSource?.columns?.length || 0;
+      
+      if (sourceChanges > 0 || targetChanges > 0) {
+        changes.push(`Görünüm ayarları güncellendi:`);
+        if (sourceChanges > 0) {
+          changes.push(`  • ${relationshipType.allowedSourceTypes?.[0]} → ${relationshipType.allowedTargetTypes?.[0]}: ${sourceChanges} sütun`);
+        }
+        if (targetChanges > 0) {
+          changes.push(`  • ${relationshipType.allowedTargetTypes?.[0]} → ${relationshipType.allowedSourceTypes?.[0]}: ${targetChanges} sütun`);
+        }
+      } else {
+        changes.push(`Görünüm ayarları sıfırlandı`);
+      }
+    }
+    
     return changes;
   };
 
@@ -158,7 +343,8 @@ const RelationshipTypeDetailsPage: React.FC = () => {
       name: relationshipType.name,
       description: relationshipType.description,
       isDirectional: relationshipType.isDirectional,
-      relationshipType: relationshipType.relationshipType
+      relationshipType: relationshipType.relationshipType,
+      displayConfig: relationshipType.displayConfig || editableDisplayConfig
     });
     setFormErrors({});
     setIsEditing(true);
@@ -455,6 +641,21 @@ const RelationshipTypeDetailsPage: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
                 {t('configuration')}
+              </div>
+            </button>
+            <button
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'display'
+                  ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+              }`}
+              onClick={() => setActiveTab('display')}
+            >
+              <div className="flex items-center">
+                <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2V7zm16 0v1H5V7m14 0V6a1 1 0 00-1-1h-1m1 2v1M5 7V6a1 1 0 011-1h1m-2 2v1" />
+                </svg>
+                Görünüm Ayarları
               </div>
             </button>
             <button
@@ -771,6 +972,314 @@ const RelationshipTypeDetailsPage: React.FC = () => {
                     }
                   </p>
                 </div>
+              </CardBody>
+            </Card>
+          </div>
+        )}
+
+        {/* TAB CONTENT - DISPLAY CONFIG */}
+        {activeTab === 'display' && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <h2 className="text-lg font-medium text-gray-900 dark:text-white">
+                  Görünüm Ayarları
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  İlişki seçimlerinde gösterilecek sütunları ve görünüm ayarlarını yapılandırın.
+                </p>
+              </CardHeader>
+              <CardBody>
+                {isLoadingAttributes ? (
+                  <div className="text-center py-8">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <p className="mt-2 text-sm text-gray-500">Öznitelikler yükleniyor...</p>
+                  </div>
+                ) : (
+                  <div className="space-y-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Source to Target Configuration */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-base font-medium text-gray-900 dark:text-white">
+                            {relationshipType.allowedSourceTypes?.[0]} → {relationshipType.allowedTargetTypes?.[0]}
+                          </h3>
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={editableDisplayConfig?.sourceToTarget?.enabled || false}
+                              disabled={!isEditing}
+                              onChange={(e) => updateDisplayConfig({
+                                ...editableDisplayConfig,
+                                sourceToTarget: {
+                                  ...editableDisplayConfig.sourceToTarget,
+                                  enabled: e.target.checked
+                                }
+                              })}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                            />
+                            <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Etkinleştir</span>
+                          </label>
+                        </div>
+                        
+                        <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-4">
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                            {relationshipType.allowedSourceTypes?.[0]} seçerken gösterilecek {relationshipType.allowedTargetTypes?.[0]} sütunları:
+                          </p>
+                          
+                          <div className="space-y-3">
+                            <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                              Mevcut Öznitelikler ({targetItemTypeAttributes.length})
+                            </h4>
+                            
+                            {targetItemTypeAttributes.map((attr, index) => {
+                              const isSelected = editableDisplayConfig?.sourceToTarget?.columns?.some(col => col.attributeId === attr.id);
+                              return (
+                                <label key={attr.id} className={`flex items-center p-2 rounded border ${
+                                  !isEditing 
+                                    ? 'bg-gray-50 dark:bg-gray-800 opacity-60' 
+                                    : 'bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
+                                }`}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    disabled={!isEditing}
+                                    onChange={(e) => {
+                                      if (!isEditing) return;
+                                      
+                                      const currentColumns = editableDisplayConfig?.sourceToTarget?.columns || [];
+                                      let newColumns;
+                                      
+                                      if (e.target.checked) {
+                                        // Add column with order
+                                        newColumns = [...currentColumns, {
+                                          attributeId: attr.id,
+                                          displayName: attr.name,
+                                          width: 150,
+                                          sortable: true,
+                                          filterable: true,
+                                          isRequired: false,
+                                          formatType: attr.type === 'date' ? 'date' : 'text',
+                                          order: currentColumns.length + 1
+                                        }];
+                                      } else {
+                                        // Remove column
+                                        newColumns = currentColumns.filter(col => col.attributeId !== attr.id);
+                                        // Re-order remaining columns
+                                        newColumns.forEach((col, index) => {
+                                          col.order = index + 1;
+                                        });
+                                      }
+                                      
+                                      updateDisplayConfig({
+                                        ...editableDisplayConfig,
+                                        sourceToTarget: {
+                                          ...editableDisplayConfig.sourceToTarget,
+                                          columns: newColumns
+                                        }
+                                      });
+                                    }}
+                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                                  />
+                                  <div className="ml-3">
+                                    <span className="text-sm font-medium text-gray-900 dark:text-white">{attr.name}</span>
+                                    <span className="text-xs text-gray-500 ml-2">({attr.type})</span>
+                                  </div>
+                                </label>
+                              );
+                            })}
+                          </div>
+                          
+                          {/* Selected Columns - Drag & Drop Area */}
+                          {editableDisplayConfig?.sourceToTarget?.columns && editableDisplayConfig.sourceToTarget.columns.length > 0 && (
+                            <div className="mt-4">
+                              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
+                                Seçili Sütunlar ({editableDisplayConfig.sourceToTarget.columns.length})
+                              </h4>
+                              <div className="space-y-2">
+                                {editableDisplayConfig.sourceToTarget.columns
+                                  .sort((a, b) => (a.order || 0) - (b.order || 0))
+                                  .map((column, index) => (
+                                    <DragDropColumn
+                                      key={column.attributeId}
+                                      column={column}
+                                      index={index}
+                                      onMove={(fromIndex, toIndex) => moveColumn('sourceToTarget', fromIndex, toIndex)}
+                                      onRemove={(index) => {
+                                        const newColumns = editableDisplayConfig.sourceToTarget.columns.filter((_, i) => i !== index);
+                                        // Re-order remaining columns
+                                        newColumns.forEach((col, i) => {
+                                          col.order = i + 1;
+                                        });
+                                        updateDisplayConfig({
+                                          ...editableDisplayConfig,
+                                          sourceToTarget: {
+                                            ...editableDisplayConfig.sourceToTarget,
+                                            columns: newColumns
+                                          }
+                                        });
+                                      }}
+                                      disabled={!isEditing}
+                                    />
+                                  ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Target to Source Configuration */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-base font-medium text-gray-900 dark:text-white">
+                            {relationshipType.allowedTargetTypes?.[0]} → {relationshipType.allowedSourceTypes?.[0]}
+                          </h3>
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={editableDisplayConfig?.targetToSource?.enabled || false}
+                              disabled={!isEditing}
+                              onChange={(e) => updateDisplayConfig({
+                                ...editableDisplayConfig,
+                                targetToSource: {
+                                  ...editableDisplayConfig.targetToSource,
+                                  enabled: e.target.checked
+                                }
+                              })}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                            />
+                            <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Etkinleştir</span>
+                          </label>
+                        </div>
+                        
+                        <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-4">
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                            {relationshipType.allowedTargetTypes?.[0]} seçerken gösterilecek {relationshipType.allowedSourceTypes?.[0]} sütunları:
+                          </p>
+                          
+                          <div className="space-y-3">
+                            <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                              Mevcut Öznitelikler ({sourceItemTypeAttributes.length})
+                            </h4>
+                            
+                            {sourceItemTypeAttributes.map((attr, index) => {
+                              const isSelected = editableDisplayConfig?.targetToSource?.columns?.some(col => col.attributeId === attr.id);
+                              return (
+                                <label key={attr.id} className={`flex items-center p-2 rounded border ${
+                                  !isEditing 
+                                    ? 'bg-gray-50 dark:bg-gray-800 opacity-60' 
+                                    : 'bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
+                                }`}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    disabled={!isEditing}
+                                    onChange={(e) => {
+                                      if (!isEditing) return;
+                                      
+                                      const currentColumns = editableDisplayConfig?.targetToSource?.columns || [];
+                                      let newColumns;
+                                      
+                                      if (e.target.checked) {
+                                        // Add column with order
+                                        newColumns = [...currentColumns, {
+                                          attributeId: attr.id,
+                                          displayName: attr.name,
+                                          width: 150,
+                                          sortable: true,
+                                          filterable: true,
+                                          isRequired: false,
+                                          formatType: attr.type === 'date' ? 'date' : 'text',
+                                          order: currentColumns.length + 1
+                                        }];
+                                      } else {
+                                        // Remove column
+                                        newColumns = currentColumns.filter(col => col.attributeId !== attr.id);
+                                        // Re-order remaining columns
+                                        newColumns.forEach((col, index) => {
+                                          col.order = index + 1;
+                                        });
+                                      }
+                                      
+                                      updateDisplayConfig({
+                                        ...editableDisplayConfig,
+                                        targetToSource: {
+                                          ...editableDisplayConfig.targetToSource,
+                                          columns: newColumns
+                                        }
+                                      });
+                                    }}
+                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                                  />
+                                  <div className="ml-3">
+                                    <span className="text-sm font-medium text-gray-900 dark:text-white">{attr.name}</span>
+                                    <span className="text-xs text-gray-500 ml-2">({attr.type})</span>
+                                  </div>
+                                </label>
+                              );
+                            })}
+                          </div>
+                          
+                          {/* Selected Columns - Drag & Drop Area */}
+                          {editableDisplayConfig?.targetToSource?.columns && editableDisplayConfig.targetToSource.columns.length > 0 && (
+                            <div className="mt-4">
+                              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
+                                Seçili Sütunlar ({editableDisplayConfig.targetToSource.columns.length})
+                              </h4>
+                              <div className="space-y-2">
+                                {editableDisplayConfig.targetToSource.columns
+                                  .sort((a, b) => (a.order || 0) - (b.order || 0))
+                                  .map((column, index) => (
+                                    <DragDropColumn
+                                      key={column.attributeId}
+                                      column={column}
+                                      index={index}
+                                      onMove={(fromIndex, toIndex) => moveColumn('targetToSource', fromIndex, toIndex)}
+                                      onRemove={(index) => {
+                                        const newColumns = editableDisplayConfig.targetToSource.columns.filter((_, i) => i !== index);
+                                        // Re-order remaining columns
+                                        newColumns.forEach((col, i) => {
+                                          col.order = i + 1;
+                                        });
+                                        updateDisplayConfig({
+                                          ...editableDisplayConfig,
+                                          targetToSource: {
+                                            ...editableDisplayConfig.targetToSource,
+                                            columns: newColumns
+                                          }
+                                        });
+                                      }}
+                                      disabled={!isEditing}
+                                    />
+                                  ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {!isEditing && (
+                      <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                          💡 Görünüm ayarlarını değiştirmek için <strong>Düzenle</strong> butonuna tıklayın.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* JSON Preview */}
+                {relationshipType.displayConfig && (
+                  <div className="mt-6">
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                      Display Config JSON:
+                    </h4>
+                    <pre className="bg-gray-100 dark:bg-gray-800 p-4 rounded-md text-xs overflow-auto">
+                      {JSON.stringify(relationshipType.displayConfig, null, 2)}
+                    </pre>
+                  </div>
+                )}
               </CardBody>
             </Card>
           </div>

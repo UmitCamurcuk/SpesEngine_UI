@@ -1,14 +1,15 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
 import Stepper from '../../../components/ui/Stepper';
 import Breadcrumb from '../../../components/common/Breadcrumb';
 import UnifiedTreeView, { TreeNode } from '../../../components/ui/UnifiedTreeView';
-import { AttributeInput, AttributeGroupSection } from '../../../components/attributes/inputs';
+import { AttributeGroupSection } from '../../../components/attributes/inputs';
+import { AssociationSection, IAssociationRule } from '../../../components/associations';
 import itemService from '../../../services/api/itemService';
 import itemTypeService from '../../../services/api/itemTypeService';
-import categoryService from '../../../services/api/categoryService';
 import familyService from '../../../services/api/familyService';
+import relationshipService from '../../../services/api/relationshipService';
 import type { CreateItemDto } from '../../../types/item';
 import { useTranslation } from '../../../context/i18nContext';
 import { getEntityName, getEntityDescription } from '../../../utils/translationUtils';
@@ -66,11 +67,13 @@ const ItemCreatePage: React.FC = () => {
     itemType: '',
     category: '',
     family: '',
-    attributes: {}
+    attributes: {},
+    associations: {}
   });
   
   // Validation errors
   const [attributeErrors, setAttributeErrors] = useState<Record<string, string>>({});
+  const [associationErrors, setAssociationErrors] = useState<Record<string, string>>({});
   
   // Data states
   const [itemTypes, setItemTypes] = useState<ItemTypeOption[]>([]);
@@ -78,6 +81,8 @@ const ItemCreatePage: React.FC = () => {
   const [categoryTree, setCategoryTree] = useState<TreeNode[]>([]);
   const [familyTree, setFamilyTree] = useState<TreeNode[]>([]);
   const [attributeGroups, setAttributeGroups] = useState<AttributeGroup[]>([]);
+  const [associationRules, setAssociationRules] = useState<IAssociationRule[]>([]);
+  const [displayConfigs, setDisplayConfigs] = useState<Record<string, any>>({});
   
   // Selected entities
   const [selectedItemType, setSelectedItemType] = useState<ItemTypeOption | null>(null);
@@ -89,9 +94,55 @@ const ItemCreatePage: React.FC = () => {
     { title: 'Öğe Tipi', description: 'Öğe tipini seçin' },
     { title: 'Kategori', description: 'Kategorinizi seçin' },
     { title: 'Aile', description: 'Aileyi seçin' },
+    { title: 'İlişkiler', description: 'İlişkili öğeleri seçin' },
     { title: 'Öznitelikler', description: 'Öznitelikleri doldurun' },
     { title: 'Önizleme', description: 'Bilgileri kontrol edin' }
   ];
+
+  // Load display configs for associations
+  const loadDisplayConfigs = async (associationRules: IAssociationRule[]) => {
+    try {
+      const configs: Record<string, any> = {};
+      
+      // Get all relationship types and filter by our associations
+      const allRelationshipTypes = await relationshipService.getAllRelationshipTypes();
+      console.log('🔍 All relationship types:', allRelationshipTypes);
+      
+      for (const rule of associationRules) {
+        console.log('🔍 Processing rule:', rule);
+        
+        // Find relationship type for this association
+        const relationshipType = allRelationshipTypes.find(rt => {
+          const sourceMatch = rt.allowedSourceTypes?.includes(selectedItemType?.code || '');
+          const targetMatch = rt.allowedTargetTypes?.includes(rule.targetItemTypeCode);
+          console.log('🔍 Checking relationship type:', {
+            rtCode: rt.code,
+            allowedSourceTypes: rt.allowedSourceTypes,
+            allowedTargetTypes: rt.allowedTargetTypes,
+            selectedItemTypeCode: selectedItemType?.code,
+            ruleTargetItemTypeCode: rule.targetItemTypeCode,
+            sourceMatch,
+            targetMatch
+          });
+          return sourceMatch && targetMatch;
+        });
+        
+        console.log('🔍 Found relationship type:', relationshipType);
+        
+        if (relationshipType?.displayConfig) {
+          configs[rule.targetItemTypeCode] = relationshipType.displayConfig.sourceToTarget;
+          console.log('🔍 Added display config for:', rule.targetItemTypeCode, relationshipType.displayConfig.sourceToTarget);
+        } else {
+          console.log('🔍 No display config found for:', rule.targetItemTypeCode);
+        }
+      }
+      
+      setDisplayConfigs(configs);
+      console.log('🎨 Final display configs:', configs);
+    } catch (error) {
+      console.error('Display configs yüklenirken hata:', error);
+    }
+  };
 
   // Load initial data
   useEffect(() => {
@@ -118,11 +169,12 @@ const ItemCreatePage: React.FC = () => {
       if (!selectedType) return;
 
       setSelectedItemType(selectedType);
-      setFormData(prev => ({
+      setFormData(() => ({
         itemType: itemTypeId,
         category: '',
         family: '',
-        attributes: {}
+        attributes: {},
+        associations: {}
       }));
 
       // Reset subsequent selections
@@ -131,7 +183,9 @@ const ItemCreatePage: React.FC = () => {
       setCategoryTree([]);
       setFamilyTree([]);
       setAttributeGroups([]);
+      setAssociationRules([]);
       setAttributeErrors({});
+      setAssociationErrors({});
 
       // Load ItemType with available options (backend needs to be updated to support full hierarchy)
       const itemTypeData = await itemTypeService.getItemTypeById(itemTypeId, {
@@ -176,6 +230,18 @@ const ItemCreatePage: React.FC = () => {
         setCategoryTree(buildCategoryTree());
       }
 
+      // Load association rules
+      if (itemTypeData.associations && itemTypeData.associations.outgoing) {
+        setAssociationRules(itemTypeData.associations.outgoing);
+        console.log('🔗 Association rules loaded:', itemTypeData.associations.outgoing);
+        
+        // Load display configs for associations
+        await loadDisplayConfigs(itemTypeData.associations.outgoing);
+      } else {
+        setAssociationRules([]);
+        setDisplayConfigs({});
+      }
+
       toast.success('Öğe tipi seçildi. Sonraki adıma geçebilirsiniz.');
     } catch (error) {
       console.error('ItemType seçiminde hata:', error);
@@ -185,43 +251,7 @@ const ItemCreatePage: React.FC = () => {
 
 
 
-  // Load families for step 3
-  const loadFamiliesForStep3 = async (categoryId: string) => {
-    try {
-      setLoading(true);
-      const familiesResponse = await familyService.getFamilies();
-      const allFamilies = familiesResponse.families || familiesResponse;
-      
-      // Filter families that belong to this category and itemType
-      const categoryFamilies = allFamilies.filter((family: any) => {
-        const familyCategory = typeof family.category === 'string' ? family.category : family.category?._id;
-        const familyItemType = typeof family.itemType === 'string' ? family.itemType : family.itemType?._id;
-        return familyCategory === categoryId && familyItemType === formData.itemType;
-      });
 
-      // Build family tree
-      const buildFamilyTree = (parentId: string | null = null): TreeNode[] => {
-        return categoryFamilies
-          .filter((family: any) => {
-            const familyParent = typeof family.parent === 'string' ? family.parent : family.parent?._id;
-            return familyParent === parentId;
-          })
-          .map((family: any) => ({
-            id: family._id,
-            name: getEntityName(family, currentLanguage) || 'İsimsiz Aile',
-            data: family,
-            children: buildFamilyTree(family._id)
-          }));
-      };
-
-      setFamilyTree(buildFamilyTree());
-    } catch (error) {
-      console.error('Aileler yüklenirken hata:', error);
-      toast.error('Aileler yüklenirken hata oluştu');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Step 2: Category selection
   const handleCategorySelect = async (categoryNode: TreeNode) => {
@@ -574,6 +604,86 @@ const ItemCreatePage: React.FC = () => {
     }
   }, [attributeErrors]);
 
+  // Association handlers
+  const handleAssociationsChange = useCallback((newAssociations: Record<string, any>) => {
+    setFormData(prev => ({
+      ...prev,
+      associations: newAssociations
+    }));
+  }, []);
+
+  const validateAssociations = useCallback((): boolean => {
+    const errors: Record<string, string> = {};
+    let isValid = true;
+
+    associationRules.forEach(rule => {
+      const key = `${rule.targetItemTypeCode}_${rule.relationshipType}`;
+      const value = formData.associations?.[key];
+      
+      // Check required associations
+      if (rule.isRequired && (!value || (Array.isArray(value) && value.length === 0))) {
+        errors[key] = `${rule.targetItemTypeName || rule.targetItemTypeCode} seçimi zorunludur`;
+        isValid = false;
+      }
+
+      // Check cardinality
+      if (value) {
+        const count = Array.isArray(value) ? value.length : 1;
+        
+        // Min check
+        if (rule.cardinality.min && count < rule.cardinality.min) {
+          errors[key] = `En az ${rule.cardinality.min} ${rule.targetItemTypeName || rule.targetItemTypeCode} seçmelisiniz`;
+          isValid = false;
+        }
+
+        // Max check
+        if (rule.cardinality.max && count > rule.cardinality.max) {
+          errors[key] = `En fazla ${rule.cardinality.max} ${rule.targetItemTypeName || rule.targetItemTypeCode} seçebilirsiniz`;
+          isValid = false;
+        }
+      }
+    });
+
+    return isValid;
+  }, [formData.associations, associationRules]);
+
+  // Separate function for setting association errors (called only when needed)
+  const setAssociationErrorsWithValidation = useCallback(() => {
+    const errors: Record<string, string> = {};
+    let isValid = true;
+
+    associationRules.forEach(rule => {
+      const key = `${rule.targetItemTypeCode}_${rule.relationshipType}`;
+      const value = formData.associations?.[key];
+      
+      // Check required associations
+      if (rule.isRequired && (!value || (Array.isArray(value) && value.length === 0))) {
+        errors[key] = `${rule.targetItemTypeName || rule.targetItemTypeCode} seçimi zorunludur`;
+        isValid = false;
+      }
+
+      // Check cardinality
+      if (value) {
+        const count = Array.isArray(value) ? value.length : 1;
+        
+        // Min check
+        if (rule.cardinality.min && count < rule.cardinality.min) {
+          errors[key] = `En az ${rule.cardinality.min} ${rule.targetItemTypeName || rule.targetItemTypeCode} seçmelisiniz`;
+          isValid = false;
+        }
+
+        // Max check
+        if (rule.cardinality.max && count > rule.cardinality.max) {
+          errors[key] = `En fazla ${rule.cardinality.max} ${rule.targetItemTypeName || rule.targetItemTypeCode} seçebilirsiniz`;
+          isValid = false;
+        }
+      }
+    });
+
+    setAssociationErrors(errors);
+    return isValid;
+  }, [formData.associations, associationRules]);
+
   // Validation - Memoized to prevent infinite loops
   const validateStep = useCallback((step: number): boolean => {
     switch (step) {
@@ -584,7 +694,10 @@ const ItemCreatePage: React.FC = () => {
       case 3:
         return !!formData.family;
       case 4:
-        // Basic validation without state updates
+        // Association validation
+        return validateAssociations();
+      case 5:
+        // Attributes validation
         return attributeGroups.every(group => 
           group.attributes.every(attribute => 
             !attribute.isRequired || 
@@ -596,7 +709,7 @@ const ItemCreatePage: React.FC = () => {
       default:
         return true;
     }
-  }, [formData.itemType, formData.category, formData.family, formData.attributes, attributeGroups]);
+  }, [formData.itemType, formData.category, formData.family, formData.attributes, formData.associations, attributeGroups, associationRules]);
 
   const validateAttributes = useCallback((): boolean => {
     const errors: Record<string, string> = {};
@@ -640,7 +753,12 @@ const ItemCreatePage: React.FC = () => {
   // Navigation
   const handleNextStep = () => {
     if (currentStep === 4) {
-      // For step 4, run full validation with error setting
+      // For step 4 (associations), run full validation with error setting
+      if (setAssociationErrorsWithValidation()) {
+        setCurrentStep(prev => Math.min(prev + 1, steps.length));
+      }
+    } else if (currentStep === 5) {
+      // For step 5 (attributes), run full validation with error setting
       if (validateAttributes()) {
         setCurrentStep(prev => Math.min(prev + 1, steps.length));
       }
@@ -667,7 +785,8 @@ const ItemCreatePage: React.FC = () => {
         itemType: formData.itemType,
         category: formData.category,
         family: formData.family,
-        attributes: formData.attributes
+        attributes: formData.attributes,
+        associations: formData.associations
       });
       
       // Clean up table attributes by removing empty rows
@@ -692,7 +811,8 @@ const ItemCreatePage: React.FC = () => {
         itemType: formData.itemType!,
         category: formData.category!,
         family: formData.family!,
-        attributes: cleanedAttributes
+        attributes: cleanedAttributes,
+        associations: formData.associations
       };
       
       await itemService.createItem(itemData);
@@ -999,6 +1119,20 @@ const ItemCreatePage: React.FC = () => {
         );
 
       case 4:
+        return (
+          <div className="max-w-4xl mx-auto">
+            <AssociationSection
+              itemTypeCode={selectedItemType?.code || ''}
+              associations={formData.associations || {}}
+              onAssociationsChange={handleAssociationsChange}
+              associationRules={associationRules}
+              errors={associationErrors}
+              displayConfigs={displayConfigs}
+            />
+          </div>
+        );
+
+      case 5:
         // Group attributes by source for better organization
         const itemTypeGroups = attributeGroups.filter(group => group.source === 'itemType');
         const categoryGroups = attributeGroups.filter(group => group.source === 'category');
@@ -1176,7 +1310,7 @@ const ItemCreatePage: React.FC = () => {
           </div>
         );
 
-      case 5:
+      case 6:
         return (
           <div className="space-y-6">
             <div className="text-center">

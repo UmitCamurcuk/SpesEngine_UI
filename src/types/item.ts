@@ -88,5 +88,6 @@ export interface CreateItemDto {
   category?: string;
   attributes?: Record<string, any>;
   attributeValues?: AttributeValue[];
+  associations?: Record<string, any>;  // Association values (key: associationKey, value: itemId(s))
   isActive?: boolean;
 } 

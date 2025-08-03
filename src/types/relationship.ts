@@ -1,3 +1,37 @@
+export interface IDisplayColumnConfig {
+  attributeId: string;
+  attributeName?: string;
+  attributeCode?: string;
+  displayName: string;
+  width?: number;
+  sortable?: boolean;
+  filterable?: boolean;
+  isRequired?: boolean;
+  formatType?: 'text' | 'date' | 'number' | 'select' | 'table' | 'custom';
+  customFormat?: string;
+}
+
+export interface IDisplayConfig {
+  sourceToTarget?: {
+    enabled: boolean;
+    columns: IDisplayColumnConfig[];
+    defaultSortBy?: string;
+    defaultSortOrder?: 'asc' | 'desc';
+    pageSize?: number;
+    showSearch?: boolean;
+    searchableColumns?: string[];
+  };
+  targetToSource?: {
+    enabled: boolean;
+    columns: IDisplayColumnConfig[];
+    defaultSortBy?: string;
+    defaultSortOrder?: 'asc' | 'desc';
+    pageSize?: number;
+    showSearch?: boolean;
+    searchableColumns?: string[];
+  };
+}
+
 export interface IRelationshipType {
   _id: string;
   code: string;
@@ -8,6 +42,7 @@ export interface IRelationshipType {
   allowedSourceTypes: string[];
   allowedTargetTypes: string[];
   metadata?: Record<string, any>;
+  displayConfig?: IDisplayConfig; // YENİ ALAN
   createdBy?: any;
   updatedBy?: any;
   createdAt: Date;

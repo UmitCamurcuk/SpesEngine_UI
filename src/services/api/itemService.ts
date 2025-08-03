@@ -43,6 +43,30 @@ const itemService = {
       throw error;
     }
   },
+
+  // Belirli ItemType'a ait öğeleri getir
+  getItemsByType: async (itemTypeCode: string, params?: ItemApiParams): Promise<{
+    items: Item[];
+    total: number;
+    page: number;
+    limit: number;
+  }> => {
+    try {
+      const response = await api.get<ApiResponse<Item[]>>(`/items/types/${itemTypeCode}`, { 
+        params 
+      });
+      
+      return {
+        items: response.data.data || response.data,
+        total: response.data.total || response.data.count || 0,
+        page: response.data.page || 1,
+        limit: response.data.limit || 10
+      };
+    } catch (error) {
+      console.error(`${itemTypeCode} tipindeki öğeler getirilirken hata oluştu:`, error);
+      throw error;
+    }
+  },
   
   // Yeni öğe oluştur
   createItem: async (itemData: CreateItemDto): Promise<Item> => {

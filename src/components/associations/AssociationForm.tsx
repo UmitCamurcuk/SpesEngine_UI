@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { relationshipService } from '../../services';
-import { IRelationshipType } from '../../types/relationship';
+import { IRelationshipType } from '../../types/association';
 import { useTranslation } from '../../context/i18nContext';
 
-interface RelationshipTypeFormProps {
+interface AssociationFormProps {
   initialData?: Partial<IRelationshipType>;
   mode: 'create' | 'edit';
 }
 
 const entityTypes = ['product', 'category', 'family', 'attribute', 'attributeGroup', 'itemType'];
 
-const RelationshipTypeForm = ({ initialData, mode }: RelationshipTypeFormProps) => {
+const AssociationForm = ({ initialData, mode }: AssociationFormProps) => {
   const [formData, setFormData] = useState<Partial<IRelationshipType>>({
     code: '',
     name: '',
@@ -91,7 +91,7 @@ const RelationshipTypeForm = ({ initialData, mode }: RelationshipTypeFormProps) 
         await relationshipService.updateRelationshipType(initialData._id, formData);
       }
       
-      navigate('/relationships/types');
+      navigate('/associations');
     } catch (err) {
       console.error('İlişki tipi kaydedilemedi:', err);
       setError(t('error_saving_relationship_type', 'common') || 'İlişki tipi kaydedilirken bir hata oluştu');
@@ -247,7 +247,7 @@ const RelationshipTypeForm = ({ initialData, mode }: RelationshipTypeFormProps) 
         <div className="flex justify-end space-x-3 mt-6">
           <button
             type="button"
-            onClick={() => navigate('/relationships/types')}
+            onClick={() => navigate('/associations')}
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-light dark:focus:ring-primary-dark"
           >
             {t('cancel', 'common')}
@@ -275,4 +275,4 @@ const RelationshipTypeForm = ({ initialData, mode }: RelationshipTypeFormProps) 
   );
 };
 
-export default RelationshipTypeForm; 
+export default AssociationForm; 

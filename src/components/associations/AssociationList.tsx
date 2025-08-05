@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { relationshipService } from '../../services';
-import { IRelationshipType } from '../../types/relationship';
+import { IRelationshipType } from '../../types/association';
 import { useTranslation } from '../../context/i18nContext';
 
-const RelationshipTypeList = () => {
+const AssociationList = () => {
   const [relationshipTypes, setRelationshipTypes] = useState<IRelationshipType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +70,7 @@ const RelationshipTypeList = () => {
           {t('relationship_types', 'relationships')}
         </h2>
         <Link
-          to="/relationships/types/create"
+          to="/associations/create"
           className="px-4 py-2 bg-primary-light dark:bg-primary-dark text-white rounded hover:bg-primary-light/90 dark:hover:bg-primary-dark/90 transition-colors"
         >
           {t('add_relationship_type', 'relationships')}
@@ -130,7 +130,7 @@ const RelationshipTypeList = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end space-x-2">
                       <button
-                        onClick={() => navigate(`/relationships/types/details/${type._id}`)}
+                        onClick={() => navigate(`/associations/details/${type._id}`)}
                         className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
                       >
                         {t('view', 'common')}
@@ -153,4 +153,4 @@ const RelationshipTypeList = () => {
   );
 };
 
-export default RelationshipTypeList; 
+export default AssociationList; 

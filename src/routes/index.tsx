@@ -36,9 +36,9 @@ import PermissionGroupDetailsPage from '../pages/permissionGroups/details';
 import LocalizationsListPage from '../pages/localizations/list';
 import LocalizationCreatePage from '../pages/localizations/create';
 import LocalizationDetailsPage from '../pages/localizations/details';
-import RelationshipTypesListPage from '../pages/relationships/types/list';
-import CreateRelationshipTypePage from '../pages/relationships/types/create/index';
-import RelationshipTypeDetailsPage from '../pages/relationships/types/details';
+import AssociationsListPage from '../pages/associations/list';
+import CreateAssociationPage from '../pages/associations/create/index';
+import AssociationDetailsPage from '../pages/associations/details';
 import SystemSettingsPage from '../pages/system/settings';
 import LoadingPage from '../pages/auth/loading';
 import LogoutPage from '../pages/auth/logout';
@@ -213,16 +213,16 @@ const routes: RouteObject[] = [
           
           // İlişkiler
           {
-            path: 'relationships',
-            element: <RelationshipTypesListPage />
+            path: 'associations',
+                          element: <AssociationsListPage />
           },
           {
-            path: 'relationships/create',
-            element: <CreateRelationshipTypePage />
+            path: 'associations/create',
+                          element: <CreateAssociationPage />
           },
           {
-            path: 'relationships/details/:id',
-            element: <RelationshipTypeDetailsPage />
+            path: 'associations/details/:id',
+                          element: <AssociationDetailsPage />
           },
           
           // Sistem Ayarları

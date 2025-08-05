@@ -39,7 +39,7 @@ const App: React.FC = () => {
               <Route path="/categories" element={<PlaceholderPage title="Kategoriler" />} />
               <Route path="/attributes" element={<PlaceholderPage title="Öznitelikler" />} />
               <Route path="/suppliers" element={<PlaceholderPage title="Tedarikçiler" />} />
-              <Route path="/relationships" element={<PlaceholderPage title="İlişkiler" />} />
+              <Route path="/associations" element={<PlaceholderPage title="İlişkiler" />} />
               <Route path="/settings" element={<PlaceholderPage title="Ayarlar" />} />
               <Route path="/help" element={<PlaceholderPage title="Yardım" />} />
             </Routes>

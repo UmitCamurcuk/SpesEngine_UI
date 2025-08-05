@@ -1,3 +1,15 @@
-export { default as AssociationSelector } from './AssociationSelector';
-export { default as AssociationSection } from './AssociationSection';
-export * from './types';
+import AssociationList from './AssociationList';
+import AssociationForm from './AssociationForm';
+import EntityAssociationsPanel from './EntityAssociationsPanel';
+import CreateAssociationModal from './CreateAssociationModal';
+import AssociationSection from './AssociationSection';
+import AssociationSelector from './AssociationSelector';
+
+export {
+  AssociationList,
+  AssociationForm,
+  EntityAssociationsPanel,
+  CreateAssociationModal,
+  AssociationSection,
+  AssociationSelector
+}; 

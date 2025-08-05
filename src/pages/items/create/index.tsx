@@ -9,7 +9,7 @@ import { AssociationSection, IAssociationRule } from '../../../components/associ
 import itemService from '../../../services/api/itemService';
 import itemTypeService from '../../../services/api/itemTypeService';
 import familyService from '../../../services/api/familyService';
-import relationshipService from '../../../services/api/relationshipService';
+import relationshipService from '../../../services/api/associationService';
 import type { CreateItemDto } from '../../../types/item';
 import { useTranslation } from '../../../context/i18nContext';
 import { getEntityName, getEntityDescription } from '../../../utils/translationUtils';

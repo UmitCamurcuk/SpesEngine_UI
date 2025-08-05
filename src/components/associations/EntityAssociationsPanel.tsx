@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
 import { relationshipService } from '../../services';
-import { IRelationship } from '../../types/relationship';
+import { IRelationship } from '../../types/association';
 import { useTranslation } from '../../context/i18nContext';
 
-interface EntityRelationshipsPanelProps {
+interface EntityAssociationsPanelProps {
   entityId: string;
   entityType: string;
   onAddRelationship?: () => void;
 }
 
-const EntityRelationshipsPanel = ({ entityId, entityType, onAddRelationship }: EntityRelationshipsPanelProps) => {
+const EntityAssociationsPanel = ({ entityId, entityType, onAddRelationship }: EntityAssociationsPanelProps) => {
   const [relationships, setRelationships] = useState<IRelationship[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -234,4 +234,4 @@ const EntityRelationshipsPanel = ({ entityId, entityType, onAddRelationship }: E
   );
 };
 
-export default EntityRelationshipsPanel; 
+export default EntityAssociationsPanel; 

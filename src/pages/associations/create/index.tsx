@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Button from '../../../../components/ui/Button';
-import { useNotification } from '../../../../components/notifications';
-import Breadcrumb from '../../../../components/common/Breadcrumb';
-import Stepper from '../../../../components/ui/Stepper';
-import relationshipService from '../../../../services/api/relationshipService';
-import itemTypeService from '../../../../services/api/itemTypeService';
-import { IRelationshipType } from '../../../../types/relationship';
-import { useTranslation } from '../../../../context/i18nContext';
-import { getEntityName } from '../../../../utils/translationUtils';
-import TranslationFields from '../../../../components/common/TranslationFields';
-import { useTranslationForm } from '../../../../hooks/useTranslationForm';
+import Button from '../../../components/ui/Button';
+import { useNotification } from '../../../components/notifications';
+import Breadcrumb from '../../../components/common/Breadcrumb';
+import Stepper from '../../../components/ui/Stepper';
+import relationshipService from '../../../services/api/associationService';
+import itemTypeService from '../../../services/api/itemTypeService';
+import { IRelationshipType } from '../../../types/association';
+import { useTranslation } from '../../../context/i18nContext';
+import { getEntityName } from '../../../utils/translationUtils';
+import TranslationFields from '../../../components/common/TranslationFields';
+import { useTranslationForm } from '../../../hooks/useTranslationForm';
 
 // Form data interfaces
 interface Step1FormData {
@@ -44,7 +44,7 @@ const initialFormData: FormData = {
   metadata: {}
 };
 
-const RelationshipTypeCreatePage: React.FC = () => {
+const CreateAssociationPage: React.FC = () => {
   const navigate = useNavigate();
   const { t, currentLanguage } = useTranslation();
   const { showToast } = useNotification();
@@ -206,7 +206,7 @@ const RelationshipTypeCreatePage: React.FC = () => {
         type: 'success'
       });
       
-      navigate('/relationships');
+      navigate('/associations');
     } catch (error: any) {
       console.error('İlişki tipi oluşturulurken hata:', error);
       setError(error.response?.data?.message || error.message || 'İlişki tipi oluşturulurken hata oluştu');
@@ -627,7 +627,7 @@ const RelationshipTypeCreatePage: React.FC = () => {
                         <Breadcrumb 
               items={[
                 { label: t('home'), path: '/' },
-                { label: t('relationships'), path: '/relationships' },
+                { label: t('relationships'), path: '/associations' },
                 { label: t('create_new_relationship_type') }
               ]} 
             />
@@ -651,7 +651,7 @@ const RelationshipTypeCreatePage: React.FC = () => {
               <Button
                 variant="outline"
                 className="flex items-center mt-4 md:mt-0"
-                onClick={() => navigate('/relationships')}
+                onClick={() => navigate('/associations')}
               >
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -704,7 +704,7 @@ const RelationshipTypeCreatePage: React.FC = () => {
 
                 <div className="flex space-x-3">
                               <Button
-              onClick={() => navigate('/relationships')}
+              onClick={() => navigate('/associations')}
               variant="outline"
             >
               İptal
@@ -757,4 +757,4 @@ const RelationshipTypeCreatePage: React.FC = () => {
   );
 };
 
-export default RelationshipTypeCreatePage;
+export default CreateAssociationPage;

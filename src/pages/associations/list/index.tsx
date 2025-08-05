@@ -1,19 +1,19 @@
 import React, { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Table from '../../../../components/ui/Table';
-import type { TableColumn } from '../../../../components/ui/Table';
-import Button from '../../../../components/ui/Button';
-import Badge from '../../../../components/ui/Badge';
-import relationshipService from '../../../../services/api/relationshipService';
-import { IRelationshipType } from '../../../../types/relationship';
-import { useTranslation } from '../../../../context/i18nContext';
-import { getEntityName } from '../../../../utils/translationUtils';
-import ModalNotification from '../../../../components/notifications/ModalNotification';
-import { useNotification } from '../../../../components/notifications';
-import ListPageLayout from '../../../../components/layout/ListPageLayout';
-import UserInfoCell from '../../../../components/common/UserInfoCell';
+import Table from '../../../components/ui/Table';
+import type { TableColumn } from '../../../components/ui/Table';
+import Button from '../../../components/ui/Button';
+import Badge from '../../../components/ui/Badge';
+import relationshipService from '../../../services/api/associationService';
+import { IRelationshipType } from '../../../types/association';
+import { useTranslation } from '../../../context/i18nContext';
+import { getEntityName } from '../../../utils/translationUtils';
+import ModalNotification from '../../../components/notifications/ModalNotification';
+import { useNotification } from '../../../components/notifications';
+import ListPageLayout from '../../../components/layout/ListPageLayout';
+import UserInfoCell from '../../../components/common/UserInfoCell';
 
-import useListPage from '../../../../hooks/useListPage';
+import useListPage from '../../../hooks/useListPage';
 
 // UTILITY COMPONENTS - Card component is used in the JSX below
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
@@ -23,7 +23,7 @@ const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ chi
 );
 
 // MAIN COMPONENT
-const RelationshipTypesListPage: React.FC = () => {
+const AssociationsListPage: React.FC = () => {
   // HOOKS
   const navigate = useNavigate();
   const { t, currentLanguage } = useTranslation();
@@ -90,11 +90,11 @@ const RelationshipTypesListPage: React.FC = () => {
 
   // HELPER FUNCTIONS
   const handleRowClick = (relationshipType: IRelationshipType) => {
-    navigate(`/relationships/details/${relationshipType._id}`);
+    navigate(`/associations/details/${relationshipType._id}`);
   };
 
   const handleCreateRelationshipType = () => {
-    navigate('/relationships/create');
+    navigate('/associations/create');
   };
 
   // STATISTICS
@@ -271,7 +271,7 @@ const RelationshipTypesListPage: React.FC = () => {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/relationships/details/${item._id}`);
+              navigate(`/associations/details/${item._id}`);
             }}
             className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/50 rounded-md transition-colors"
             title="Görüntüle"
@@ -421,4 +421,4 @@ const RelationshipTypesListPage: React.FC = () => {
   );
 };
 
-export default RelationshipTypesListPage;
+export default AssociationsListPage;

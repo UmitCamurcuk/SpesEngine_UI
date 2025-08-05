@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import Button from '../../../../components/ui/Button';
-import Badge from '../../../../components/ui/Badge';
-import { useNotification } from '../../../../components/notifications';
-import { IRelationshipType } from '../../../../types/relationship';
-import Breadcrumb from '../../../../components/common/Breadcrumb';
-import relationshipService from '../../../../services/api/relationshipService';
-import itemTypeService from '../../../../services/api/itemTypeService';
+import Button from '../../../components/ui/Button';
+import Badge from '../../../components/ui/Badge';
+import { useNotification } from '../../../components/notifications';
+import { IRelationshipType } from '../../../types/association';
+import Breadcrumb from '../../../components/common/Breadcrumb';
+import relationshipService from '../../../services/api/associationService';
+import itemTypeService from '../../../services/api/itemTypeService';
 import dayjs from 'dayjs';
 import 'dayjs/locale/tr';
-import { useTranslation } from '../../../../context/i18nContext';
-import { getEntityName } from '../../../../utils/translationUtils';
-import UserInfoCell from '../../../../components/common/UserInfoCell';
-import { APITab, DocumentationTab, PermissionsTab, StatisticsTab } from '../../../../components/common';
-import Modal from '../../../../components/ui/Modal';
-import DragDropColumn from '../../../../components/ui/DragDropColumn';
+import { useTranslation } from '../../../context/i18nContext';
+import { getEntityName } from '../../../utils/translationUtils';
+import UserInfoCell from '../../../components/common/UserInfoCell';
+import { APITab, DocumentationTab, PermissionsTab, StatisticsTab } from '../../../components/common';
+import Modal from '../../../components/ui/Modal';
+import DragDropColumn from '../../../components/ui/DragDropColumn';
 
 // UTILITY COMPONENTS
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
@@ -35,7 +35,7 @@ const CardBody: React.FC<{ children: React.ReactNode; className?: string }> = ({
   </div>
 );
 
-const RelationshipTypeDetailsPage: React.FC = () => {
+const AssociationDetailsPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { t, currentLanguage } = useTranslation();
@@ -272,7 +272,7 @@ const RelationshipTypeDetailsPage: React.FC = () => {
         message: 'İlişki tipi başarıyla silindi',
         type: 'success'
       });
-      navigate('/relationships');
+      navigate('/associations');
     } catch (err: any) {
       console.error('❌ Error deleting relationship type:', err);
       const errorMessage = err.response?.data?.message || err.message || 'İlişki tipi silinirken bir hata oluştu';
@@ -446,7 +446,7 @@ const RelationshipTypeDetailsPage: React.FC = () => {
             <Button onClick={() => window.location.reload()} variant="primary">
               Tekrar Dene
             </Button>
-            <Button onClick={() => navigate('/relationships/types')} variant="secondary">
+            <Button onClick={() => navigate('/associations')} variant="secondary">
               Listeye Dön
             </Button>
           </div>
@@ -461,7 +461,7 @@ const RelationshipTypeDetailsPage: React.FC = () => {
         <div className="text-center">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">İlişki Tipi Bulunamadı</h2>
           <p className="text-gray-600 dark:text-gray-400 mb-6">Aradığınız ilişki tipi mevcut değil veya silinmiş olabilir.</p>
-                      <Button onClick={() => navigate('/relationships')} variant="primary">
+                      <Button onClick={() => navigate('/associations')} variant="primary">
               Listeye Dön
             </Button>
         </div>
@@ -476,7 +476,7 @@ const RelationshipTypeDetailsPage: React.FC = () => {
           <Breadcrumb 
             items={[
               { label: t('home'), path: '/' },
-              { label: t('relationships'), path: '/relationships' },
+              { label: t('relationships'), path: '/associations' },
               { label: getEntityName(relationshipType, currentLanguage) || 'İlişki Tipi Detayı' }
             ]} 
           />
@@ -485,7 +485,7 @@ const RelationshipTypeDetailsPage: React.FC = () => {
         {/* HEADER */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-center">
-            <Link to="/relationships" className="mr-4">
+            <Link to="/associations" className="mr-4">
               <Button variant="outline" size="sm" className="flex items-center">
                 <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -1377,4 +1377,4 @@ const RelationshipTypeDetailsPage: React.FC = () => {
   );
 };
 
-export default RelationshipTypeDetailsPage;
+export default AssociationDetailsPage;

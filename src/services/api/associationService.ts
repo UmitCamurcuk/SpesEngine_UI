@@ -1,7 +1,7 @@
 import api from './config';
-import { IRelationship, IRelationshipType } from '../../types/relationship';
+import { IRelationship, IRelationshipType } from '../../types/association';
 
-const RELATIONSHIP_URL = '/relationships';
+const RELATIONSHIP_URL = '/associations';
 const RELATIONSHIP_TYPE_URL = '/relationship-types';
 
 const relationshipService = {

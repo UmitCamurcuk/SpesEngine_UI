@@ -16,7 +16,7 @@ const HomePage = () => (
           <h2 className="text-lg font-semibold text-green-700 dark:text-green-400 mb-2">Ürün Aileleri</h2>
           <p className="text-sm text-gray-600 dark:text-gray-400">Ürün ailelerini yönetin.</p>
         </a>
-        <a href="/relationships/types/list" className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-100 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-800/30 transition-colors">
+        <a href="/associations/list" className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-100 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-800/30 transition-colors">
           <h2 className="text-lg font-semibold text-purple-700 dark:text-purple-400 mb-2">İlişki Tipleri</h2>
           <p className="text-sm text-gray-600 dark:text-gray-400">Varlık ilişki tiplerini yönetin.</p>
         </a>

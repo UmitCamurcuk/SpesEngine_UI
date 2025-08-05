@@ -36,7 +36,7 @@ const Sidebar: React.FC = () => {
     { id: 'categories', name: 'Kategoriler', path: '/categories', icon: 'folder' },
     { id: 'attributes', name: 'Öznitelikler', path: '/attributes', icon: 'tag' },
     { id: 'suppliers', name: 'Tedarikçiler', path: '/suppliers', icon: 'truck' },
-    { id: 'relationships', name: 'İlişkiler', path: '/relationships', icon: 'link' },
+            { id: 'associations', name: 'İlişkiler', path: '/associations', icon: 'link' },
   ];
 
   // Dashboard alt menü öğeleri

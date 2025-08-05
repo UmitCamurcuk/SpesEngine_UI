@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { relationshipService } from '../../services';
-import { IRelationshipType } from '../../types/relationship';
+import { IRelationshipType } from '../../types/association';
 import { useTranslation } from '../../context/i18nContext';
 
-interface CreateRelationshipModalProps {
+interface CreateAssociationModalProps {
   isOpen: boolean;
   onClose: () => void;
   sourceEntityId: string;
@@ -11,13 +11,13 @@ interface CreateRelationshipModalProps {
   onSuccess?: () => void;
 }
 
-const CreateRelationshipModal = ({ 
+const CreateAssociationModal = ({ 
   isOpen, 
   onClose, 
   sourceEntityId, 
   sourceEntityType,
   onSuccess
-}: CreateRelationshipModalProps) => {
+}: CreateAssociationModalProps) => {
   const [relationshipTypes, setRelationshipTypes] = useState<IRelationshipType[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -281,4 +281,4 @@ const CreateRelationshipModal = ({
   );
 };
 
-export default CreateRelationshipModal; 
+export default CreateAssociationModal; 

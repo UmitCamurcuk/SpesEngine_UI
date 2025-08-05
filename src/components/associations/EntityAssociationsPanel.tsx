@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { relationshipService } from '../../services';
+import { associationService } from '../../services';
 import { IRelationship } from '../../types/association';
 import { useTranslation } from '../../context/i18nContext';
 
@@ -30,7 +30,7 @@ const EntityAssociationsPanel = ({ entityId, entityType, onAddRelationship }: En
       if (activeTab === 'outgoing') role = 'source';
       if (activeTab === 'incoming') role = 'target';
       
-      const data = await relationshipService.getRelationshipsByEntity(
+      const data = await associationService.getRelationshipsByEntity(
         entityType,
         entityId,
         role
@@ -48,7 +48,7 @@ const EntityAssociationsPanel = ({ entityId, entityType, onAddRelationship }: En
 
   const handleStatusChange = async (id: string, status: 'active' | 'inactive' | 'pending' | 'archived') => {
     try {
-      await relationshipService.changeRelationshipStatus(id, status);
+      await associationService.changeRelationshipStatus(id, status);
       
       // İlişkiyi güncelle
       setRelationships(prevRelationships => 
@@ -65,7 +65,7 @@ const EntityAssociationsPanel = ({ entityId, entityType, onAddRelationship }: En
   const handleDelete = async (id: string) => {
     if (window.confirm(t('confirm_delete_relationship', 'common') || 'Bu ilişkiyi silmek istediğinizden emin misiniz?')) {
       try {
-        await relationshipService.deleteRelationship(id);
+        await associationService.deleteRelationship(id);
         setRelationships(prevRelationships => prevRelationships.filter(rel => rel._id !== id));
       } catch (err) {
         console.error('İlişki silinemedi:', err);
@@ -85,15 +85,15 @@ const EntityAssociationsPanel = ({ entityId, entityType, onAddRelationship }: En
 
   const getDisplayText = (relationship: IRelationship) => {
     const direction = getRelationshipDirection(relationship);
-    const relationshipTypeName = relationship.relationshipType?.name || 'İlişki';
+    const associationName = relationship.association?.name || 'İlişki';
     
     if (direction === 'outgoing') {
-      return `${relationshipTypeName} → ${relationship.targetEntityType}`;
+      return `${associationName} → ${relationship.targetEntityType}`;
     } else if (direction === 'incoming') {
-      return `${relationship.sourceEntityType} → ${relationshipTypeName}`;
+      return `${relationship.sourceEntityType} → ${associationName}`;
     }
     
-    return relationshipTypeName;
+    return associationName;
   };
 
   if (loading) {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { relationshipService } from '../../services';
-import { IRelationshipType } from '../../types/association';
+import { associationService } from '../../services';
+import { IAssociation } from '../../types/association';
 import { useTranslation } from '../../context/i18nContext';
 
 interface CreateAssociationModalProps {
@@ -18,14 +18,14 @@ const CreateAssociationModal = ({
   sourceEntityType,
   onSuccess
 }: CreateAssociationModalProps) => {
-  const [relationshipTypes, setRelationshipTypes] = useState<IRelationshipType[]>([]);
+  const [associations, setRelationshipTypes] = useState<IAssociation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [selectedTypeId, setSelectedTypeId] = useState<string>('');
   const [targetEntityId, setTargetEntityId] = useState<string>('');
   const [targetEntityType, setTargetEntityType] = useState<string>('');
-  const [filteredTypes, setFilteredTypes] = useState<IRelationshipType[]>([]);
+  const [filteredTypes, setFilteredTypes] = useState<IAssociation[]>([]);
   const { t } = useTranslation();
 
   // İlişki tiplerini yükle
@@ -35,7 +35,7 @@ const CreateAssociationModal = ({
     const fetchRelationshipTypes = async () => {
       try {
         setLoading(true);
-        const data = await relationshipService.getAllRelationshipTypes();
+        const data = await associationService.getAllAssociations();
         // Kaynak varlık tipine uygun ilişki tiplerini filtrele
         const filteredData = data.filter(type => 
           type.allowedSourceTypes.includes(sourceEntityType)
@@ -57,14 +57,14 @@ const CreateAssociationModal = ({
   // Seçilen ilişki tipine göre hedef varlık tiplerini güncelle
   useEffect(() => {
     if (selectedTypeId) {
-      const selectedType = relationshipTypes.find(type => type._id === selectedTypeId);
+      const selectedType = associations.find(type => type._id === selectedTypeId);
       if (selectedType && selectedType.allowedTargetTypes.length > 0) {
         setTargetEntityType(selectedType.allowedTargetTypes[0]);
       } else {
         setTargetEntityType('');
       }
     }
-  }, [selectedTypeId, relationshipTypes]);
+  }, [selectedTypeId, associations]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,8 +77,8 @@ const CreateAssociationModal = ({
     try {
       setLoading(true);
       
-      await relationshipService.createRelationship({
-        relationshipTypeId: selectedTypeId,
+      await associationService.createRelationship({
+        associationId: selectedTypeId,
         sourceEntityId,
         sourceEntityType,
         targetEntityId,
@@ -177,7 +177,7 @@ const CreateAssociationModal = ({
               </div>
               
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="relationshipTypeId">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="associationId">
                   {t('relationship_type', 'relationships')} *
                 </label>
                 
@@ -189,7 +189,7 @@ const CreateAssociationModal = ({
                   </div>
                 ) : (
                   <select
-                    id="relationshipTypeId"
+                    id="associationId"
                     value={selectedTypeId}
                     onChange={(e) => setSelectedTypeId(e.target.value)}
                     required
@@ -220,7 +220,7 @@ const CreateAssociationModal = ({
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-light dark:focus:ring-primary-dark focus:border-primary-light dark:focus:border-primary-dark dark:bg-gray-700 dark:text-white"
                     >
                       <option value="">{t('select_target_entity_type', 'relationships')}</option>
-                      {relationshipTypes
+                      {associations
                         .find(type => type._id === selectedTypeId)
                         ?.allowedTargetTypes.map((type) => (
                           <option key={type} value={type}>

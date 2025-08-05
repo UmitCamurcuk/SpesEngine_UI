@@ -3,7 +3,7 @@
 export interface IAssociationRule {
   targetItemTypeCode: string;           // Hedef ItemType kodu (örn: "customer")
   targetItemTypeName?: string;          // Display name
-  relationshipType: 'one-to-one' | 'one-to-many' | 'many-to-one' | 'many-to-many';
+  association: 'one-to-one' | 'one-to-many' | 'many-to-one' | 'many-to-many';
   cardinality: {
     min?: number;                       // Minimum ilişki sayısı
     max?: number;                       // Maximum ilişki sayısı (null = unlimited)

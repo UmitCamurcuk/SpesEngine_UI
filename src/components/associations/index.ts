@@ -12,4 +12,7 @@ export {
   CreateAssociationModal,
   AssociationSection,
   AssociationSelector
-}; 
+};
+
+// Types
+export type { IAssociationRule } from './types'; 

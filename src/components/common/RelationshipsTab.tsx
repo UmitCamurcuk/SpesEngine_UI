@@ -6,7 +6,7 @@ interface RelationshipItem {
   entityType: string;
   entityId: string;
   entityName: string;
-  relationshipType: string;
+  association: string;
   count?: number;
   description?: string;
   isActive?: boolean;
@@ -79,7 +79,7 @@ const RelationshipsTab: React.FC<RelationshipsTabProps> = ({
         entityType: 'product',
         entityId: '1',
         entityName: 'Ürün Varlıkları',
-        relationshipType: 'core_attribute',
+        association: 'core_attribute',
         count: 1245,
         description: 'Temel varlık ilişkisi'
       },
@@ -87,7 +87,7 @@ const RelationshipsTab: React.FC<RelationshipsTabProps> = ({
         entityType: 'catalog',
         entityId: '2', 
         entityName: 'Katalog Varlıkları',
-        relationshipType: 'display_attribute',
+        association: 'display_attribute',
         count: 18,
         description: 'Görüntüleme varlığı ilişkisi'
       }
@@ -239,8 +239,8 @@ const RelationshipsTab: React.FC<RelationshipsTabProps> = ({
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRelationshipColor(rel.relationshipType)}`}>
-                            {rel.relationshipType.replace('_', ' ')}
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRelationshipColor(rel.association)}`}>
+                            {rel.association.replace('_', ' ')}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">

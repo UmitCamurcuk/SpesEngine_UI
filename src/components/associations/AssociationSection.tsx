@@ -30,7 +30,7 @@ const AssociationSection: React.FC<AssociationSectionProps> = ({
 
   // Generate association key
   const getAssociationKey = (rule: IAssociationRule): string => {
-    return `${rule.targetItemTypeCode}_${rule.relationshipType}`;
+    return `${rule.targetItemTypeCode}_${rule.association}`;
   };
 
   // Handle individual association change

@@ -4,9 +4,9 @@ import Button from '../../../components/ui/Button';
 import { useNotification } from '../../../components/notifications';
 import Breadcrumb from '../../../components/common/Breadcrumb';
 import Stepper from '../../../components/ui/Stepper';
-import relationshipService from '../../../services/api/associationService';
+import associationService from '../../../services/api/associationService';
 import itemTypeService from '../../../services/api/itemTypeService';
-import { IRelationshipType } from '../../../types/association';
+import { IAssociation } from '../../../types/association';
 import { useTranslation } from '../../../context/i18nContext';
 import { getEntityName } from '../../../utils/translationUtils';
 import TranslationFields from '../../../components/common/TranslationFields';
@@ -26,7 +26,7 @@ interface Step2FormData {
 interface Step3FormData {
   allowedSourceTypes: string[];
   allowedTargetTypes: string[];
-  relationshipType: 'one-to-one' | 'one-to-many' | 'many-to-one' | 'many-to-many';
+  association: 'one-to-one' | 'one-to-many' | 'many-to-one' | 'many-to-many';
 }
 
 interface FormData extends Step1FormData, Step2FormData, Step3FormData {
@@ -40,7 +40,7 @@ const initialFormData: FormData = {
   isDirectional: true,
   allowedSourceTypes: [],
   allowedTargetTypes: [],
-  relationshipType: 'one-to-many',
+  association: 'one-to-many',
   metadata: {}
 };
 
@@ -124,8 +124,8 @@ const CreateAssociationPage: React.FC = () => {
         // No validation needed
         break;
       case 2: // Allowed types
-        if (!formData.relationshipType) {
-          errors.relationshipType = 'İlişki tipi seçilmelidir';
+        if (!formData.association) {
+          errors.association = 'İlişki tipi seçilmelidir';
         }
         if (formData.allowedSourceTypes.length === 0) {
           errors.allowedSourceTypes = 'En az bir kaynak tip seçmelisiniz';
@@ -187,18 +187,18 @@ const CreateAssociationPage: React.FC = () => {
       // Çevirileri oluştur
       const { nameId, descriptionId } = await createTranslations(formData.code, 'relationship_types');
 
-      const relationshipTypeData: Partial<IRelationshipType> = {
+      const associationData: Partial<IAssociation> = {
         name: nameId,
         code: formData.code,
         description: descriptionId || '',
         isDirectional: formData.isDirectional,
-        relationshipType: formData.relationshipType,
+        association: formData.association,
         allowedSourceTypes: formData.allowedSourceTypes,
         allowedTargetTypes: formData.allowedTargetTypes,
         metadata: formData.metadata
       };
 
-      await relationshipService.createRelationshipType(relationshipTypeData);
+      await associationService.createAssociation(associationData);
       
       showToast({
         title: 'Başarılı!',
@@ -406,11 +406,11 @@ const CreateAssociationPage: React.FC = () => {
                     <div
                       key={type.value}
                       className={`p-4 border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${
-                        formData.relationshipType === type.value
+                        formData.association === type.value
                           ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 shadow-md ring-2 ring-primary-200 dark:ring-primary-800'
                           : 'border-gray-200 dark:border-gray-700 hover:border-primary-300 hover:bg-gray-50 dark:hover:bg-gray-800'
                       }`}
-                      onClick={() => handleInputChange('relationshipType', type.value)}
+                      onClick={() => handleInputChange('association', type.value)}
                     >
                       <div className="text-center">
                         <div className="flex justify-center mb-3">
@@ -572,10 +572,10 @@ const CreateAssociationPage: React.FC = () => {
                       <div>
                         <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('relationship_type')}:</span>
                         <p className="text-sm text-gray-900 dark:text-white">
-                          {formData.relationshipType === 'one-to-one' && `${t('one_to_one')} (1:1)`}
-                          {formData.relationshipType === 'one-to-many' && `${t('one_to_many')} (1:N)`}
-                          {formData.relationshipType === 'many-to-one' && `${t('many_to_one')} (N:1)`}
-                          {formData.relationshipType === 'many-to-many' && `${t('many_to_many')} (N:N)`}
+                          {formData.association === 'one-to-one' && `${t('one_to_one')} (1:1)`}
+                          {formData.association === 'one-to-many' && `${t('one_to_many')} (1:N)`}
+                          {formData.association === 'many-to-one' && `${t('many_to_one')} (N:1)`}
+                          {formData.association === 'many-to-many' && `${t('many_to_many')} (N:N)`}
                         </p>
                       </div>
                     </div>

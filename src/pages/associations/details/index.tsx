@@ -3,9 +3,9 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
 import Badge from '../../../components/ui/Badge';
 import { useNotification } from '../../../components/notifications';
-import { IRelationshipType } from '../../../types/association';
+import { IAssociation } from '../../../types/association';
 import Breadcrumb from '../../../components/common/Breadcrumb';
-import relationshipService from '../../../services/api/associationService';
+import associationService from '../../../services/api/associationService';
 import itemTypeService from '../../../services/api/itemTypeService';
 import dayjs from 'dayjs';
 import 'dayjs/locale/tr';
@@ -52,8 +52,8 @@ const AssociationDetailsPage: React.FC = () => {
   const [comment, setComment] = useState<string>('');
   
   // Data state
-  const [relationshipType, setRelationshipType] = useState<IRelationshipType | null>(null);
-  const [editableFields, setEditableFields] = useState<Partial<IRelationshipType>>({});
+  const [association, setRelationshipType] = useState<IAssociation | null>(null);
+  const [editableFields, setEditableFields] = useState<Partial<IAssociation>>({});
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   
   // Display config state
@@ -63,11 +63,11 @@ const AssociationDetailsPage: React.FC = () => {
   const [editableDisplayConfig, setEditableDisplayConfig] = useState<any>(null);
 
   // Fetch attributes for ItemTypes
-  const fetchItemTypeAttributes = async (relationshipTypeData: IRelationshipType) => {
+  const fetchItemTypeAttributes = async (associationData: IAssociation) => {
     setIsLoadingAttributes(true);
     try {
-      const sourceTypeCode = relationshipTypeData.allowedSourceTypes[0];
-      const targetTypeCode = relationshipTypeData.allowedTargetTypes[0];
+      const sourceTypeCode = associationData.allowedSourceTypes[0];
+      const targetTypeCode = associationData.allowedTargetTypes[0];
       
       console.log('🔍 Fetching attributes for:', { sourceTypeCode, targetTypeCode });
       
@@ -188,7 +188,7 @@ const AssociationDetailsPage: React.FC = () => {
       
       try {
         console.log('🔍 Fetching relationship type details for ID:', id);
-        const data = await relationshipService.getRelationshipTypeById(id);
+        const data = await associationService.getAssociationById(id);
         console.log('✅ Relationship type data received:', data);
         
         setRelationshipType(data);
@@ -224,7 +224,7 @@ const AssociationDetailsPage: React.FC = () => {
           name: data.name || '',
           description: data.description || '',
           isDirectional: data.isDirectional ?? true,
-          relationshipType: data.relationshipType || 'one-to-many',
+          association: data.association || 'one-to-many',
           allowedSourceTypes: data.allowedSourceTypes || [],
           allowedTargetTypes: data.allowedTargetTypes || [],
           displayConfig: displayConfig
@@ -263,10 +263,10 @@ const AssociationDetailsPage: React.FC = () => {
 
   // Handle delete
   const handleDelete = async () => {
-    if (!relationshipType) return;
+    if (!association) return;
     
     try {
-      await relationshipService.deleteRelationshipType(relationshipType._id);
+      await associationService.deleteAssociation(association._id);
       showToast({
         title: 'Başarılı!',
         message: 'İlişki tipi başarıyla silindi',
@@ -286,35 +286,35 @@ const AssociationDetailsPage: React.FC = () => {
 
   // Edit functions
   const hasChanges = () => {
-    if (!relationshipType) return false;
+    if (!association) return false;
     return (
-      editableFields.name !== relationshipType.name ||
-      editableFields.description !== relationshipType.description ||
-      editableFields.isDirectional !== relationshipType.isDirectional ||
-      editableFields.relationshipType !== relationshipType.relationshipType ||
-      JSON.stringify(editableFields.displayConfig) !== JSON.stringify(relationshipType.displayConfig)
+      editableFields.name !== association.name ||
+      editableFields.description !== association.description ||
+      editableFields.isDirectional !== association.isDirectional ||
+      editableFields.association !== association.association ||
+      JSON.stringify(editableFields.displayConfig) !== JSON.stringify(association.displayConfig)
     );
   };
 
   const getChangeDetails = () => {
-    if (!relationshipType) return [];
+    if (!association) return [];
     const changes = [];
     
-    if (editableFields.name !== relationshipType.name) {
-      changes.push(`İsim: "${getEntityName(relationshipType, currentLanguage)}" → "${editableFields.name}"`);
+    if (editableFields.name !== association.name) {
+      changes.push(`İsim: "${getEntityName(association, currentLanguage)}" → "${editableFields.name}"`);
     }
-    if (editableFields.description !== relationshipType.description) {
+    if (editableFields.description !== association.description) {
       changes.push(`Açıklama değiştirildi`);
     }
-    if (editableFields.isDirectional !== relationshipType.isDirectional) {
-      changes.push(`Yönlülük: ${relationshipType.isDirectional ? 'Yönlü' : 'Çift Yönlü'} → ${editableFields.isDirectional ? 'Yönlü' : 'Çift Yönlü'}`);
+    if (editableFields.isDirectional !== association.isDirectional) {
+      changes.push(`Yönlülük: ${association.isDirectional ? 'Yönlü' : 'Çift Yönlü'} → ${editableFields.isDirectional ? 'Yönlü' : 'Çift Yönlü'}`);
     }
-    if (editableFields.relationshipType !== relationshipType.relationshipType) {
-      changes.push(`İlişki Tipi: ${relationshipType.relationshipType} → ${editableFields.relationshipType}`);
+    if (editableFields.association !== association.association) {
+      changes.push(`İlişki Tipi: ${association.association} → ${editableFields.association}`);
     }
     
     // Display config changes
-    const currentDisplayConfig = JSON.stringify(relationshipType.displayConfig || {});
+    const currentDisplayConfig = JSON.stringify(association.displayConfig || {});
     const newDisplayConfig = JSON.stringify(editableFields.displayConfig || {});
     if (currentDisplayConfig !== newDisplayConfig) {
       const sourceChanges = editableFields.displayConfig?.sourceToTarget?.columns?.length || 0;
@@ -323,10 +323,10 @@ const AssociationDetailsPage: React.FC = () => {
       if (sourceChanges > 0 || targetChanges > 0) {
         changes.push(`Görünüm ayarları güncellendi:`);
         if (sourceChanges > 0) {
-          changes.push(`  • ${relationshipType.allowedSourceTypes?.[0]} → ${relationshipType.allowedTargetTypes?.[0]}: ${sourceChanges} sütun`);
+          changes.push(`  • ${association.allowedSourceTypes?.[0]} → ${association.allowedTargetTypes?.[0]}: ${sourceChanges} sütun`);
         }
         if (targetChanges > 0) {
-          changes.push(`  • ${relationshipType.allowedTargetTypes?.[0]} → ${relationshipType.allowedSourceTypes?.[0]}: ${targetChanges} sütun`);
+          changes.push(`  • ${association.allowedTargetTypes?.[0]} → ${association.allowedSourceTypes?.[0]}: ${targetChanges} sütun`);
         }
       } else {
         changes.push(`Görünüm ayarları sıfırlandı`);
@@ -337,31 +337,31 @@ const AssociationDetailsPage: React.FC = () => {
   };
 
   const handleEditClick = () => {
-    if (!relationshipType) return;
+    if (!association) return;
     
     setEditableFields({
-      name: relationshipType.name,
-      description: relationshipType.description,
-      isDirectional: relationshipType.isDirectional,
-      relationshipType: relationshipType.relationshipType,
-      displayConfig: relationshipType.displayConfig || editableDisplayConfig
+      name: association.name,
+      description: association.description,
+      isDirectional: association.isDirectional,
+      association: association.association,
+      displayConfig: association.displayConfig || editableDisplayConfig
     });
     setFormErrors({});
     setIsEditing(true);
   };
 
   const handleSave = async () => {
-    if (!relationshipType || !hasChanges()) return;
+    if (!association || !hasChanges()) return;
     
     setShowCommentModal(true);
   };
 
   const handleSaveWithComment = async () => {
-    if (!relationshipType) return;
+    if (!association) return;
     
     setIsSaving(true);
     try {
-      const updatedData = await relationshipService.updateRelationshipType(relationshipType._id, {
+      const updatedData = await associationService.updateAssociation(association._id, {
         ...editableFields
       });
       
@@ -431,7 +431,7 @@ const AssociationDetailsPage: React.FC = () => {
   }
 
   // Error state
-  if (error && !relationshipType) {
+  if (error && !association) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto">
@@ -455,7 +455,7 @@ const AssociationDetailsPage: React.FC = () => {
     );
   }
 
-  if (!relationshipType) {
+  if (!association) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -477,7 +477,7 @@ const AssociationDetailsPage: React.FC = () => {
             items={[
               { label: t('home'), path: '/' },
               { label: t('relationships'), path: '/associations' },
-              { label: getEntityName(relationshipType, currentLanguage) || 'İlişki Tipi Detayı' }
+              { label: getEntityName(association, currentLanguage) || 'İlişki Tipi Detayı' }
             ]} 
           />
         </div>
@@ -494,11 +494,11 @@ const AssociationDetailsPage: React.FC = () => {
               </Button>
             </Link>
             <div className={`h-10 w-10 rounded-lg flex items-center justify-center mr-3 ${
-              relationshipType.isDirectional
+              association.isDirectional
                 ? 'bg-green-100 dark:bg-green-900/50'
                 : 'bg-purple-100 dark:bg-purple-900/50'
             }`}>
-              {relationshipType.isDirectional ? (
+              {association.isDirectional ? (
                 <svg className="h-5 w-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                 </svg>
@@ -527,16 +527,16 @@ const AssociationDetailsPage: React.FC = () => {
                 </div>
               ) : (
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {getEntityName(relationshipType, currentLanguage)}
+                  {getEntityName(association, currentLanguage)}
                 </h1>
               )}
               <div className="flex items-center mt-1">
                 <span className="text-sm font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-gray-700 dark:text-gray-300">
-                  {relationshipType.code}
+                  {association.code}
                 </span>
                 <span className="mx-2 text-gray-300 dark:text-gray-600">•</span>
-                <Badge color={relationshipType.isDirectional ? 'success' : 'secondary'}>
-                  {relationshipType.isDirectional ? t('directional') : t('bidirectional')}
+                <Badge color={association.isDirectional ? 'success' : 'secondary'}>
+                  {association.isDirectional ? t('directional') : t('bidirectional')}
                 </Badge>
               </div>
             </div>
@@ -734,7 +734,7 @@ const AssociationDetailsPage: React.FC = () => {
                     <div>
                       <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Açıklama</h3>
                       <p className="mt-2 text-gray-900 dark:text-gray-100">
-                        {getEntityName({ name: relationshipType.description }, currentLanguage) || 'Bu ilişki tipi için açıklama bulunmuyor.'}
+                        {getEntityName({ name: association.description }, currentLanguage) || 'Bu ilişki tipi için açıklama bulunmuyor.'}
                       </p>
                     </div>
                     
@@ -743,33 +743,33 @@ const AssociationDetailsPage: React.FC = () => {
                         <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Yönlülük</h3>
                         <div className="mt-2 flex items-center">
                           <div className={`h-4 w-4 rounded-full mr-2 ${
-                            relationshipType.isDirectional 
+                            association.isDirectional 
                               ? 'bg-green-500' 
                               : 'bg-purple-500'
                           }`}></div>
                           <span className="text-gray-900 dark:text-gray-100">
-                            {relationshipType.isDirectional ? 'Yönlü İlişki' : 'Çift Yönlü İlişki'}
+                            {association.isDirectional ? 'Yönlü İlişki' : 'Çift Yönlü İlişki'}
                           </span>
                         </div>
                       </div>
                       <div>
                         <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Oluşturulma</h3>
                         <p className="mt-2 text-gray-900 dark:text-gray-100">
-                          {dayjs(relationshipType.createdAt).format('DD MMMM YYYY')}
+                          {dayjs(association.createdAt).format('DD MMMM YYYY')}
                         </p>
                       </div>
                       <div>
                         <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Son Güncelleme</h3>
                         <p className="mt-2 text-gray-900 dark:text-gray-100">
-                          {dayjs(relationshipType.updatedAt).format('DD MMMM YYYY')}
+                          {dayjs(association.updatedAt).format('DD MMMM YYYY')}
                         </p>
                       </div>
                       <div>
                         <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Oluşturan</h3>
                         <div className="mt-2">
                           <UserInfoCell 
-                            user={relationshipType.createdBy} 
-                            date={relationshipType.createdAt} 
+                            user={association.createdBy} 
+                            date={association.createdAt} 
                             type="created" 
                           />
                         </div>
@@ -778,8 +778,8 @@ const AssociationDetailsPage: React.FC = () => {
                         <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Güncelleyen</h3>
                         <div className="mt-2">
                           <UserInfoCell 
-                            user={relationshipType.updatedBy} 
-                            date={relationshipType.updatedAt} 
+                            user={association.updatedBy} 
+                            date={association.updatedAt} 
                             type="updated" 
                           />
                         </div>
@@ -800,27 +800,27 @@ const AssociationDetailsPage: React.FC = () => {
                     <div>
                       <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Kod</h3>
                       <p className="mt-1 text-sm font-mono text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                        {relationshipType.code}
+                        {association.code}
                       </p>
                     </div>
                     <div>
                       <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Tip</h3>
                       <div className="mt-1">
-                        <Badge color={relationshipType.isDirectional ? 'success' : 'secondary'}>
-                          {relationshipType.isDirectional ? 'Yönlü' : 'Çift Yönlü'}
+                        <Badge color={association.isDirectional ? 'success' : 'secondary'}>
+                          {association.isDirectional ? 'Yönlü' : 'Çift Yönlü'}
                         </Badge>
                       </div>
                     </div>
                     <div>
                       <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Oluşturulma</h3>
                       <p className="mt-1 text-sm text-gray-900 dark:text-gray-100">
-                        {dayjs(relationshipType.createdAt).format('DD MMMM YYYY')}
+                        {dayjs(association.createdAt).format('DD MMMM YYYY')}
                       </p>
                     </div>
                     <div>
                       <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Son Güncelleme</h3>
                       <p className="mt-1 text-sm text-gray-900 dark:text-gray-100">
-                        {dayjs(relationshipType.updatedAt).format('DD MMMM YYYY')}
+                        {dayjs(association.updatedAt).format('DD MMMM YYYY')}
                       </p>
                     </div>
                   </div>
@@ -836,7 +836,7 @@ const AssociationDetailsPage: React.FC = () => {
                       variant="outline" 
                       size="sm"
                       className="flex items-center"
-                      onClick={() => navigator.clipboard.writeText(JSON.stringify(relationshipType, null, 2))}
+                      onClick={() => navigator.clipboard.writeText(JSON.stringify(association, null, 2))}
                     >
                       <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
@@ -846,7 +846,7 @@ const AssociationDetailsPage: React.FC = () => {
                   </CardHeader>
                   <CardBody>
                     <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto">
-                      <code>{JSON.stringify(relationshipType, null, 2)}</code>
+                      <code>{JSON.stringify(association, null, 2)}</code>
                     </pre>
                   </CardBody>
                 </Card>
@@ -864,15 +864,15 @@ const AssociationDetailsPage: React.FC = () => {
                 <CardHeader>
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                     Kaynak Varlık Tipleri
-                    {relationshipType.isDirectional && (
+                    {association.isDirectional && (
                       <span className="text-sm text-gray-500 ml-2">(İlişkiyi başlatan)</span>
                     )}
                   </h3>
                 </CardHeader>
                 <CardBody>
-                  {relationshipType.allowedSourceTypes.length > 0 ? (
+                  {association.allowedSourceTypes.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
-                      {relationshipType.allowedSourceTypes.map((type, index) => (
+                      {association.allowedSourceTypes.map((type, index) => (
                         <Badge key={index} color="light">
                           {type}
                         </Badge>
@@ -891,15 +891,15 @@ const AssociationDetailsPage: React.FC = () => {
                 <CardHeader>
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                     Hedef Varlık Tipleri
-                    {relationshipType.isDirectional && (
+                    {association.isDirectional && (
                       <span className="text-sm text-gray-500 ml-2">(İlişkinin hedefi)</span>
                     )}
                   </h3>
                 </CardHeader>
                 <CardBody>
-                  {relationshipType.allowedTargetTypes.length > 0 ? (
+                  {association.allowedTargetTypes.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
-                      {relationshipType.allowedTargetTypes.map((type, index) => (
+                      {association.allowedTargetTypes.map((type, index) => (
                         <Badge key={index} color="light">
                           {type}
                         </Badge>
@@ -915,14 +915,14 @@ const AssociationDetailsPage: React.FC = () => {
             </div>
 
             {/* Metadata */}
-            {relationshipType.metadata && Object.keys(relationshipType.metadata).length > 0 && (
+            {association.metadata && Object.keys(association.metadata).length > 0 && (
               <Card>
                 <CardHeader>
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white">Metadata</h3>
                 </CardHeader>
                 <CardBody>
                   <div className="space-y-3">
-                    {Object.entries(relationshipType.metadata).map(([key, value]) => (
+                    {Object.entries(association.metadata).map(([key, value]) => (
                       <div key={key} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{key}:</span>
                         <span className="text-sm text-gray-900 dark:text-gray-100">
@@ -948,7 +948,7 @@ const AssociationDetailsPage: React.FC = () => {
                     </div>
                     
                     <div className="flex items-center">
-                      {relationshipType.isDirectional ? (
+                      {association.isDirectional ? (
                         <svg className="w-8 h-8 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                         </svg>
@@ -966,7 +966,7 @@ const AssociationDetailsPage: React.FC = () => {
                 </div>
                 <div className="text-center">
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {relationshipType.isDirectional 
+                    {association.isDirectional 
                       ? 'Bu ilişki yönlüdür - sadece kaynaktan hedefe doğru çalışır'
                       : 'Bu ilişki çift yönlüdür - her iki yönde de çalışır'
                     }
@@ -1002,7 +1002,7 @@ const AssociationDetailsPage: React.FC = () => {
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <h3 className="text-base font-medium text-gray-900 dark:text-white">
-                            {relationshipType.allowedSourceTypes?.[0]} → {relationshipType.allowedTargetTypes?.[0]}
+                            {association.allowedSourceTypes?.[0]} → {association.allowedTargetTypes?.[0]}
                           </h3>
                           <label className="flex items-center">
                             <input
@@ -1024,7 +1024,7 @@ const AssociationDetailsPage: React.FC = () => {
                         
                         <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-4">
                           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                            {relationshipType.allowedSourceTypes?.[0]} seçerken gösterilecek {relationshipType.allowedTargetTypes?.[0]} sütunları:
+                            {association.allowedSourceTypes?.[0]} seçerken gösterilecek {association.allowedTargetTypes?.[0]} sütunları:
                           </p>
                           
                           <div className="space-y-3">
@@ -1132,7 +1132,7 @@ const AssociationDetailsPage: React.FC = () => {
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <h3 className="text-base font-medium text-gray-900 dark:text-white">
-                            {relationshipType.allowedTargetTypes?.[0]} → {relationshipType.allowedSourceTypes?.[0]}
+                            {association.allowedTargetTypes?.[0]} → {association.allowedSourceTypes?.[0]}
                           </h3>
                           <label className="flex items-center">
                             <input
@@ -1154,7 +1154,7 @@ const AssociationDetailsPage: React.FC = () => {
                         
                         <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-4">
                           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                            {relationshipType.allowedTargetTypes?.[0]} seçerken gösterilecek {relationshipType.allowedSourceTypes?.[0]} sütunları:
+                            {association.allowedTargetTypes?.[0]} seçerken gösterilecek {association.allowedSourceTypes?.[0]} sütunları:
                           </p>
                           
                           <div className="space-y-3">
@@ -1270,13 +1270,13 @@ const AssociationDetailsPage: React.FC = () => {
                 )}
 
                 {/* JSON Preview */}
-                {relationshipType.displayConfig && (
+                {association.displayConfig && (
                   <div className="mt-6">
                     <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
                       Display Config JSON:
                     </h4>
                     <pre className="bg-gray-100 dark:bg-gray-800 p-4 rounded-md text-xs overflow-auto">
-                      {JSON.stringify(relationshipType.displayConfig, null, 2)}
+                      {JSON.stringify(association.displayConfig, null, 2)}
                     </pre>
                   </div>
                 )}
@@ -1289,7 +1289,7 @@ const AssociationDetailsPage: React.FC = () => {
         {activeTab === 'api' && (
           <APITab
             entityType="relationship_type"
-            entityId={relationshipType._id}
+            entityId={association._id}
           />
         )}
 
@@ -1297,7 +1297,7 @@ const AssociationDetailsPage: React.FC = () => {
         {activeTab === 'documentation' && (
           <DocumentationTab
             entityType="relationship_type"
-            entityName={getEntityName(relationshipType, currentLanguage)}
+            entityName={getEntityName(association, currentLanguage)}
           />
         )}
 
@@ -1305,7 +1305,7 @@ const AssociationDetailsPage: React.FC = () => {
         {activeTab === 'permissions' && (
           <PermissionsTab
             entityType="relationship_type"
-            entityId={relationshipType._id}
+            entityId={association._id}
           />
         )}
 
@@ -1313,7 +1313,7 @@ const AssociationDetailsPage: React.FC = () => {
         {activeTab === 'statistics' && (
           <StatisticsTab
             entityType="relationship_type"
-            entityId={relationshipType._id}
+            entityId={association._id}
           />
         )}
 

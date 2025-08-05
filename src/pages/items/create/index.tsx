@@ -9,7 +9,7 @@ import { AssociationSection, IAssociationRule } from '../../../components/associ
 import itemService from '../../../services/api/itemService';
 import itemTypeService from '../../../services/api/itemTypeService';
 import familyService from '../../../services/api/familyService';
-import relationshipService from '../../../services/api/associationService';
+import associationService from '../../../services/api/associationService';
 import type { CreateItemDto } from '../../../types/item';
 import { useTranslation } from '../../../context/i18nContext';
 import { getEntityName, getEntityDescription } from '../../../utils/translationUtils';
@@ -105,14 +105,14 @@ const ItemCreatePage: React.FC = () => {
       const configs: Record<string, any> = {};
       
       // Get all relationship types and filter by our associations
-      const allRelationshipTypes = await relationshipService.getAllRelationshipTypes();
+      const allRelationshipTypes = await associationService.getAllAssociations();
       console.log('🔍 All relationship types:', allRelationshipTypes);
       
       for (const rule of associationRules) {
         console.log('🔍 Processing rule:', rule);
         
         // Find relationship type for this association
-        const relationshipType = allRelationshipTypes.find(rt => {
+        const association = allRelationshipTypes.find(rt => {
           const sourceMatch = rt.allowedSourceTypes?.includes(selectedItemType?.code || '');
           const targetMatch = rt.allowedTargetTypes?.includes(rule.targetItemTypeCode);
           console.log('🔍 Checking relationship type:', {
@@ -127,11 +127,11 @@ const ItemCreatePage: React.FC = () => {
           return sourceMatch && targetMatch;
         });
         
-        console.log('🔍 Found relationship type:', relationshipType);
+        console.log('🔍 Found relationship type:', association);
         
-        if (relationshipType?.displayConfig) {
-          configs[rule.targetItemTypeCode] = relationshipType.displayConfig.sourceToTarget;
-          console.log('🔍 Added display config for:', rule.targetItemTypeCode, relationshipType.displayConfig.sourceToTarget);
+        if (association?.displayConfig) {
+          configs[rule.targetItemTypeCode] = association.displayConfig.sourceToTarget;
+          console.log('🔍 Added display config for:', rule.targetItemTypeCode, association.displayConfig.sourceToTarget);
         } else {
           console.log('🔍 No display config found for:', rule.targetItemTypeCode);
         }
@@ -617,7 +617,7 @@ const ItemCreatePage: React.FC = () => {
     let isValid = true;
 
     associationRules.forEach(rule => {
-      const key = `${rule.targetItemTypeCode}_${rule.relationshipType}`;
+      const key = `${rule.targetItemTypeCode}_${rule.association}`;
       const value = formData.associations?.[key];
       
       // Check required associations
@@ -653,7 +653,7 @@ const ItemCreatePage: React.FC = () => {
     let isValid = true;
 
     associationRules.forEach(rule => {
-      const key = `${rule.targetItemTypeCode}_${rule.relationshipType}`;
+      const key = `${rule.targetItemTypeCode}_${rule.association}`;
       const value = formData.associations?.[key];
       
       // Check required associations

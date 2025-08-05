@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { relationshipService } from '../../services';
-import { IRelationshipType } from '../../types/association';
+import { associationService } from '../../services';
+import { IAssociation } from '../../types/association';
 import { useTranslation } from '../../context/i18nContext';
 
 const AssociationList = () => {
-  const [relationshipTypes, setRelationshipTypes] = useState<IRelationshipType[]>([]);
+  const [associations, setRelationshipTypes] = useState<IAssociation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { t } = useTranslation();
@@ -18,7 +18,7 @@ const AssociationList = () => {
   const fetchRelationshipTypes = async () => {
     try {
       setLoading(true);
-      const data = await relationshipService.getAllRelationshipTypes();
+      const data = await associationService.getAllAssociations();
       setRelationshipTypes(data);
       setError(null);
     } catch (err) {
@@ -32,7 +32,7 @@ const AssociationList = () => {
   const handleDelete = async (id: string) => {
     if (window.confirm(t('confirm_delete_relationship_type', 'common') || 'Bu ilişki tipini silmek istediğinizden emin misiniz?')) {
       try {
-        await relationshipService.deleteRelationshipType(id);
+        await associationService.deleteAssociation(id);
         setRelationshipTypes(prevTypes => prevTypes.filter(type => type._id !== id));
       } catch (err) {
         console.error('İlişki tipi silinemedi:', err);
@@ -77,7 +77,7 @@ const AssociationList = () => {
         </Link>
       </div>
 
-      {relationshipTypes.length === 0 ? (
+      {associations.length === 0 ? (
         <div className="p-4 text-center text-gray-500 dark:text-gray-400">
           {t('no_relationship_types_found', 'relationships')}
         </div>
@@ -107,7 +107,7 @@ const AssociationList = () => {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {relationshipTypes.map((type) => (
+              {associations.map((type) => (
                 <tr key={type._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                     {type.code}

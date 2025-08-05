@@ -1,39 +1,39 @@
 import api from './config';
-import { IRelationship, IRelationshipType } from '../../types/association';
+import { IRelationship, IAssociation } from '../../types/association';
 
 const RELATIONSHIP_URL = '/associations';
-const RELATIONSHIP_TYPE_URL = '/relationship-types';
+const ASSOCIATION_URL = '/associations';
 
-const relationshipService = {
+const associationService = {
   // İlişki Tipleri API
   
-  // Tüm ilişki tiplerini getir
-  getAllRelationshipTypes: async (): Promise<IRelationshipType[]> => {
-    const response = await api.get(RELATIONSHIP_TYPE_URL);
+  // Tüm association'ları getir
+  getAllAssociations: async (): Promise<IAssociation[]> => {
+    const response = await api.get(ASSOCIATION_URL);
     return response.data.data || response.data;
   },
   
-  // ID'ye göre ilişki tipini getir
-  getRelationshipTypeById: async (id: string): Promise<IRelationshipType> => {
-    const response = await api.get(`${RELATIONSHIP_TYPE_URL}/${id}`);
+  // ID'ye göre association'ı getir
+  getAssociationById: async (id: string): Promise<IAssociation> => {
+    const response = await api.get(`${ASSOCIATION_URL}/${id}`);
     return response.data.data || response.data;
   },
   
-  // Yeni ilişki tipi oluştur
-  createRelationshipType: async (data: Partial<IRelationshipType>): Promise<IRelationshipType> => {
-    const response = await api.post(RELATIONSHIP_TYPE_URL, data);
+  // Yeni association oluştur
+  createAssociation: async (data: Partial<IAssociation>): Promise<IAssociation> => {
+    const response = await api.post(ASSOCIATION_URL, data);
     return response.data.data || response.data;
   },
   
-  // İlişki tipini güncelle
-  updateRelationshipType: async (id: string, data: Partial<IRelationshipType>): Promise<IRelationshipType> => {
-    const response = await api.put(`${RELATIONSHIP_TYPE_URL}/${id}`, data);
+  // Association'ı güncelle
+  updateAssociation: async (id: string, data: Partial<IAssociation>): Promise<IAssociation> => {
+    const response = await api.put(`${ASSOCIATION_URL}/${id}`, data);
     return response.data.data || response.data;
   },
   
-  // İlişki tipini sil
-  deleteRelationshipType: async (id: string): Promise<void> => {
-    await api.delete(`${RELATIONSHIP_TYPE_URL}/${id}`);
+  // Association'ı sil
+  deleteAssociation: async (id: string): Promise<void> => {
+    await api.delete(`${ASSOCIATION_URL}/${id}`);
   },
   
   // İlişkiler API
@@ -89,4 +89,4 @@ const relationshipService = {
   }
 };
 
-export default relationshipService; 
+export default associationService; 

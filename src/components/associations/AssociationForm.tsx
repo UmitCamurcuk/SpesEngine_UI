@@ -1,18 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { relationshipService } from '../../services';
-import { IRelationshipType } from '../../types/association';
+import { associationService } from '../../services';
+import { IAssociation } from '../../types/association';
 import { useTranslation } from '../../context/i18nContext';
 
 interface AssociationFormProps {
-  initialData?: Partial<IRelationshipType>;
+  initialData?: Partial<IAssociation>;
   mode: 'create' | 'edit';
 }
 
 const entityTypes = ['product', 'category', 'family', 'attribute', 'attributeGroup', 'itemType'];
 
 const AssociationForm = ({ initialData, mode }: AssociationFormProps) => {
-  const [formData, setFormData] = useState<Partial<IRelationshipType>>({
+  const [formData, setFormData] = useState<Partial<IAssociation>>({
     code: '',
     name: '',
     description: '',
@@ -34,7 +34,7 @@ const AssociationForm = ({ initialData, mode }: AssociationFormProps) => {
       const fetchRelationshipType = async () => {
         try {
           setLoading(true);
-          const data = await relationshipService.getRelationshipTypeById(initialData._id as string);
+          const data = await associationService.getAssociationById(initialData._id as string);
           setFormData(data);
           setError(null);
         } catch (err) {
@@ -85,10 +85,10 @@ const AssociationForm = ({ initialData, mode }: AssociationFormProps) => {
       setLoading(true);
       
       if (mode === 'create') {
-        await relationshipService.createRelationshipType(formData);
+        await associationService.createAssociation(formData);
       } else {
         if (!initialData?._id) throw new Error('ID bulunamadı');
-        await relationshipService.updateRelationshipType(initialData._id, formData);
+        await associationService.updateAssociation(initialData._id, formData);
       }
       
       navigate('/associations');

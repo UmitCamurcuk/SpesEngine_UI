@@ -19,8 +19,8 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
 
-  // Association key oluştur (targetItemTypeCode + relationshipType)
-  const associationKey = `${rule.targetItemTypeCode}_${rule.relationshipType}`;
+  // Association key oluştur (targetItemTypeCode + association)
+  const associationKey = `${rule.targetItemTypeCode}_${rule.association}`;
   
   // Display label
   const displayLabel = label || rule.targetItemTypeName || rule.targetItemTypeCode;
@@ -30,8 +30,8 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
     rule,
     displayConfig,
     targetItemTypeCode: rule.targetItemTypeCode,
-    relationshipType: rule.relationshipType,
-    isMultiple: rule.relationshipType.includes('many')
+    association: rule.association,
+    isMultiple: rule.association.includes('many')
   });
 
   // Load available items for target item type
@@ -169,11 +169,11 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
   // Render based on relationship type and UI config
   const renderSelector = () => {
     // Many-to-one veya one-to-many ilişkilerde many tarafı seçiliyorsa çoklu seçim
-    const isMultiple = rule.relationshipType.includes('many') || 
+    const isMultiple = rule.association.includes('many') || 
                       (rule.cardinality?.max && rule.cardinality.max > 1);
     
     console.log('🔍 isMultiple calculation:', {
-      relationshipType: rule.relationshipType,
+      association: rule.association,
       cardinality: rule.cardinality,
       isMultiple,
       maxCardinality: rule.cardinality?.max

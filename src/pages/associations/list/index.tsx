@@ -4,8 +4,8 @@ import Table from '../../../components/ui/Table';
 import type { TableColumn } from '../../../components/ui/Table';
 import Button from '../../../components/ui/Button';
 import Badge from '../../../components/ui/Badge';
-import relationshipService from '../../../services/api/associationService';
-import { IRelationshipType } from '../../../types/association';
+import associationService from '../../../services/api/associationService';
+import { IAssociation } from '../../../types/association';
 import { useTranslation } from '../../../context/i18nContext';
 import { getEntityName } from '../../../utils/translationUtils';
 import ModalNotification from '../../../components/notifications/ModalNotification';
@@ -31,7 +31,7 @@ const AssociationsListPage: React.FC = () => {
 
   // API service wrapper for useListPage hook
   const fetchRelationshipTypes = useCallback(async (params: any) => {
-    const result = await relationshipService.getAllRelationshipTypes();
+    const result = await associationService.getAllAssociations();
     // API doesn't support pagination yet, so simulate it
     const data = Array.isArray(result) ? result : [];
     const startIndex = ((params.page || 1) - 1) * (params.limit || 10);
@@ -52,13 +52,13 @@ const AssociationsListPage: React.FC = () => {
     };
   }, []);
 
-  const deleteRelationshipType = useCallback(async (id: string) => {
-    await relationshipService.deleteRelationshipType(id);
+  const deleteAssociation = useCallback(async (id: string) => {
+    await associationService.deleteAssociation(id);
   }, []);
 
   // Use our custom hook
   const {
-    data: relationshipTypes,
+    data: associations,
     isLoading,
     pagination,
     handlePageChange,
@@ -69,9 +69,9 @@ const AssociationsListPage: React.FC = () => {
     handleDeleteClick,
     confirmDelete,
     cancelDelete,
-  } = useListPage<IRelationshipType>({
+  } = useListPage<IAssociation>({
     fetchFunction: fetchRelationshipTypes,
-    deleteFunction: deleteRelationshipType,
+    deleteFunction: deleteAssociation,
     onDeleteSuccess: (deletedItem) => {
       showToast({
         title: 'Başarılı!',
@@ -89,8 +89,8 @@ const AssociationsListPage: React.FC = () => {
   });
 
   // HELPER FUNCTIONS
-  const handleRowClick = (relationshipType: IRelationshipType) => {
-    navigate(`/associations/details/${relationshipType._id}`);
+  const handleRowClick = (association: IAssociation) => {
+    navigate(`/associations/details/${association._id}`);
   };
 
   const handleCreateRelationshipType = () => {
@@ -99,8 +99,8 @@ const AssociationsListPage: React.FC = () => {
 
   // STATISTICS
   const stats = useMemo(() => {
-    const directionalCount = relationshipTypes.filter(rt => rt?.isDirectional).length;
-    const bidirectionalCount = relationshipTypes.filter(rt => !rt?.isDirectional).length;
+    const directionalCount = associations.filter(rt => rt?.isDirectional).length;
+    const bidirectionalCount = associations.filter(rt => !rt?.isDirectional).length;
     
     return [
       {
@@ -137,10 +137,10 @@ const AssociationsListPage: React.FC = () => {
         bgColor: 'bg-purple-100 dark:bg-purple-900/50'
       }
     ];
-  }, [relationshipTypes, pagination.total]);
+  }, [associations, pagination.total]);
 
   // TABLE COLUMNS
-  const columns: TableColumn<IRelationshipType>[] = useMemo(() => [
+  const columns: TableColumn<IAssociation>[] = useMemo(() => [
     {
       key: 'name',
       header: t('name'),
@@ -370,7 +370,7 @@ const AssociationsListPage: React.FC = () => {
       <Card>
         <Table
           columns={columns}
-          data={relationshipTypes}
+          data={associations}
           isLoading={isLoading}
           onRowClick={handleRowClick}
           onSort={handleSort}

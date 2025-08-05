@@ -122,8 +122,6 @@ const localizationService = {
       if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
       if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
       
-      console.log('🔍 getLocalizations API call with params:', params);
-      console.log('🔍 Query string:', queryParams.toString());
       
       const response = await api.get(`${API_URL}/localizations?${queryParams.toString()}`, {
         withCredentials: true

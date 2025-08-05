@@ -69,7 +69,6 @@ const AssociationDetailsPage: React.FC = () => {
       const sourceTypeCode = associationData.allowedSourceTypes[0];
       const targetTypeCode = associationData.allowedTargetTypes[0];
       
-      console.log('🔍 Fetching attributes for:', { sourceTypeCode, targetTypeCode });
       
       // Fetch source ItemType attributes
       if (sourceTypeCode) {
@@ -100,7 +99,6 @@ const AssociationDetailsPage: React.FC = () => {
           }
           
           setSourceItemTypeAttributes(sourceAttrs);
-          console.log('✅ Source attributes loaded:', sourceAttrs.length);
         } catch (error) {
           console.error('❌ Error fetching source attributes:', error);
         }
@@ -135,7 +133,6 @@ const AssociationDetailsPage: React.FC = () => {
           }
           
           setTargetItemTypeAttributes(targetAttrs);
-          console.log('✅ Target attributes loaded:', targetAttrs.length);
         } catch (error) {
           console.error('❌ Error fetching target attributes:', error);
         }
@@ -187,9 +184,7 @@ const AssociationDetailsPage: React.FC = () => {
       setError(null);
       
       try {
-        console.log('🔍 Fetching relationship type details for ID:', id);
         const data = await associationService.getAssociationById(id);
-        console.log('✅ Relationship type data received:', data);
         
         setRelationshipType(data);
         

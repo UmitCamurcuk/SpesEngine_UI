@@ -25,14 +25,7 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
   // Display label
   const displayLabel = label || rule.targetItemTypeName || rule.targetItemTypeCode;
 
-  // Debug: DisplayConfig'i kontrol et
-  console.log('🔍 AssociationSelector Debug:', {
-    rule,
-    displayConfig,
-    targetItemTypeCode: rule.targetItemTypeCode,
-    association: rule.association,
-    isMultiple: rule.association.includes('many')
-  });
+
 
   // Load available items for target item type
   useEffect(() => {
@@ -172,12 +165,6 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
     const isMultiple = rule.association.includes('many') || 
                       (rule.cardinality?.max && rule.cardinality.max > 1);
     
-    console.log('🔍 isMultiple calculation:', {
-      association: rule.association,
-      cardinality: rule.cardinality,
-      isMultiple,
-      maxCardinality: rule.cardinality?.max
-    });
     
     return (
       <div className="space-y-4">

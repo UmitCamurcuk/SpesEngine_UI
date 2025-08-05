@@ -170,13 +170,6 @@ const AssociationSection: React.FC<AssociationSectionProps> = ({
               // DisplayConfig'i bul (targetItemTypeCode ile)
               const displayConfig = displayConfigs[rule.targetItemTypeCode];
               
-              console.log('🔍 Required Rule Debug:', {
-                rule,
-                targetItemTypeCode: rule.targetItemTypeCode,
-                displayConfig,
-                displayConfigs,
-                foundConfig: displayConfigs[rule.targetItemTypeCode]
-              });
               
               return (
                 <AssociationSelector
@@ -206,13 +199,7 @@ const AssociationSection: React.FC<AssociationSectionProps> = ({
               // DisplayConfig'i bul (targetItemTypeCode ile)
               const displayConfig = displayConfigs[rule.targetItemTypeCode];
               
-              console.log('🔍 Optional Rule Debug:', {
-                rule,
-                targetItemTypeCode: rule.targetItemTypeCode,
-                displayConfig,
-                displayConfigs,
-                foundConfig: displayConfigs[rule.targetItemTypeCode]
-              });
+           
               
               return (
                 <AssociationSelector

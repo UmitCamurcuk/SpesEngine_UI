@@ -627,7 +627,7 @@ const CreateAssociationPage: React.FC = () => {
                         <Breadcrumb 
               items={[
                 { label: t('home'), path: '/' },
-                { label: t('relationships'), path: '/associations' },
+                { label: t('associations'), path: '/associations' },
                 { label: t('create_new_relationship_type') }
               ]} 
             />

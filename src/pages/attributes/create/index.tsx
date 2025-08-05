@@ -374,14 +374,7 @@ const AttributeCreatePage: React.FC = () => {
           : undefined
       };
       
-      // Debug: TABLE tipi için payload'ı logla
-      if (formData.type === AttributeType.TABLE) {
-        console.log('🔍 TABLE Attribute Payload:', {
-          type: attributeData.type,
-          validations: attributeData.validations,
-          formDataValidations: formData.validations
-        });
-      }
+
       
       // Öznitelik grubu varsa ekle
       if (formData.attributeGroup) {

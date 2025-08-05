@@ -58,9 +58,7 @@ const ItemDetailsPage: React.FC = () => {
       setError(null);
       
       try {
-        console.log('🔍 Fetching item details for ID:', id);
         const itemData = await itemService.getItemById(id);
-        console.log('✅ Item data received:', itemData);
         
         setItem(itemData);
         setFormData({

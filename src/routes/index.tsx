@@ -220,10 +220,11 @@ const routes: RouteObject[] = [
             path: 'associations/create',
                           element: <CreateAssociationPage />
           },
-          {
-            path: 'associations/details/:id',
-                          element: <AssociationDetailsPage />
-          },
+                      {
+              path: 'associations/details/:id',
+              element: <AssociationDetailsPage />
+            },
+
           
           // Sistem Ayarları
           {

@@ -106,39 +106,26 @@ const ItemCreatePage: React.FC = () => {
       
       // Get all relationship types and filter by our associations
       const allRelationshipTypes = await associationService.getAllAssociations();
-      console.log('🔍 All relationship types:', allRelationshipTypes);
       
       for (const rule of associationRules) {
-        console.log('🔍 Processing rule:', rule);
-        
         // Find relationship type for this association
         const association = allRelationshipTypes.find(rt => {
-          const sourceMatch = rt.allowedSourceTypes?.includes(selectedItemType?.code || '');
-          const targetMatch = rt.allowedTargetTypes?.includes(rule.targetItemTypeCode);
-          console.log('🔍 Checking relationship type:', {
-            rtCode: rt.code,
-            allowedSourceTypes: rt.allowedSourceTypes,
-            allowedTargetTypes: rt.allowedTargetTypes,
-            selectedItemTypeCode: selectedItemType?.code,
-            ruleTargetItemTypeCode: rule.targetItemTypeCode,
-            sourceMatch,
-            targetMatch
-          });
+          // Check if arrays exist before using includes
+          const sourceTypes = Array.isArray(rt.allowedSourceTypes) ? rt.allowedSourceTypes : [];
+          const targetTypes = Array.isArray(rt.allowedTargetTypes) ? rt.allowedTargetTypes : [];
+          
+          const sourceMatch = sourceTypes.includes(selectedItemType?.code || '');
+          const targetMatch = targetTypes.includes(rule.targetItemTypeCode);
+          
           return sourceMatch && targetMatch;
         });
         
-        console.log('🔍 Found relationship type:', association);
-        
         if (association?.displayConfig) {
           configs[rule.targetItemTypeCode] = association.displayConfig.sourceToTarget;
-          console.log('🔍 Added display config for:', rule.targetItemTypeCode, association.displayConfig.sourceToTarget);
-        } else {
-          console.log('🔍 No display config found for:', rule.targetItemTypeCode);
         }
       }
       
       setDisplayConfigs(configs);
-      console.log('🎨 Final display configs:', configs);
     } catch (error) {
       console.error('Display configs yüklenirken hata:', error);
     }

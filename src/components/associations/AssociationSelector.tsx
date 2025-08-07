@@ -19,18 +19,19 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
 
-  // Association key oluştur (targetItemTypeCode + association)
-  const associationKey = `${rule.targetItemTypeCode}_${rule.association}`;
+  // Association key oluştur (targetItemTypeCode veya sourceItemTypeCode + association)
+  const itemTypeCode = rule.targetItemTypeCode || rule.sourceItemTypeCode;
+  const associationKey = `${itemTypeCode}_${rule.association}`;
   
   // Display label
-  const displayLabel = label || rule.targetItemTypeName || rule.targetItemTypeCode;
+  const displayLabel = label || rule.targetItemTypeName || rule.sourceItemTypeName || itemTypeCode;
 
 
 
   // Load available items for target item type
   useEffect(() => {
     loadAvailableItems();
-  }, [rule.targetItemTypeCode, rule.filterBy]);
+  }, [itemTypeCode, rule.filterBy]);
 
   const loadAvailableItems = async () => {
     try {
@@ -43,8 +44,14 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
         ...rule.filterBy
       };
 
-      const response = await itemService.getItemsByType(rule.targetItemTypeCode, queryParams);
-      const items = response.data || response.items || response;
+      if (!itemTypeCode) {
+        console.error('No itemTypeCode found in rule');
+        setAvailableItems([]);
+        return;
+      }
+      
+      const response = await itemService.getItemsByType(itemTypeCode, queryParams);
+      const items = response.items || response.data || response;
 
       // Transform items to AssociationItem format
       const transformedItems: AssociationItem[] = items.map((item: any) => {
@@ -162,7 +169,7 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
   // Render based on relationship type and UI config
   const renderSelector = () => {
     // Many-to-one veya one-to-many ilişkilerde many tarafı seçiliyorsa çoklu seçim
-    const isMultiple = rule.association.includes('many') || 
+    const isMultiple = (rule.association && rule.association.includes('many')) || 
                       (rule.cardinality?.max && rule.cardinality.max > 1);
     
     

@@ -114,14 +114,35 @@ const ItemCreatePage: React.FC = () => {
           const sourceTypes = Array.isArray(rt.allowedSourceTypes) ? rt.allowedSourceTypes : [];
           const targetTypes = Array.isArray(rt.allowedTargetTypes) ? rt.allowedTargetTypes : [];
           
-          const sourceMatch = sourceTypes.includes(selectedItemType?.code || '');
-          const targetMatch = targetTypes.includes(rule.targetItemTypeCode);
+          // For outgoing associations: current itemType is source, rule.targetItemTypeCode is target
+          // For incoming associations: current itemType is target, rule.sourceItemTypeCode is source
+          const isOutgoing = rule.targetItemTypeCode && !rule.sourceItemTypeCode;
+          const isIncoming = rule.sourceItemTypeCode && !rule.targetItemTypeCode;
           
-          return sourceMatch && targetMatch;
+          if (isOutgoing) {
+            const sourceMatch = sourceTypes.includes(selectedItemType?.code || '');
+            const targetMatch = targetTypes.includes(rule.targetItemTypeCode);
+            return sourceMatch && targetMatch;
+          } else if (isIncoming) {
+            const sourceMatch = sourceTypes.includes(rule.sourceItemTypeCode);
+            const targetMatch = targetTypes.includes(selectedItemType?.code || '');
+            return sourceMatch && targetMatch;
+          }
+          
+          return false;
         });
         
         if (association?.displayConfig) {
-          configs[rule.targetItemTypeCode] = association.displayConfig.sourceToTarget;
+          // For outgoing: use sourceToTarget config
+          // For incoming: use targetToSource config
+          const isOutgoing = rule.targetItemTypeCode && !rule.sourceItemTypeCode;
+          const isIncoming = rule.sourceItemTypeCode && !rule.targetItemTypeCode;
+          
+          if (isOutgoing) {
+            configs[rule.targetItemTypeCode] = association.displayConfig.sourceToTarget;
+          } else if (isIncoming) {
+            configs[rule.sourceItemTypeCode] = association.displayConfig.targetToSource;
+          }
         }
       }
       
@@ -217,13 +238,18 @@ const ItemCreatePage: React.FC = () => {
         setCategoryTree(buildCategoryTree());
       }
 
-      // Load association rules
-      if (itemTypeData.associations && itemTypeData.associations.outgoing) {
-        setAssociationRules(itemTypeData.associations.outgoing);
-        console.log('🔗 Association rules loaded:', itemTypeData.associations.outgoing);
+      // Load association rules (both outgoing and incoming)
+      const allAssociationRules = [
+        ...(itemTypeData.associations?.outgoing || []),
+        ...(itemTypeData.associations?.incoming || [])
+      ];
+      
+      if (allAssociationRules.length > 0) {
+        setAssociationRules(allAssociationRules);
+        console.log('🔗 Association rules loaded:', allAssociationRules);
         
         // Load display configs for associations
-        await loadDisplayConfigs(itemTypeData.associations.outgoing);
+        await loadDisplayConfigs(allAssociationRules);
       } else {
         setAssociationRules([]);
         setDisplayConfigs({});

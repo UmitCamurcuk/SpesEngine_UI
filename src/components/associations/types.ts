@@ -1,8 +1,10 @@
 // Association ile ilgili type tanımları
 
 export interface IAssociationRule {
-  targetItemTypeCode: string;           // Hedef ItemType kodu (örn: "customer")
-  targetItemTypeName?: string;          // Display name
+  targetItemTypeCode?: string;          // Hedef ItemType kodu (outgoing için)
+  targetItemTypeName?: string;          // Display name (outgoing için)
+  sourceItemTypeCode?: string;          // Kaynak ItemType kodu (incoming için)
+  sourceItemTypeName?: string;          // Display name (incoming için)
   association: 'one-to-one' | 'one-to-many' | 'many-to-one' | 'many-to-many';
   cardinality: {
     min?: number;                       // Minimum ilişki sayısı

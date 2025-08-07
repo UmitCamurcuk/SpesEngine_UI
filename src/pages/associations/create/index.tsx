@@ -446,15 +446,15 @@ const CreateAssociationPage: React.FC = () => {
                       <div
                         key={itemType._id}
                         className={`p-3 border rounded-md cursor-pointer transition-all duration-200 hover:shadow-sm ${
-                          formData.allowedSourceTypes.includes(itemType.code)
+                          formData.allowedSourceTypes.includes(itemType._id)
                             ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 shadow-sm ring-1 ring-primary-200 dark:ring-primary-800'
                             : 'border-gray-200 dark:border-gray-700 hover:border-primary-300 hover:bg-gray-50 dark:hover:bg-gray-800'
                         }`}
                         onClick={() => {
                           const currentTypes = formData.allowedSourceTypes;
-                          const newTypes = currentTypes.includes(itemType.code)
-                            ? currentTypes.filter(t => t !== itemType.code)
-                            : [...currentTypes, itemType.code];
+                          const newTypes = currentTypes.includes(itemType._id)
+                            ? currentTypes.filter(t => t !== itemType._id)
+                            : [...currentTypes, itemType._id];
                           handleMultiSelectChange('allowedSourceTypes', newTypes);
                         }}
                       >
@@ -490,15 +490,15 @@ const CreateAssociationPage: React.FC = () => {
                       <div
                         key={itemType._id}
                         className={`p-3 border rounded-md cursor-pointer transition-all duration-200 hover:shadow-sm ${
-                          formData.allowedTargetTypes.includes(itemType.code)
+                          formData.allowedTargetTypes.includes(itemType._id)
                             ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 shadow-sm ring-1 ring-primary-200 dark:ring-primary-800'
                             : 'border-gray-200 dark:border-gray-700 hover:border-primary-300 hover:bg-gray-50 dark:hover:bg-gray-800'
                         }`}
                         onClick={() => {
                           const currentTypes = formData.allowedTargetTypes;
-                          const newTypes = currentTypes.includes(itemType.code)
-                            ? currentTypes.filter(t => t !== itemType.code)
-                            : [...currentTypes, itemType.code];
+                          const newTypes = currentTypes.includes(itemType._id)
+                            ? currentTypes.filter(t => t !== itemType._id)
+                            : [...currentTypes, itemType._id];
                           handleMultiSelectChange('allowedTargetTypes', newTypes);
                         }}
                       >

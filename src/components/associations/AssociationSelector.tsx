@@ -185,7 +185,8 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
   // Render based on relationship type and UI config
   const renderSelector = () => {
     // Many-to-one veya one-to-many ilişkilerde many tarafı seçiliyorsa çoklu seçim
-    const isMultiple = (rule.association && rule.association.includes('many')) || 
+    const relationshipType = rule.association || rule.relationshipType;
+    const isMultiple = (relationshipType && relationshipType.includes('many')) || 
                       (rule.cardinality?.max && rule.cardinality.max > 1);
     
     

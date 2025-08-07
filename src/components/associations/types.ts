@@ -5,7 +5,8 @@ export interface IAssociationRule {
   targetItemTypeName?: string;          // Display name (outgoing için)
   sourceItemTypeCode?: string;          // Kaynak ItemType kodu (incoming için)
   sourceItemTypeName?: string;          // Display name (incoming için)
-  association: 'one-to-one' | 'one-to-many' | 'many-to-one' | 'many-to-many';
+  association?: 'one-to-one' | 'one-to-many' | 'many-to-one' | 'many-to-many';
+  relationshipType?: 'one-to-one' | 'one-to-many' | 'many-to-one' | 'many-to-many';
   cardinality: {
     min?: number;                       // Minimum ilişki sayısı
     max?: number;                       // Maximum ilişki sayısı (null = unlimited)

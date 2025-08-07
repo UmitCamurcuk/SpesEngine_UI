@@ -23,6 +23,23 @@ export interface IAssociationRule {
     allowInlineEdit?: boolean;          // Inline düzenleme izni
     displayMode?: 'dropdown' | 'modal' | 'popup' | 'inline';
   };
+  displayConfig?: {
+    enabled: boolean;
+    columns: Array<{
+      attributeId: string;
+      displayName: string;
+      width?: number;
+      sortable?: boolean;
+      filterable?: boolean;
+      isRequired?: boolean;
+      formatType?: 'text' | 'date' | 'number' | 'select' | 'table' | 'custom';
+    }>;
+    defaultSortBy?: string;
+    defaultSortOrder?: 'asc' | 'desc';
+    pageSize?: number;
+    showSearch?: boolean;
+    searchableColumns?: string[];
+  };
 }
 
 export interface IItemTypeAssociations {

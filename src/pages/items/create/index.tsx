@@ -100,48 +100,27 @@ const ItemCreatePage: React.FC = () => {
   ];
 
   // Load display configs for associations
-  const loadDisplayConfigs = async (associationRules: IAssociationRule[]) => {
+  const loadDisplayConfigs = (associationRules: IAssociationRule[]) => {
     try {
       const configs: Record<string, any> = {};
       
-      // Get all relationship types and filter by our associations
-      const allRelationshipTypes = await associationService.getAllAssociations();
-      
+      // ItemType'dan gelen association verilerini kullan
+      // Backend'de association'lar zaten populate edilmiş olmalı
       for (const rule of associationRules) {
-        // Find relationship type for this association
-        const association = allRelationshipTypes.find(rt => {
-          // Check if arrays exist before using includes
-          const sourceTypes = Array.isArray(rt.allowedSourceTypes) ? rt.allowedSourceTypes : [];
-          const targetTypes = Array.isArray(rt.allowedTargetTypes) ? rt.allowedTargetTypes : [];
-          
-          // For outgoing associations: current itemType is source, rule.targetItemTypeCode is target
-          // For incoming associations: current itemType is target, rule.sourceItemTypeCode is source
-          const isOutgoing = rule.targetItemTypeCode && !rule.sourceItemTypeCode;
-          const isIncoming = rule.sourceItemTypeCode && !rule.targetItemTypeCode;
-          
-          if (isOutgoing) {
-            const sourceMatch = sourceTypes.includes(selectedItemType?.code || '');
-            const targetMatch = targetTypes.includes(rule.targetItemTypeCode);
-            return sourceMatch && targetMatch;
-          } else if (isIncoming) {
-            const sourceMatch = sourceTypes.includes(rule.sourceItemTypeCode);
-            const targetMatch = targetTypes.includes(selectedItemType?.code || '');
-            return sourceMatch && targetMatch;
-          }
-          
-          return false;
-        });
+        // For outgoing associations: use targetItemTypeCode
+        // For incoming associations: use sourceItemTypeCode
+        const isOutgoing = rule.targetItemTypeCode && !rule.sourceItemTypeCode;
+        const isIncoming = rule.sourceItemTypeCode && !rule.targetItemTypeCode;
         
-        if (association?.displayConfig) {
-          // For outgoing: use sourceToTarget config
-          // For incoming: use targetToSource config
-          const isOutgoing = rule.targetItemTypeCode && !rule.sourceItemTypeCode;
-          const isIncoming = rule.sourceItemTypeCode && !rule.targetItemTypeCode;
-          
-          if (isOutgoing) {
-            configs[rule.targetItemTypeCode] = association.displayConfig.sourceToTarget;
-          } else if (isIncoming) {
-            configs[rule.sourceItemTypeCode] = association.displayConfig.targetToSource;
+        if (isOutgoing && rule.targetItemTypeCode) {
+          // Display config'i rule'dan al (eğer varsa)
+          if (rule.displayConfig) {
+            configs[rule.targetItemTypeCode] = rule.displayConfig;
+          }
+        } else if (isIncoming && rule.sourceItemTypeCode) {
+          // Display config'i rule'dan al (eğer varsa)
+          if (rule.displayConfig) {
+            configs[rule.sourceItemTypeCode] = rule.displayConfig;
           }
         }
       }
@@ -249,7 +228,7 @@ const ItemCreatePage: React.FC = () => {
         console.log('🔗 Association rules loaded:', allAssociationRules);
         
         // Load display configs for associations
-        await loadDisplayConfigs(allAssociationRules);
+        loadDisplayConfigs(allAssociationRules);
       } else {
         setAssociationRules([]);
         setDisplayConfigs({});

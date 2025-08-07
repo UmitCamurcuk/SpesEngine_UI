@@ -19,9 +19,10 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
 
-  // Association key oluştur (targetItemTypeCode veya sourceItemTypeCode + association)
+  // Association key oluştur (targetItemTypeCode veya sourceItemTypeCode + relationshipType)
   const itemTypeCode = rule.targetItemTypeCode || rule.sourceItemTypeCode;
-  const associationKey = `${itemTypeCode}_${rule.association}`;
+  const relationshipType = rule.association || rule.relationshipType;
+  const associationKey = `${itemTypeCode}_${relationshipType}`;
   
   // Display label
   const displayLabel = label || rule.targetItemTypeName || rule.sourceItemTypeName || itemTypeCode;
@@ -58,13 +59,28 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
         // Extract display value from rule.displayField
         let displayValue = '';
         if (rule.displayField && item.attributes) {
-          displayValue = item.attributes[rule.displayField] || '';
+          const attrValue = item.attributes[rule.displayField];
+          // Handle different types of attribute values
+          if (typeof attrValue === 'string' || typeof attrValue === 'number') {
+            displayValue = String(attrValue);
+          } else if (attrValue && typeof attrValue === 'object') {
+            // If it's an object (like select option), try to get the display value
+            displayValue = attrValue.name || attrValue.label || attrValue.value || JSON.stringify(attrValue);
+          } else {
+            displayValue = String(attrValue || '');
+          }
         }
         
         // If no display field specified or value not found, use first available attribute
         if (!displayValue && item.attributes) {
           const firstAttr = Object.values(item.attributes)[0];
-          displayValue = String(firstAttr || item._id);
+          if (typeof firstAttr === 'string' || typeof firstAttr === 'number') {
+            displayValue = String(firstAttr);
+          } else if (firstAttr && typeof firstAttr === 'object') {
+            displayValue = firstAttr.name || firstAttr.label || firstAttr.value || JSON.stringify(firstAttr);
+          } else {
+            displayValue = String(firstAttr || item._id);
+          }
         }
 
         // Build searchable text from searchableFields

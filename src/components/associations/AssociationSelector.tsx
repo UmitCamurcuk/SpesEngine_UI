@@ -280,7 +280,7 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
 
         {/* Table view for available items */}
         {filteredItems.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden w-full">
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -305,11 +305,11 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
               </div>
             </div>
             
-            <div className="max-h-80 overflow-y-auto">
-              <table className="w-full">
+            <div className="max-h-80 overflow-y-auto w-full">
+              <table className="w-full min-w-full">
                 <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 sticky top-0 shadow-sm">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider w-12">
                       <div className="flex items-center space-x-2">
                         <input
                           type={isMultiple ? "checkbox" : "radio"}
@@ -330,9 +330,19 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
                         <span>Seç</span>
                       </div>
                     </th>
-                    {displayConfig?.enabled && displayConfig.columns.length > 0 ? (
-                      // DisplayConfig varsa onun sütunlarını kullan
-                      displayConfig.columns.map((column, index) => (
+                    {(() => {
+                      // displayConfig.enabled kontrol et (sourceToTarget veya targetToSource için)
+                      const isEnabled = displayConfig?.enabled || 
+                                      (displayConfig?.sourceToTarget?.enabled) || 
+                                      (displayConfig?.targetToSource?.enabled);
+                      
+                      // Hangi direction'ın kullanılacağını belirle
+                      const direction = displayConfig?.sourceToTarget?.enabled ? 'sourceToTarget' : 'targetToSource';
+                      const columns = displayConfig?.[direction]?.columns || displayConfig?.columns || [];
+                      
+                      return isEnabled && columns.length > 0 ? (
+                        // DisplayConfig varsa onun sütunlarını kullan
+                        columns.map((column, index) => (
                         <th 
                           key={index}
                           className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider"
@@ -365,7 +375,7 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
                           Tarih
                         </th>
                       </>
-                    )}
+                    )})()}
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-800">
@@ -396,6 +406,15 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
                       });
                     }
                     
+                    // displayConfig.enabled kontrol et (sourceToTarget veya targetToSource için)
+                    const isEnabled = displayConfig?.enabled || 
+                                    (displayConfig?.sourceToTarget?.enabled) || 
+                                    (displayConfig?.targetToSource?.enabled);
+                    
+                    // Hangi direction'ın kullanılacağını belirle
+                    const direction = displayConfig?.sourceToTarget?.enabled ? 'sourceToTarget' : 'targetToSource';
+                    const columns = displayConfig?.[direction]?.columns || displayConfig?.columns || [];
+                    
                     return (
                       <tr 
                         key={item._id}
@@ -404,7 +423,7 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
                         } ${index % 2 === 0 ? 'bg-gray-50/50 dark:bg-gray-800/50' : ''}`}
                         onClick={() => isMultiple ? handleMultipleSelect(item._id) : handleSingleSelect(item._id)}
                       >
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 w-12">
                           <input
                             type={isMultiple ? "checkbox" : "radio"}
                             checked={isSelected}
@@ -412,9 +431,9 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
                             className="text-blue-600 focus:ring-blue-500"
                           />
                         </td>
-                        {displayConfig?.enabled && displayConfig.columns.length > 0 ? (
+                        {isEnabled && columns.length > 0 ? (
                           // DisplayConfig varsa onun sütunlarını kullan
-                          displayConfig.columns.map((column, colIndex) => {
+                          columns.map((column, colIndex) => {
                             let cellValue = '';
                             
                             // Column type'ına göre değer extract et
@@ -432,7 +451,38 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
                                 // Diğer attribute'lar için
                                 if (itemData.attributes && itemData.attributes[column.attributeId]) {
                                   const attr = itemData.attributes[column.attributeId];
-                                  cellValue = attr.displayValue || attr.value || '';
+                                  
+                                  // Attribute type'ına göre değer formatla
+                                  if (attr.definition?.type === 'table') {
+                                    // Table tipi için JSON string'i parse et
+                                    try {
+                                      const tableData = typeof attr.value === 'string' ? JSON.parse(attr.value) : attr.value;
+                                      if (Array.isArray(tableData) && tableData.length > 0) {
+                                        // İlk satırın değerlerini göster
+                                        const firstRow = tableData[0];
+                                        cellValue = Object.values(firstRow).join(' x ');
+                                      } else {
+                                        cellValue = 'Boş';
+                                      }
+                                    } catch (e) {
+                                      cellValue = attr.displayValue || attr.value || 'Hata';
+                                    }
+                                  } else if (attr.definition?.type === 'select') {
+                                    // Select tipi için seçilen option'ın name'ini göster
+                                    if (attr.value && attr.definition.options) {
+                                      const selectedOption = attr.definition.options.find((opt: any) => opt._id === attr.value);
+                                      cellValue = selectedOption?.name?.translations?.tr || 
+                                                selectedOption?.name?.translations?.en || 
+                                                selectedOption?.code || 
+                                                attr.displayValue || 
+                                                attr.value || '';
+                                    } else {
+                                      cellValue = attr.displayValue || attr.value || '';
+                                    }
+                                  } else {
+                                    // Diğer tipler için normal değer
+                                    cellValue = attr.displayValue || attr.value || '';
+                                  }
                                 }
                                 break;
                             }

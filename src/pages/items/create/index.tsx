@@ -115,16 +115,23 @@ const ItemCreatePage: React.FC = () => {
         if (isOutgoing && rule.targetItemTypeCode) {
           // Display config'i rule'dan al (eğer varsa)
           if (rule.displayConfig) {
-            configs[rule.targetItemTypeCode] = rule.displayConfig;
+            // Association key oluştur (targetItemTypeCode + association type)
+            const associationKey = `${rule.targetItemTypeCode}_${rule.association || rule.relationshipType}`;
+            configs[associationKey] = rule.displayConfig;
+
           }
         } else if (isIncoming && rule.sourceItemTypeCode) {
           // Display config'i rule'dan al (eğer varsa)
           if (rule.displayConfig) {
-            configs[rule.sourceItemTypeCode] = rule.displayConfig;
+            // Association key oluştur (sourceItemTypeCode + association type)
+            const associationKey = `${rule.sourceItemTypeCode}_${rule.association || rule.relationshipType}`;
+            configs[associationKey] = rule.displayConfig;
+
           }
         }
       }
       
+
       setDisplayConfigs(configs);
     } catch (error) {
       console.error('Display configs yüklenirken hata:', error);
@@ -1112,7 +1119,7 @@ const ItemCreatePage: React.FC = () => {
 
       case 4:
         return (
-          <div className="max-w-4xl mx-auto">
+          <div className="mx-auto">
             <AssociationSection
               itemTypeCode={selectedItemType?.code || ''}
               associations={formData.associations || {}}

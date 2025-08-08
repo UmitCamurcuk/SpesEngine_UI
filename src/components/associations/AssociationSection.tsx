@@ -167,9 +167,10 @@ const AssociationSection: React.FC<AssociationSectionProps> = ({
           <div className="space-y-4">
             {requiredRules.map((rule, index) => {
               const key = getAssociationKey(rule);
-              // DisplayConfig'i bul (targetItemTypeCode ile)
-              const displayConfig = displayConfigs[rule.targetItemTypeCode];
+              // DisplayConfig'i bul (association key ile)
+              const displayConfig = displayConfigs[key];
               
+
               
               return (
                 <AssociationSelector
@@ -196,8 +197,8 @@ const AssociationSection: React.FC<AssociationSectionProps> = ({
           <div className="space-y-4">
             {optionalRules.map((rule, index) => {
               const key = getAssociationKey(rule);
-              // DisplayConfig'i bul (targetItemTypeCode ile)
-              const displayConfig = displayConfigs[rule.targetItemTypeCode];
+              // DisplayConfig'i bul (association key ile)
+              const displayConfig = displayConfigs[key];
               
            
               

@@ -198,7 +198,7 @@ const AssociationsListPage: React.FC = () => {
             <div className="flex flex-wrap gap-1">
               {Array.isArray(item.allowedSourceTypes) ? item.allowedSourceTypes.slice(0, 2).map((type, index) => (
                 <Badge key={index} color="light" size="sm">
-                  {type}
+                  {typeof type === 'string' ? type : type.code || type._id}
                 </Badge>
               )) : null}
               {Array.isArray(item.allowedSourceTypes) && item.allowedSourceTypes.length > 2 && (
@@ -215,7 +215,7 @@ const AssociationsListPage: React.FC = () => {
             <div className="flex flex-wrap gap-1">
               {Array.isArray(item.allowedTargetTypes) ? item.allowedTargetTypes.slice(0, 2).map((type, index) => (
                 <Badge key={index} color="light" size="sm">
-                  {type}
+                  {typeof type === 'string' ? type : (type as any).code || (type as any)._id}
                 </Badge>
               )) : null}
               {Array.isArray(item.allowedTargetTypes) && item.allowedTargetTypes.length > 2 && (

@@ -7,6 +7,8 @@ import { IAssociation } from '../../../types/association';
 import Breadcrumb from '../../../components/common/Breadcrumb';
 import associationService from '../../../services/api/associationService';
 import itemTypeService from '../../../services/api/itemTypeService';
+import categoryService from '../../../services/api/categoryService';
+import familyService from '../../../services/api/familyService';
 import dayjs from 'dayjs';
 import 'dayjs/locale/tr';
 import { useTranslation } from '../../../context/i18nContext';
@@ -66,38 +68,113 @@ const AssociationDetailsPage: React.FC = () => {
   const fetchItemTypeAttributes = async (associationData: IAssociation) => {
     setIsLoadingAttributes(true);
     try {
-      const sourceTypeCode = associationData.allowedSourceTypes[0];
-      const targetTypeCode = associationData.allowedTargetTypes[0];
+      // allowedSourceTypes ve allowedTargetTypes artık populate edilmiş objeler içeriyor
+      // Bu objelerden ID'leri çıkarmamız gerekiyor
+      const sourceTypeId = typeof associationData.allowedSourceTypes[0] === 'string' 
+        ? associationData.allowedSourceTypes[0] 
+        : (associationData.allowedSourceTypes[0] as any)?._id;
+      const targetTypeId = typeof associationData.allowedTargetTypes[0] === 'string' 
+        ? associationData.allowedTargetTypes[0] 
+        : (associationData.allowedTargetTypes[0] as any)?._id;
       
+
       
-      // Fetch source ItemType attributes
-      if (sourceTypeCode) {
-        try {
-          const sourceItemType = await itemTypeService.getItemTypeByCode(sourceTypeCode);
-          const sourceAttrs = [];
-          
-          // Add default attributes
-          sourceAttrs.push(
-            { id: 'category', name: 'Kategori', type: 'text' },
-            { id: 'family', name: 'Aile', type: 'text' },
-            { id: 'createdAt', name: 'Oluşturulma Tarihi', type: 'date' }
-          );
-          
-          // Add custom attributes from ItemType
-          if (sourceItemType.attributeGroups) {
-            sourceItemType.attributeGroups.forEach((group: any) => {
-              if (group.attributes) {
-                group.attributes.forEach((attr: any) => {
-                  sourceAttrs.push({
-                    id: attr._id,
-                    name: attr.name?.translations?.tr || attr.name?.translations?.en || attr.code,
-                    type: attr.type || 'text'
-                  });
+      // Helper function to fetch all attributes for an ItemType (including category and family attributes)
+      const fetchAllAttributes = async (itemType: any) => {
+        const allAttrs = [];
+        
+        // Add default attributes
+        allAttrs.push(
+          { id: 'category', name: 'Kategori', type: 'text', group: 'default' },
+          { id: 'family', name: 'Aile', type: 'text', group: 'default' },
+          { id: 'createdAt', name: 'Oluşturulma Tarihi', type: 'date', group: 'default' }
+        );
+        
+        // Add ItemType's own attributes
+        if (itemType.attributeGroups) {
+          itemType.attributeGroups.forEach((group: any) => {
+            if (group.attributes) {
+              group.attributes.forEach((attr: any) => {
+                allAttrs.push({
+                  id: (attr as any)._id,
+                  name: attr.name?.translations?.tr || attr.name?.translations?.en || attr.code,
+                  type: attr.type || 'text',
+                  group: 'itemType'
+                });
+              });
+            }
+          });
+        }
+        
+        // Add Category attributes if ItemType has a category
+        if (itemType.category) {
+          try {
+            // itemType.category artık populate edilmiş bir obje, ID değil
+            const category = typeof itemType.category === 'string' 
+              ? await categoryService.getCategoryById(itemType.category)
+              : itemType.category;
+            
+            // Helper function to extract attributes from category and its subcategories
+            const extractCategoryAttributes = (cat: any, prefix: string = '') => {
+              // Add main category attributes
+              if (cat.attributeGroups) {
+                cat.attributeGroups.forEach((group: any) => {
+                  if (group.attributes) {
+                    group.attributes.forEach((attr: any) => {
+                      allAttrs.push({
+                        id: (attr as any)._id,
+                        name: `${prefix}[Kategori] ${attr.name?.translations?.tr || attr.name?.translations?.en || attr.code}`,
+                        type: attr.type || 'text',
+                        group: 'category'
+                      });
+                    });
+                  }
                 });
               }
-            });
+              
+              // Add subcategory attributes
+              if (cat.subcategories) {
+                cat.subcategories.forEach((subcat: any) => {
+                  if (subcat.attributeGroups) {
+                    subcat.attributeGroups.forEach((group: any) => {
+                      if (group.attributes) {
+                        group.attributes.forEach((attr: any) => {
+                          allAttrs.push({
+                            id: (attr as any)._id,
+                            name: `${prefix}[Kategori - ${subcat.name?.translations?.tr || subcat.name?.translations?.en || subcat.code}] ${attr.name?.translations?.tr || attr.name?.translations?.en || attr.code}`,
+                            type: attr.type || 'text',
+                            group: 'category'
+                          });
+                        });
+                      }
+                    });
+                  }
+                  
+                  // Recursively check subcategories of subcategories
+                  if (subcat.subcategories) {
+                    extractCategoryAttributes(subcat, `${prefix}  `);
+                  }
+                });
+              }
+            };
+            
+            extractCategoryAttributes(category);
+          } catch (error) {
+            console.error('❌ Error fetching category attributes:', error);
           }
-          
+        }
+        
+        // Note: ItemType model'inde family alanı yok, sadece category var
+        // Family attribute'ları için ayrı bir implementasyon gerekebilir
+        
+        return allAttrs;
+      };
+      
+      // Fetch source ItemType attributes
+      if (sourceTypeId) {
+        try {
+          const sourceItemType = await itemTypeService.getItemTypeById(sourceTypeId);
+          const sourceAttrs = await fetchAllAttributes(sourceItemType);
           setSourceItemTypeAttributes(sourceAttrs);
         } catch (error) {
           console.error('❌ Error fetching source attributes:', error);
@@ -105,33 +182,10 @@ const AssociationDetailsPage: React.FC = () => {
       }
       
       // Fetch target ItemType attributes
-      if (targetTypeCode) {
+      if (targetTypeId) {
         try {
-          const targetItemType = await itemTypeService.getItemTypeByCode(targetTypeCode);
-          const targetAttrs = [];
-          
-          // Add default attributes
-          targetAttrs.push(
-            { id: 'category', name: 'Kategori', type: 'text' },
-            { id: 'family', name: 'Aile', type: 'text' },
-            { id: 'createdAt', name: 'Oluşturulma Tarihi', type: 'date' }
-          );
-          
-          // Add custom attributes from ItemType
-          if (targetItemType.attributeGroups) {
-            targetItemType.attributeGroups.forEach((group: any) => {
-              if (group.attributes) {
-                group.attributes.forEach((attr: any) => {
-                  targetAttrs.push({
-                    id: attr._id,
-                    name: attr.name?.translations?.tr || attr.name?.translations?.en || attr.code,
-                    type: attr.type || 'text'
-                  });
-                });
-              }
-            });
-          }
-          
+          const targetItemType = await itemTypeService.getItemTypeById(targetTypeId);
+          const targetAttrs = await fetchAllAttributes(targetItemType);
           setTargetItemTypeAttributes(targetAttrs);
         } catch (error) {
           console.error('❌ Error fetching target attributes:', error);
@@ -318,10 +372,22 @@ const AssociationDetailsPage: React.FC = () => {
       if (sourceChanges > 0 || targetChanges > 0) {
         changes.push(`Görünüm ayarları güncellendi:`);
         if (sourceChanges > 0) {
-          changes.push(`  • ${association.allowedSourceTypes?.[0]} → ${association.allowedTargetTypes?.[0]}: ${sourceChanges} sütun`);
+          const sourceType = typeof association.allowedSourceTypes?.[0] === 'string' 
+            ? association.allowedSourceTypes[0] 
+            : (association.allowedSourceTypes[0] as any)?.code || (association.allowedSourceTypes[0] as any)?.name || association.allowedSourceTypes[0]?._id;
+          const targetType = typeof association.allowedTargetTypes?.[0] === 'string' 
+            ? association.allowedTargetTypes[0] 
+            : (association.allowedTargetTypes[0] as any)?.code || (association.allowedTargetTypes[0] as any)?.name || association.allowedTargetTypes[0]?._id;
+          changes.push(`  • ${sourceType} → ${targetType}: ${sourceChanges} sütun`);
         }
         if (targetChanges > 0) {
-          changes.push(`  • ${association.allowedTargetTypes?.[0]} → ${association.allowedSourceTypes?.[0]}: ${targetChanges} sütun`);
+          const targetType = typeof association.allowedTargetTypes?.[0] === 'string' 
+            ? association.allowedTargetTypes[0] 
+            : (association.allowedTargetTypes[0] as any)?.code || (association.allowedTargetTypes[0] as any)?.name || association.allowedTargetTypes[0]?._id;
+          const sourceType = typeof association.allowedSourceTypes?.[0] === 'string' 
+            ? association.allowedSourceTypes[0] 
+            : (association.allowedSourceTypes[0] as any)?.code || (association.allowedSourceTypes[0] as any)?.name || association.allowedSourceTypes[0]?._id;
+          changes.push(`  • ${targetType} → ${sourceType}: ${targetChanges} sütun`);
         }
       } else {
         changes.push(`Görünüm ayarları sıfırlandı`);
@@ -869,7 +935,7 @@ const AssociationDetailsPage: React.FC = () => {
                     <div className="flex flex-wrap gap-2">
                       {association.allowedSourceTypes.map((type, index) => (
                         <Badge key={index} color="light">
-                          {type}
+                          {typeof type === 'string' ? type : (type as any).code || (type as any).name || type._id}
                         </Badge>
                       ))}
                     </div>
@@ -896,7 +962,7 @@ const AssociationDetailsPage: React.FC = () => {
                     <div className="flex flex-wrap gap-2">
                       {association.allowedTargetTypes.map((type, index) => (
                         <Badge key={index} color="light">
-                          {type}
+                          {typeof type === 'string' ? type : (type as any).code || (type as any).name || type._id}
                         </Badge>
                       ))}
                     </div>
@@ -997,7 +1063,13 @@ const AssociationDetailsPage: React.FC = () => {
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <h3 className="text-base font-medium text-gray-900 dark:text-white">
-                            {association.allowedSourceTypes?.[0]} → {association.allowedTargetTypes?.[0]}
+                            {typeof association.allowedSourceTypes?.[0] === 'string' 
+                              ? association.allowedSourceTypes[0] 
+                              : (association.allowedSourceTypes[0] as any)?.code || (association.allowedSourceTypes[0] as any)?.name || association.allowedSourceTypes[0]?._id
+                            } → {typeof association.allowedTargetTypes?.[0] === 'string' 
+                              ? association.allowedTargetTypes[0] 
+                              : (association.allowedTargetTypes[0] as any)?.code || (association.allowedTargetTypes[0] as any)?.name || association.allowedTargetTypes[0]?._id
+                            }
                           </h3>
                           <label className="flex items-center">
                             <input
@@ -1019,7 +1091,13 @@ const AssociationDetailsPage: React.FC = () => {
                         
                         <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-4">
                           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                            {association.allowedSourceTypes?.[0]} seçerken gösterilecek {association.allowedTargetTypes?.[0]} sütunları:
+                            {typeof association.allowedSourceTypes?.[0] === 'string' 
+                              ? association.allowedSourceTypes[0] 
+                              : (association.allowedSourceTypes[0] as any)?.code || (association.allowedSourceTypes[0] as any)?.name || association.allowedSourceTypes[0]?._id
+                            } seçerken gösterilecek {typeof association.allowedTargetTypes?.[0] === 'string' 
+                              ? association.allowedTargetTypes[0] 
+                              : (association.allowedTargetTypes[0] as any)?.code || (association.allowedTargetTypes[0] as any)?.name || association.allowedTargetTypes[0]?._id
+                            } sütunları:
                           </p>
                           
                           <div className="space-y-3">
@@ -1127,7 +1205,13 @@ const AssociationDetailsPage: React.FC = () => {
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <h3 className="text-base font-medium text-gray-900 dark:text-white">
-                            {association.allowedTargetTypes?.[0]} → {association.allowedSourceTypes?.[0]}
+                            {typeof association.allowedTargetTypes?.[0] === 'string' 
+                              ? association.allowedTargetTypes[0] 
+                              : (association.allowedTargetTypes[0] as any)?.code || (association.allowedTargetTypes[0] as any)?.name || association.allowedTargetTypes[0]?._id
+                            } → {typeof association.allowedSourceTypes?.[0] === 'string' 
+                              ? association.allowedSourceTypes[0] 
+                              : (association.allowedSourceTypes[0] as any)?.code || (association.allowedSourceTypes[0] as any)?.name || association.allowedSourceTypes[0]?._id
+                            }
                           </h3>
                           <label className="flex items-center">
                             <input
@@ -1149,7 +1233,13 @@ const AssociationDetailsPage: React.FC = () => {
                         
                         <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-4">
                           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                            {association.allowedTargetTypes?.[0]} seçerken gösterilecek {association.allowedSourceTypes?.[0]} sütunları:
+                            {typeof association.allowedTargetTypes?.[0] === 'string' 
+                              ? association.allowedTargetTypes[0] 
+                              : (association.allowedTargetTypes[0] as any)?.code || (association.allowedTargetTypes[0] as any)?.name || association.allowedTargetTypes[0]?._id
+                            } seçerken gösterilecek {typeof association.allowedSourceTypes?.[0] === 'string' 
+                              ? association.allowedSourceTypes[0] 
+                              : (association.allowedSourceTypes[0] as any)?.code || (association.allowedSourceTypes[0] as any)?.name || association.allowedSourceTypes[0]?._id
+                            } sütunları:
                           </p>
                           
                           <div className="space-y-3">

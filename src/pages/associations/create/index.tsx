@@ -198,6 +198,21 @@ const CreateAssociationPage: React.FC = () => {
         metadata: formData.metadata
       };
 
+      console.log('🔍 Association Data:', {
+        allowedSourceTypes: formData.allowedSourceTypes,
+        allowedTargetTypes: formData.allowedTargetTypes,
+        itemTypes: itemTypes.map(it => ({ id: it._id, code: it.code }))
+      });
+
+      // ID'leri kontrol et
+      const sourceItemTypes = itemTypes.filter(it => formData.allowedSourceTypes.includes(it._id));
+      const targetItemTypes = itemTypes.filter(it => formData.allowedTargetTypes.includes(it._id));
+      
+      console.log('🔍 Selected Source Types:', sourceItemTypes.map(it => ({ id: it._id, code: it.code })));
+      console.log('🔍 Selected Target Types:', targetItemTypes.map(it => ({ id: it._id, code: it.code })));
+
+      console.log('🔍 API Request Data:', JSON.stringify(associationData, null, 2));
+
       await associationService.createAssociation(associationData);
       
       showToast({

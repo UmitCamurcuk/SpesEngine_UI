@@ -94,21 +94,6 @@ export const login = createAsyncThunk<LoginResponse, LoginCredentials>(
   async (credentials, { rejectWithValue }) => {
     try {
       const response = await authService.login(credentials);
-      
-      // Login başarılı olduktan sonra kullanıcı bilgilerini de getir
-      if (response.success && response.accessToken) {
-        try {
-          const userInfo = await authService.getCurrentUser();
-          return {
-            ...response,
-            user: userInfo.data || userInfo
-          };
-        } catch (userError) {
-          console.warn('Kullanıcı bilgileri alınamadı, login response\'daki user bilgisi kullanılacak:', userError);
-          return response;
-        }
-      }
-      
       return response;
     } catch (error: any) {
       return rejectWithValue({
@@ -243,25 +228,48 @@ const authSlice = createSlice({
         state.error = null;
       })
       .addCase(login.fulfilled, (state, action) => {
-        state.isAuthenticated = true;
         state.loading = false;
-        state.error = null;
-        state.accessToken = action.payload.accessToken;
-        state.refreshToken = action.payload.refreshToken;
-        state.user = action.payload.user;
         
-        // TokenService ile kaydet (spesengine_ prefix ile)
-        TokenService.setTokens(action.payload.accessToken, action.payload.refreshToken);
-        
-        // Kullanıcı bilgilerini localStorage'a da kaydet
-        if (action.payload.user) {
-          localStorage.setItem('currentUser', JSON.stringify(action.payload.user));
+        // Backend'den accessToken geliyorsa başarılı login
+        if (action.payload.accessToken && action.payload.refreshToken) {
+          state.isAuthenticated = true;
+          state.error = null;
+          state.accessToken = action.payload.accessToken;
+          state.refreshToken = action.payload.refreshToken;
+          state.user = action.payload.user;
+          
+          // TokenService ile kaydet (spesengine_ prefix ile)
+          TokenService.setTokens(action.payload.accessToken, action.payload.refreshToken);
+          
+          // Kullanıcı bilgilerini localStorage'a da kaydet
+          if (action.payload.user) {
+            localStorage.setItem('currentUser', JSON.stringify(action.payload.user));
+          }
+        } else {
+          // Token yoksa başarısız login
+          state.isAuthenticated = false;
+          state.error = action.payload.message || 'Giriş başarısız';
+          state.accessToken = null;
+          state.refreshToken = null;
+          state.user = null;
+          
+          // TokenService ile temizle
+          TokenService.clearTokens();
         }
       })
       .addCase(login.rejected, (state, action) => {
         state.isAuthenticated = false;
         state.loading = false;
-        state.error = action.payload as string || 'Giriş yapılırken bir hata oluştu';
+        
+        // Hata mesajını doğru şekilde al
+        let errorMessage = 'Giriş yapılırken bir hata oluştu';
+        if (typeof action.payload === 'string') {
+          errorMessage = action.payload;
+        } else if (action.payload && typeof action.payload === 'object' && 'error' in action.payload) {
+          errorMessage = (action.payload as any).error;
+        }
+        
+        state.error = errorMessage;
         state.accessToken = null;
         state.refreshToken = null;
         state.user = null;

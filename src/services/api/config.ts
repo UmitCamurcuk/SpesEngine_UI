@@ -101,8 +101,13 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     
-    // 401 hatası kontrolü
+    // 401 hatası kontrolü - login ve register endpoint'lerini muaf tut
     if (error.response?.status === 401 && !originalRequest._retry) {
+      
+      // Login ve register endpoint'lerinde 401 hatası normal, logout yapma
+      if (originalRequest.url === '/auth/login' || originalRequest.url === '/auth/register') {
+        return Promise.reject(error);
+      }
       
       // Permission version hatası - izinler güncellenmiş
       if (error.response?.data?.needsPermissionRefresh) {

@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import Input from '../../../components/ui/Input';
 import Button from '../../../components/ui/Button';
 import { useAppDispatch, useAppSelector } from '../../../redux/store';
-import { login } from '../../../redux/features/auth/authSlice';
+import { login, clearError } from '../../../redux/features/auth/authSlice';
 import { useTranslation } from '../../../context/i18nContext';
 
 const LoginPage = () => {
@@ -21,11 +21,18 @@ const LoginPage = () => {
 
   // Kullanıcı zaten giriş yapmışsa ana sayfaya yönlendir
   useEffect(() => {
-    if (isAuthenticated && location.pathname === '/auth/login') {
-      navigate('/auth/loading');
-      return;
+    // Sadece loading false ve isAuthenticated true ise yönlendir
+    if (isAuthenticated && !loading && location.pathname === '/auth/login') {
+      // Kısa bir gecikme ile token'ların kaydedilmesini bekle
+      setTimeout(() => {
+        const hasValidTokens = localStorage.getItem('spesengine_accessToken') && localStorage.getItem('spesengine_refreshToken');
+        if (hasValidTokens) {
+          navigate('/auth/loading');
+          return;
+        }
+      }, 100);
     }
-  }, [isAuthenticated, navigate, location]);
+  }, [isAuthenticated, loading, navigate, location]);
 
   // Sayfa yüklendiğinde token kontrolü yap
   useEffect(() => {
@@ -44,6 +51,11 @@ const LoginPage = () => {
       if (result.success) {
         // Başarılı giriş sonrası tema ayarları otomatik olarak ThemeContext tarafından yüklenecek
         console.log('Giriş başarılı, tema ayarları yükleniyor...');
+        
+        // Kısa bir gecikme ile yönlendirme yap
+        setTimeout(() => {
+          navigate('/auth/loading');
+        }, 500);
       }
     } catch (error) {
       console.error('Giriş yapılırken hata:', error);
@@ -62,52 +74,52 @@ const LoginPage = () => {
         </div>
         
         {/* Sol taraf içerik */}
-        <div className="relative z-10 flex flex-col justify-center items-center text-white px-12">
-          <div className="text-center">
-            <div className="mb-8">
-              <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center mb-6 mx-auto backdrop-blur-sm">
-                <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="relative z-10 flex flex-col justify-center items-center text-white px-12 w-full h-full">
+          <div className="text-center max-w-md mx-auto">
+            <div className="mb-12">
+              <div className="w-24 h-24 bg-white/20 rounded-3xl flex items-center justify-center mb-8 mx-auto backdrop-blur-sm shadow-2xl">
+                <svg className="w-14 h-14 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <h1 className="text-4xl font-bold mb-4">SpesEngine</h1>
-              <p className="text-xl text-blue-100 mb-8">Master Data Management Platform</p>
+              <h1 className="text-5xl font-bold mb-4 tracking-tight">SpesEngine</h1>
+              <p className="text-xl text-blue-100 mb-12 opacity-90">Master Data Management Platform</p>
             </div>
             
-            <div className="space-y-6 text-left">
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="space-y-8 text-left">
+              <div className="flex items-start space-x-5">
+                <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm shadow-lg flex-shrink-0">
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg">Hızlı ve Güvenli</h3>
-                  <p className="text-blue-100">Gelişmiş güvenlik protokolleri ile korunan platform</p>
+                  <h3 className="font-semibold text-xl mb-2">Hızlı ve Güvenli</h3>
+                  <p className="text-blue-100 text-lg leading-relaxed">Gelişmiş güvenlik protokolleri ile korunan platform</p>
                 </div>
               </div>
               
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-start space-x-5">
+                <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm shadow-lg flex-shrink-0">
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg">Veri Analizi</h3>
-                  <p className="text-blue-100">Güçlü analitik araçları ile verilerinizi analiz edin</p>
+                  <h3 className="font-semibold text-xl mb-2">Veri Analizi</h3>
+                  <p className="text-blue-100 text-lg leading-relaxed">Güçlü analitik araçları ile verilerinizi analiz edin</p>
                 </div>
               </div>
               
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-start space-x-5">
+                <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm shadow-lg flex-shrink-0">
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg">Kolay Yönetim</h3>
-                  <p className="text-blue-100">Sezgisel arayüz ile kolay veri yönetimi</p>
+                  <h3 className="font-semibold text-xl mb-2">Kolay Yönetim</h3>
+                  <p className="text-blue-100 text-lg leading-relaxed">Sezgisel arayüz ile kolay veri yönetimi</p>
                 </div>
               </div>
             </div>
@@ -116,23 +128,24 @@ const LoginPage = () => {
       </div>
 
       {/* Sağ taraf - Login Form */}
-      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
+      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-gray-50">
+        <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-2xl shadow-xl">
           {/* Logo ve başlık - mobil için */}
           <div className="lg:hidden text-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+              <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">SpesEngine</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">SpesEngine</h1>
+            <p className="text-gray-600">Master Data Management Platform</p>
           </div>
 
           <div className="text-center">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">
+            <h2 className="text-3xl font-bold text-gray-900 mb-3">
               {t('welcome_back', 'auth')}
             </h2>
-            <p className="text-gray-600">
+            <p className="text-gray-600 text-lg">
               {t('login_subtitle', 'auth')}
             </p>
           </div>
@@ -165,8 +178,9 @@ const LoginPage = () => {
                     autoComplete="email"
                     required
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="appearance-none block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                                         onChange={(e) => setEmail(e.target.value)}
+                     onFocus={() => dispatch(clearError())}
+                     className="appearance-none block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                     placeholder={t('email_placeholder', 'auth')}
                   />
                 </div>
@@ -189,8 +203,9 @@ const LoginPage = () => {
                     autoComplete="current-password"
                     required
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="appearance-none block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                                         onChange={(e) => setPassword(e.target.value)}
+                     onFocus={() => dispatch(clearError())}
+                     className="appearance-none block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                     placeholder={t('password_placeholder', 'auth')}
                   />
                   <button

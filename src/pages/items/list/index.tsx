@@ -12,6 +12,7 @@ import { useNotification } from '../../../components/notifications';
 import ListPageLayout from '../../../components/layout/ListPageLayout';
 import SearchForm from '../../../components/common/SearchForm';
 import useListPage from '../../../hooks/useListPage';
+import UserDisplay from '../../../components/common/UserDisplay';
 
 // UTILITY COMPONENTS
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
@@ -215,75 +216,16 @@ const ItemsListPage: React.FC = () => {
         const createdBy = row.createdBy;
         const createdAt = row.createdAt;
         
-        if (typeof createdBy === 'object' && createdBy) {
-          const user = createdBy as any;
-          return (
-            <div className="text-sm">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                  <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                    {user.firstName && user.lastName 
-                      ? `${user.firstName} ${user.lastName}` 
-                      : (user.name || user.email || 'Bilinmiyor')}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                    {user.email && user.email !== (user.name || user.firstName) ? user.email : ''}
-                  </div>
-                  {createdAt && (
-                    <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                      {new Date(createdAt).toLocaleDateString('tr-TR', { 
-                        day: '2-digit', 
-                        month: '2-digit', 
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        } else if (typeof createdBy === 'string') {
-          return (
-            <div className="text-sm">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-gray-900 dark:text-gray-100">
-                    {createdBy}
-                  </div>
-                  {createdAt && (
-                    <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                      {new Date(createdAt).toLocaleDateString('tr-TR', { 
-                        day: '2-digit', 
-                        month: '2-digit', 
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        } else {
-          return (
-            <div className="text-sm text-gray-400 italic">
-              Bilinmiyor
-            </div>
-          );
-        }
+        return (
+          <UserDisplay 
+            user={typeof createdBy === 'object' ? createdBy : null}
+            showEmail={true}
+            showDate={true}
+            date={createdAt}
+            size="sm"
+            variant="created"
+          />
+        );
       }
     },
     {
@@ -294,75 +236,16 @@ const ItemsListPage: React.FC = () => {
         const updatedBy = row.updatedBy;
         const updatedAt = row.updatedAt;
         
-        if (typeof updatedBy === 'object' && updatedBy) {
-          const user = updatedBy as any;
-          return (
-            <div className="text-sm">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
-                  <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                    {user.firstName && user.lastName 
-                      ? `${user.firstName} ${user.lastName}` 
-                      : (user.name || user.email || 'Bilinmiyor')}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                    {user.email && user.email !== (user.name || user.firstName) ? user.email : ''}
-                  </div>
-                  {updatedAt && (
-                    <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                      {new Date(updatedAt).toLocaleDateString('tr-TR', { 
-                        day: '2-digit', 
-                        month: '2-digit', 
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        } else if (typeof updatedBy === 'string') {
-          return (
-            <div className="text-sm">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-gray-900 dark:text-gray-100">
-                    {updatedBy}
-                  </div>
-                  {updatedAt && (
-                    <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                      {new Date(updatedAt).toLocaleDateString('tr-TR', { 
-                        day: '2-digit', 
-                        month: '2-digit', 
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        } else {
-          return (
-            <div className="text-sm text-gray-400 italic">
-              Bilinmiyor
-            </div>
-          );
-        }
+        return (
+          <UserDisplay 
+            user={typeof updatedBy === 'object' ? updatedBy : null}
+            showEmail={true}
+            showDate={true}
+            date={updatedAt}
+            size="sm"
+            variant="updated"
+          />
+        );
       }
     }
   ], [currentLanguage]);

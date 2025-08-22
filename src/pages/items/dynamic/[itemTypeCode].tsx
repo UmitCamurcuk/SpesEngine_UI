@@ -14,6 +14,7 @@ import { useNotification } from '../../../components/notifications';
 import ListPageLayout from '../../../components/layout/ListPageLayout';
 import SearchForm from '../../../components/common/SearchForm';
 import useListPage from '../../../hooks/useListPage';
+import UserDisplay from '../../../components/common/UserDisplay';
 
 // UTILITY COMPONENTS
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
@@ -212,15 +213,27 @@ const DynamicItemListPage: React.FC = () => {
                   return categoryData ? getEntityName(categoryData, currentLanguage) : 'N/A';
                 };
               case 'createdBy':
-                return (row: Item) => {
-                  const createdByData = typeof row.createdBy === 'object' ? row.createdBy : null;
-                  return createdByData ? `${createdByData.firstName || ''} ${createdByData.lastName || ''}`.trim() : 'N/A';
-                };
+                return (row: Item) => (
+                  <UserDisplay 
+                    user={typeof row.createdBy === 'object' ? row.createdBy : null}
+                    showEmail={true}
+                    showDate={true}
+                    date={row.createdAt}
+                    size="sm"
+                    variant="created"
+                  />
+                );
               case 'updatedBy':
-                return (row: Item) => {
-                  const updatedByData = typeof row.updatedBy === 'object' ? row.updatedBy : null;
-                  return updatedByData ? `${updatedByData.firstName || ''} ${updatedByData.lastName || ''}`.trim() : 'N/A';
-                };
+                return (row: Item) => (
+                  <UserDisplay 
+                    user={typeof row.updatedBy === 'object' ? row.updatedBy : null}
+                    showEmail={true}
+                    showDate={true}
+                    date={row.updatedAt}
+                    size="sm"
+                    variant="updated"
+                  />
+                );
               case 'createdAt':
                 return (row: Item) => new Date(row.createdAt).toLocaleDateString('tr-TR');
               case 'updatedAt':

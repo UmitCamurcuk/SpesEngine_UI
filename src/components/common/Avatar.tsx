@@ -5,7 +5,6 @@ interface AvatarProps {
     avatar?: string;
     firstName?: string;
     lastName?: string;
-    name?: string;
     email?: string;
   } | null;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
@@ -30,7 +29,7 @@ const Avatar: React.FC<AvatarProps> = ({
     if (user.firstName && user.lastName) {
       return `${user.firstName} ${user.lastName}`;
     }
-    return user.name || user.email || 'Kullanıcı';
+    return user.email || 'Kullanıcı';
   };
 
   const getInitials = () => {

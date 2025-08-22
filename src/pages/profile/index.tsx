@@ -147,7 +147,7 @@ const ProfilePage: React.FC = () => {
     if (user?.firstName && user?.lastName) {
       return `${user.firstName} ${user.lastName}`;
     }
-    return user?.name || user?.email || 'Kullanıcı';
+    return user?.email || 'Kullanıcı';
   };
 
   const handleCancel = () => {

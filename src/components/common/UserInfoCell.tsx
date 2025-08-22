@@ -5,7 +5,6 @@ interface User {
   _id: string;
   firstName?: string;
   lastName?: string;
-  name?: string;
   email?: string;
   avatar?: string;
 }
@@ -55,10 +54,10 @@ const UserInfoCell: React.FC<UserInfoCellProps> = ({ user, date, type }) => {
             <div className="font-medium text-gray-900 dark:text-gray-100 truncate">
               {userObj.firstName && userObj.lastName 
                 ? `${userObj.firstName} ${userObj.lastName}` 
-                : (userObj.name || userObj.email || 'Bilinmiyor')}
+                : (userObj.email || 'Bilinmiyor')}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-              {userObj.email && userObj.email !== (userObj.firstName || userObj.lastName || userObj.name) ? userObj.email : ''}
+              {userObj.email && userObj.email !== `${userObj.firstName || ''} ${userObj.lastName || ''}`.trim() ? userObj.email : ''}
             </div>
             {date && (
               <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">

@@ -7,9 +7,8 @@ import { TokenService } from '../../../services/auth/tokenService';
 interface User {
   id: string;
   email: string;
-  firstName?: string;
-  lastName?: string;
-  name?: string;
+  firstName: string;
+  lastName: string;
   phone?: string;
   avatar?: string;
   bio?: string;

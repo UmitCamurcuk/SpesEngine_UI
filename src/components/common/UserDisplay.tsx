@@ -3,7 +3,6 @@ import Avatar from './Avatar';
 
 interface User {
   _id?: string;
-  name?: string;
   firstName?: string;
   lastName?: string;
   email?: string;
@@ -37,9 +36,7 @@ const UserDisplay: React.FC<UserDisplayProps> = ({
   }
 
   const getUserDisplayName = () => {
-    if (user.name) {
-      return user.name;
-    } else if (user.firstName || user.lastName) {
+    if (user.firstName || user.lastName) {
       return `${user.firstName || ''} ${user.lastName || ''}`.trim();
     } else if (user.email) {
       return user.email;

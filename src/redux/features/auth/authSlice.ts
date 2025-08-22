@@ -10,7 +10,33 @@ interface User {
   firstName?: string;
   lastName?: string;
   name?: string;
+  phone?: string;
+  avatar?: string;
+  bio?: string;
+  position?: string;
+  department?: string;
+  location?: string;
+  website?: string;
+  socialLinks?: {
+    linkedin?: string;
+    twitter?: string;
+    github?: string;
+  };
+  preferences?: {
+    language?: string;
+    theme?: 'light' | 'dark' | 'auto';
+    notifications?: {
+      email?: boolean;
+      push?: boolean;
+      sms?: boolean;
+    };
+  };
+  isAdmin?: boolean;
+  isActive?: boolean;
+  lastLogin?: Date;
   role: any;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 interface AuthState {
@@ -342,9 +368,27 @@ const authSlice = createSlice({
       .addCase(refreshPermissions.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+      })
+      
+      // Update Profile
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        state.user = action.payload.user;
       });
   },
 });
+
+// Profil güncelleme action'ı
+export const updateProfile = createAsyncThunk(
+  'auth/updateProfile',
+  async (profileData: any, { rejectWithValue }) => {
+    try {
+      const response = await authService.updateProfile(profileData);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Profil güncellenirken hata oluştu');
+    }
+  }
+);
 
 export const { setUser, setTokens, clearAuth, clearError, syncTokensFromStorage } = authSlice.actions;
 

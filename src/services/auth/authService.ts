@@ -118,6 +118,18 @@ const authService = {
   refreshToken: async (refreshToken: string): Promise<AuthResponse> => {
     const response = await api.post<AuthResponse>('/auth/refresh-token', { refreshToken });
     return response.data;
+  },
+
+  // Profil güncelle
+  updateProfile: async (profileData: any) => {
+    const response = await api.put('/auth/profile', profileData);
+    return response.data;
+  },
+
+  // Avatar yükle
+  uploadAvatar: async (formData: FormData) => {
+    const response = await api.post('/auth/avatar', formData);
+    return response.data;
   }
 };
 

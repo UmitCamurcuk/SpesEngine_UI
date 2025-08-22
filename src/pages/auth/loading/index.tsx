@@ -58,35 +58,41 @@ const LoadingPage = () => {
         localStorage.setItem('themeSettings', JSON.stringify(currentTheme));
 
         // Adım 3: Yönlendirme
+        setLoadingText('Yönlendiriliyorsunuz...');
         await new Promise(resolve => setTimeout(resolve, 500));
         navigate('/');
       } catch (error) {
         console.error('Sistem ayarları yüklenirken hata:', error);
         
-        // Hata durumunda mevcut localStorage'daki tema ayarlarını koru
-        const savedThemeSettings = localStorage.getItem('themeSettings');
-        if (!savedThemeSettings) {
-          // Eğer localStorage'da tema ayarları yoksa varsayılan temayı kullan
-          const defaultTheme = {
-            primaryColor: '#1f6feb',
-            accentColor: '#f97316',
-            mode: 'light',
-            enableDarkMode: true,
-            defaultDarkMode: false,
-            enableCustomFonts: false,
-            customFont: 'Inter',
-            customLogoUrl: '',
-            enableCustomStyles: false,
-            customCSS: '',
-            showLogo: true,
-            showUserAvatar: true,
-            menuStyle: 'side'
-          };
-          
-          localStorage.setItem('themeSettings', JSON.stringify(defaultTheme));
-        }
+        // Hata durumunda varsayılan tema ayarlarını kullan
+        const defaultTheme = {
+          primaryColor: '#1f6feb',
+          accentColor: '#f97316',
+          mode: 'light',
+          enableDarkMode: true,
+          defaultDarkMode: false,
+          enableCustomFonts: false,
+          customFont: 'Inter',
+          customLogoUrl: '',
+          enableCustomStyles: false,
+          customCSS: '',
+          showLogo: true,
+          showUserAvatar: true,
+          menuStyle: 'side'
+        };
         
-        setLoadingText('Hata oluştu, yönlendiriliyorsunuz...');
+        // Varsayılan tema ayarlarını kaydet
+        localStorage.setItem('themeSettings', JSON.stringify(defaultTheme));
+        
+        // Varsayılan sistem ayarlarını da kaydet
+        const defaultSettings = {
+          companyName: 'SpesEngine',
+          systemTitle: 'SpesEngine',
+          theme: defaultTheme
+        };
+        localStorage.setItem('systemSettings', JSON.stringify(defaultSettings));
+        
+        setLoadingText('Varsayılan ayarlar yükleniyor...');
         await new Promise(resolve => setTimeout(resolve, 1000));
         navigate('/');
       }

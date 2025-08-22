@@ -170,7 +170,6 @@ const AssociationSection: React.FC<AssociationSectionProps> = ({
               // DisplayConfig'i bul (association key ile)
               const displayConfig = displayConfigs[key];
               
-
               
               return (
                 <AssociationSelector

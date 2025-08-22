@@ -1132,7 +1132,10 @@ const AssociationDetailsPage: React.FC = () => {
                                           sortable: true,
                                           filterable: true,
                                           isRequired: false,
-                                          formatType: attr.type === 'date' ? 'date' : 'text',
+                                          // formatType gerçekteki attribute tipini korusun
+                                          formatType: ['date','number','boolean','select','table','text'].includes(String(attr.type))
+                                            ? (attr.type as any)
+                                            : 'text',
                                           order: currentColumns.length + 1
                                         }];
                                       } else {
@@ -1274,7 +1277,10 @@ const AssociationDetailsPage: React.FC = () => {
                                           sortable: true,
                                           filterable: true,
                                           isRequired: false,
-                                          formatType: attr.type === 'date' ? 'date' : 'text',
+                                          // formatType gerçekteki attribute tipini korusun
+                                          formatType: ['date','number','boolean','select','table','text'].includes(String(attr.type))
+                                            ? (attr.type as any)
+                                            : 'text',
                                           order: currentColumns.length + 1
                                         }];
                                       } else {

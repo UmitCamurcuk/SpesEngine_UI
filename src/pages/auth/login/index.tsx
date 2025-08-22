@@ -20,11 +20,11 @@ const LoginPage = () => {
 
   // Kullanıcı zaten giriş yapmışsa ana sayfaya yönlendir
   useEffect(() => {
-    if (isAuthenticated && location.pathname === '/auth/login') {
+    if (isAuthenticated && !loading && location.pathname === '/auth/login') {
       navigate('/auth/loading');
       return;
     }
-  }, [isAuthenticated, navigate, location]);
+  }, [isAuthenticated, loading, navigate, location]);
 
   // Sayfa yüklendiğinde token kontrolü yap
   useEffect(() => {

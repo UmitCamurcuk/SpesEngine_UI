@@ -94,6 +94,21 @@ export const login = createAsyncThunk<LoginResponse, LoginCredentials>(
   async (credentials, { rejectWithValue }) => {
     try {
       const response = await authService.login(credentials);
+      
+      // Login başarılı olduktan sonra kullanıcı bilgilerini de getir
+      if (response.success && response.accessToken) {
+        try {
+          const userInfo = await authService.getCurrentUser();
+          return {
+            ...response,
+            user: userInfo.data || userInfo
+          };
+        } catch (userError) {
+          console.warn('Kullanıcı bilgileri alınamadı, login response\'daki user bilgisi kullanılacak:', userError);
+          return response;
+        }
+      }
+      
       return response;
     } catch (error: any) {
       return rejectWithValue({
@@ -237,6 +252,11 @@ const authSlice = createSlice({
         
         // TokenService ile kaydet (spesengine_ prefix ile)
         TokenService.setTokens(action.payload.accessToken, action.payload.refreshToken);
+        
+        // Kullanıcı bilgilerini localStorage'a da kaydet
+        if (action.payload.user) {
+          localStorage.setItem('currentUser', JSON.stringify(action.payload.user));
+        }
       })
       .addCase(login.rejected, (state, action) => {
         state.isAuthenticated = false;

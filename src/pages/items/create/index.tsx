@@ -118,7 +118,6 @@ const ItemCreatePage: React.FC = () => {
             // Association key oluştur (targetItemTypeCode + association type)
             const associationKey = `${rule.targetItemTypeCode}_${rule.association || rule.relationshipType}`;
             configs[associationKey] = rule.displayConfig;
-
           }
         } else if (isIncoming && rule.sourceItemTypeCode) {
           // Display config'i rule'dan al (eğer varsa)
@@ -126,12 +125,10 @@ const ItemCreatePage: React.FC = () => {
             // Association key oluştur (sourceItemTypeCode + association type)
             const associationKey = `${rule.sourceItemTypeCode}_${rule.association || rule.relationshipType}`;
             configs[associationKey] = rule.displayConfig;
-
           }
         }
       }
       
-
       setDisplayConfigs(configs);
     } catch (error) {
       console.error('Display configs yüklenirken hata:', error);

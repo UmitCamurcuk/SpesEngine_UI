@@ -3,6 +3,7 @@ import { AssociationSelectorProps, AssociationItem } from './types';
 import itemService from '../../services/api/itemService';
 import { useTranslation } from '../../context/i18nContext';
 import { getEntityName } from '../../utils/translationUtils';
+import AttributeDisplay from '../attributes/AttributeDisplay';
 
 const AssociationSelector: React.FC<AssociationSelectorProps> = ({
   rule,
@@ -18,6 +19,8 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
   const [availableItems, setAvailableItems] = useState<AssociationItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
+
+  // Not: Hücre formatlama için dinamik liste sayfasındaki mantık tablo içinde inline uygulanır
 
   // Association key oluştur (targetItemTypeCode veya sourceItemTypeCode + relationshipType)
   const itemTypeCode = rule.targetItemTypeCode || rule.sourceItemTypeCode;
@@ -435,7 +438,6 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
                           // DisplayConfig varsa onun sütunlarını kullan
                           columns.map((column, colIndex) => {
                             let cellValue = '';
-                            
                             // Column type'ına göre değer extract et
                             switch (column.attributeId) {
                               case 'category':
@@ -447,56 +449,108 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
                               case 'createdAt':
                                 cellValue = new Date(itemData.createdAt).toLocaleDateString('tr-TR');
                                 break;
-                              default:
-                                // Diğer attribute'lar için
-                                if (itemData.attributes && itemData.attributes[column.attributeId]) {
-                                  const attr = itemData.attributes[column.attributeId];
-                                  
-                                  // Attribute type'ına göre değer formatla
-                                  if (attr.definition?.type === 'table') {
-                                    // Table tipi için JSON string'i parse et
-                                    try {
-                                      const tableData = typeof attr.value === 'string' ? JSON.parse(attr.value) : attr.value;
-                                      if (Array.isArray(tableData) && tableData.length > 0) {
-                                        // İlk satırın değerlerini göster
-                                        const firstRow = tableData[0];
-                                        cellValue = Object.values(firstRow).join(' x ');
-                                      } else {
-                                        cellValue = 'Boş';
-                                      }
-                                    } catch (e) {
-                                      cellValue = attr.displayValue || attr.value || 'Hata';
-                                    }
-                                  } else if (attr.definition?.type === 'select') {
-                                    // Select tipi için seçilen option'ın name'ini göster
-                                    if (attr.value && attr.definition.options) {
-                                      const selectedOption = attr.definition.options.find((opt: any) => opt._id === attr.value);
-                                      cellValue = selectedOption?.name?.translations?.tr || 
-                                                selectedOption?.name?.translations?.en || 
-                                                selectedOption?.code || 
-                                                attr.displayValue || 
-                                                attr.value || '';
+                              default: {
+                                // Dinamik liste sayfasındaki mantığı uygula
+                                const attr = itemData.attributes?.[column.attributeId];
+                                if (!attr) { cellValue = 'N/A'; break; }
+                                // Referans isimlendirme
+                                if (attr.referencedValue) {
+                                  cellValue = getEntityName(attr.referencedValue, currentLanguage);
+                                  break;
+                                }
+                                // Table özeti
+                                if ((attr.type || attr?.definition?.type) === 'table' && Array.isArray(attr.value)) {
+                                  const rows = attr.value;
+                                  const rowCount = rows.length;
+                                  const columnCount = rows[0]?.length || 0;
+                                  cellValue = `${rowCount} Satır, ${columnCount} Sütun`;
+                                  break;
+                                }
+                                // Select/metin/sayı vb.
+                                const type = attr.type || attr?.definition?.type;
+                                const val = attr.value;
+                                switch (type) {
+                                  case 'boolean':
+                                    cellValue = val ? 'Evet' : 'Hayır';
+                                    break;
+                                  case 'date':
+                                    cellValue = val ? new Date(val).toLocaleDateString('tr-TR') : 'N/A';
+                                    break;
+                                  case 'datetime':
+                                    cellValue = val ? new Date(val).toLocaleString('tr-TR') : 'N/A';
+                                    break;
+                                  case 'number':
+                                  case 'integer':
+                                  case 'decimal':
+                                    cellValue = typeof val === 'number' ? val.toLocaleString('tr-TR') : String(val ?? '');
+                                    break;
+                                  case 'select': {
+                                    const options = attr?.definition?.options;
+                                    if (options && Array.isArray(options)) {
+                                      const selected = options.find((opt: any) => opt?._id === val || opt?.code === val);
+                                      const name = selected?.name?.translations?.[currentLanguage] || selected?.name?.translations?.tr || selected?.name?.translations?.en;
+                                      cellValue = name || selected?.code || String(val ?? '');
                                     } else {
-                                      cellValue = attr.displayValue || attr.value || '';
+                                      cellValue = String(val ?? '');
                                     }
-                                  } else {
-                                    // Diğer tipler için normal değer
-                                    cellValue = attr.displayValue || attr.value || '';
+                                    break;
                                   }
+                                  case 'multiselect': {
+                                    if (Array.isArray(val)) {
+                                      const options = attr?.definition?.options;
+                                      if (options && Array.isArray(options)) {
+                                        const names = val.map((v: any) => {
+                                          const opt = options.find((o: any) => o?._id === v || o?.code === v);
+                                          return opt?.name?.translations?.[currentLanguage] || opt?.name?.translations?.tr || opt?.name?.translations?.en || opt?.code || String(v);
+                                        });
+                                        cellValue = names.join(', ');
+                                      } else {
+                                        cellValue = val.join(', ');
+                                      }
+                                    } else {
+                                      cellValue = String(val ?? '');
+                                    }
+                                    break;
+                                  }
+                                  default:
+                                    cellValue = attr.displayValue || String(val ?? '');
                                 }
                                 break;
+                              }
                             }
-                            
+
                             return (
-                              <td 
-                                key={colIndex} 
+                              <td
+                                key={colIndex}
                                 className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100"
                                 style={{ width: column.width || 'auto' }}
                               >
-                                {column.formatType === 'date' && cellValue ? 
-                                  new Date(cellValue).toLocaleDateString('tr-TR') : 
-                                  cellValue || 'N/A'
-                                }
+                                {/* AttributeDisplay kullanımı: AttributeDisplay, detail/form için tasarlandı. 
+                                    Burada sadece display modunda küçük bir kapsayıcıyla render ediyoruz. */}
+                                {(() => {
+                                  const attr = itemData.attributes?.[column.attributeId];
+                                  if (attr) {
+                                    return (
+                                      <div className="max-w-[420px] truncate">
+                                        <AttributeDisplay
+                                          attribute={{
+                                            _id: attr._id,
+                                            name: attr.definition?.name || attr.name,
+                                            code: attr.definition?.code || attr.code,
+                                            type: attr.definition?.type || attr.type,
+                                            options: attr.definition?.options || attr.options,
+                                            validations: attr.definition?.validations || attr.validations,
+                                            isRequired: false
+                                          }}
+                                          value={attr.value}
+                                          isEditing={false}
+                                        />
+                                      </div>
+                                    );
+                                  }
+                                  // Default plain text fallback
+                                  return cellValue || 'N/A';
+                                })()}
                               </td>
                             );
                           })

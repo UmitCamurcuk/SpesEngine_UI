@@ -1,4 +1,5 @@
 import React from 'react';
+import Avatar from './Avatar';
 
 interface User {
   _id?: string;
@@ -113,9 +114,11 @@ const UserDisplay: React.FC<UserDisplayProps> = ({
   return (
     <div className={`${getTextSize()} ${className}`}>
       <div className="flex items-center space-x-2">
-        <div className={`${getContainerSize()} ${variantStyles.container} rounded-full flex items-center justify-center`}>
-          {variantStyles.svg}
-        </div>
+        <Avatar
+          user={user}
+          size={size === 'sm' ? 'sm' : size === 'lg' ? 'lg' : 'md'}
+          className={getContainerSize()}
+        />
         <div className="flex-1 min-w-0">
           <div className="font-medium text-gray-900 dark:text-gray-100 truncate">
             {getUserDisplayName()}

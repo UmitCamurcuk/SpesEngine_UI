@@ -1,4 +1,5 @@
 import React from 'react';
+import Avatar from './Avatar';
 
 interface User {
   _id: string;
@@ -6,6 +7,7 @@ interface User {
   lastName?: string;
   name?: string;
   email?: string;
+  avatar?: string;
 }
 
 interface UserInfoCellProps {
@@ -44,9 +46,11 @@ const UserInfoCell: React.FC<UserInfoCellProps> = ({ user, date, type }) => {
     return (
       <div className="text-sm">
         <div className="flex items-center space-x-2">
-          <div className={`w-8 h-8 ${getBgColor()} rounded-full flex items-center justify-center`}>
-            {getIcon()}
-          </div>
+          <Avatar
+            user={userObj}
+            size="sm"
+            className="w-8 h-8"
+          />
           <div className="flex-1 min-w-0">
             <div className="font-medium text-gray-900 dark:text-gray-100 truncate">
               {userObj.firstName && userObj.lastName 
@@ -75,9 +79,11 @@ const UserInfoCell: React.FC<UserInfoCellProps> = ({ user, date, type }) => {
     return (
       <div className="text-sm">
         <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
-            {getIcon()}
-          </div>
+          <Avatar
+            user={{ name: user }}
+            size="sm"
+            className="w-8 h-8"
+          />
           <div className="flex-1 min-w-0">
             <div className="font-medium text-gray-900 dark:text-gray-100">
               {user}

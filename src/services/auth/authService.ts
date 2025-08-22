@@ -122,7 +122,10 @@ const authService = {
 
   // Profil güncelle
   updateProfile: async (profileData: any) => {
+    console.log('Profile update request:', profileData);
+    console.log('API URL:', '/auth/profile');
     const response = await api.put('/auth/profile', profileData);
+    console.log('Profile update response:', response.data);
     return response.data;
   },
 

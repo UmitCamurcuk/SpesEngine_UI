@@ -14,4 +14,5 @@ export { default as StatisticsTab } from './StatisticsTab';
 export { default as TranslationFields } from './TranslationFields';
 export { default as UsersTab } from './UsersTab';
 export { default as SystemPermissionsTab } from './SystemPermissionsTab';
-export { default as UserDisplay } from './UserDisplay'; 
+export { default as UserDisplay } from './UserDisplay';
+export { default as Avatar } from './Avatar'; 

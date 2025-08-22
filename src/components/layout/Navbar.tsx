@@ -6,6 +6,7 @@ import systemSettingsService from '../../services/api/systemSettingsService';
 import itemTypeService from '../../services/api/itemTypeService';
 import { getEntityName } from '../../utils/translationUtils';
 import type { ItemType } from '../../types/itemType';
+import Avatar from '../common/Avatar';
 
 interface NavbarProps {
   toggleSidebar: () => void;
@@ -161,9 +162,11 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
               onClick={toggleUserMenu}
             >
               <span className="sr-only">{t('open_user_menu', 'nav')}</span>
-              <div className="w-8 h-8 rounded-full flex items-center justify-center bg-primary-light dark:bg-primary-dark text-white">
-                {user?.firstName?.charAt(0) || 'U'}
-              </div>
+              <Avatar
+                user={user}
+                size="sm"
+                className="w-8 h-8"
+              />
             </button>
 
             {/* Dropdown Menu */}

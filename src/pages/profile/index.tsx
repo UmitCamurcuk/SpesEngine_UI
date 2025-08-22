@@ -7,6 +7,7 @@ import Card from '../../components/ui/Card';
 import ListPageLayout from '../../components/layout/ListPageLayout';
 import authService from '../../services/auth/authService';
 import { updateProfile } from '../../redux/features/auth/authSlice';
+import Avatar from '../../components/common/Avatar';
 
 interface ProfileFormData {
   firstName: string;
@@ -142,6 +143,13 @@ const ProfilePage: React.FC = () => {
     }
   };
 
+  const getDisplayName = () => {
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    return user?.name || user?.email || 'Kullanıcı';
+  };
+
   const handleCancel = () => {
     setFormData({
       firstName: user?.firstName || '',
@@ -173,22 +181,7 @@ const ProfilePage: React.FC = () => {
     setIsEditing(false);
   };
 
-  const getDisplayName = () => {
-    if (user?.firstName && user?.lastName) {
-      return `${user.firstName} ${user.lastName}`;
-    }
-    return user?.name || user?.email || 'Kullanıcı';
-  };
 
-  const getInitials = () => {
-    const name = getDisplayName();
-    return name
-      .split(' ')
-      .map(word => word.charAt(0))
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
 
   return (
     <ListPageLayout
@@ -209,33 +202,31 @@ const ProfilePage: React.FC = () => {
           <Card>
             <div className="text-center">
               {/* Avatar */}
-              <div className="relative inline-block mb-6">
-                <div className="w-32 h-32 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-3xl font-bold">
-                  {avatarPreview ? (
-                    <img 
-                      src={avatarPreview} 
-                      alt="Avatar" 
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    getInitials()
-                  )}
-                </div>
-                
-                {isEditing && (
-                  <label className="absolute bottom-0 right-0 bg-white dark:bg-gray-800 rounded-full p-2 shadow-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={handleAvatarChange}
-                    />
-                  </label>
-                )}
+              <div className="mb-6">
+                <Avatar
+                  user={{
+                    avatar: avatarPreview || user?.avatar,
+                    firstName: user?.firstName,
+                    lastName: user?.lastName,
+                    name: user?.name,
+                    email: user?.email
+                  }}
+                  size="2xl"
+                  showEditButton={isEditing}
+                  editable={isEditing}
+                  onEditClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.onchange = (e) => {
+                      const target = e.target as HTMLInputElement;
+                      if (target.files?.[0]) {
+                        handleAvatarChange({ target } as React.ChangeEvent<HTMLInputElement>);
+                      }
+                    };
+                    input.click();
+                  }}
+                />
               </div>
 
               {/* Kullanıcı Adı */}

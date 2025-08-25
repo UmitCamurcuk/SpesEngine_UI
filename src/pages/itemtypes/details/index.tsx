@@ -1973,3 +1973,4 @@ const ItemTypeDetailsPage: React.FC = () => {
 };
 
 export default ItemTypeDetailsPage; 
+

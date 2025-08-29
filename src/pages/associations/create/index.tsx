@@ -96,14 +96,48 @@ const CreateAssociationPage: React.FC = () => {
   const buildCategoryTree = useMemo((): CascadeTreeNode[] => {
     if (!categories.length) return [];
 
-    // Sadece kategorileri tree yapısına dönüştür
-    const treeNodes: CascadeTreeNode[] = categories.map(category => ({
-      id: category._id,
-      name: getEntityName(category, currentLanguage),
-      label: `📁 ${getEntityName(category, currentLanguage)}`,
-      data: category,
-      children: []
-    }));
+    // Debug: Kategorilerin nasıl geldiğini kontrol et
+    console.log('Categories data:', categories);
+    console.log('Current language:', currentLanguage);
+
+    // Recursive function to build tree with subcategories and families
+    const buildTreeRecursive = (category: any): CascadeTreeNode => {
+      const categoryName = getEntityName(category, currentLanguage) || category.code;
+      console.log('Category:', category.code, 'Name:', categoryName, 'Raw name:', category.name);
+      
+      const node: CascadeTreeNode = {
+        id: category._id,
+        name: categoryName,
+        label: `📁 ${categoryName}`,
+        data: category,
+        children: []
+      };
+
+      // Add subcategories as children
+      if (category.subCategories && Array.isArray(category.subCategories)) {
+        node.children = category.subCategories.map((subCat: any) => buildTreeRecursive(subCat));
+      }
+
+      // Add families as leaf nodes if no subcategories
+      if ((!category.subCategories || category.subCategories.length === 0) && 
+          category.families && Array.isArray(category.families) && category.families.length > 0) {
+        node.children = category.families.map((family: any) => {
+          const familyName = getEntityName(family, currentLanguage);
+          return {
+            id: `family_${family._id}`,
+            name: familyName || family.code, // Localization'dan isim al, yoksa code kullan
+            label: `📄 ${familyName || family.code}`,
+            data: { ...family, type: 'family' },
+            children: []
+          };
+        });
+      }
+
+      return node;
+    };
+
+    // Build tree for each root category
+    const treeNodes: CascadeTreeNode[] = categories.map(category => buildTreeRecursive(category));
 
     return treeNodes;
   }, [categories, currentLanguage]);
@@ -152,14 +186,14 @@ const CreateAssociationPage: React.FC = () => {
     try {
       setIsLoadingCategoriesAndFamilies(true);
       
-      // Get unique categories for all selected itemTypes
+      // Get categories for all selected itemTypes
       const categoriesPromises = selectedItemTypes.map(itemTypeId => 
         categoryService.getCategoriesByItemType(itemTypeId)
       );
       
       const categoriesResults = await Promise.all(categoriesPromises);
       
-      // Flatten and deduplicate categories
+      // Extract categories from the new API response structure
       const allCategories = categoriesResults.flat();
       const uniqueCategories = allCategories.filter((category, index, self) => 
         index === self.findIndex(c => c._id === category._id)
@@ -167,24 +201,20 @@ const CreateAssociationPage: React.FC = () => {
       
       setCategories(uniqueCategories);
       
-      // Get families for all unique categories
-      if (uniqueCategories.length > 0) {
-        const familiesPromises = uniqueCategories.map(category => 
-          familyService.getFamiliesByCategory(category._id)
-        );
-        
-        const familiesResults = await Promise.all(familiesPromises);
-        
-        // Flatten and deduplicate families
-        const allFamilies = familiesResults.flat();
-        const uniqueFamilies = allFamilies.filter((family, index, self) => 
-          index === self.findIndex(f => f._id === family._id)
-        );
-        
-        setFamilies(uniqueFamilies);
-      } else {
-        setFamilies([]);
-      }
+      // Extract families from categories (they're now included in the category response)
+      const allFamilies: any[] = [];
+      uniqueCategories.forEach(category => {
+        if (category.families && Array.isArray(category.families)) {
+          allFamilies.push(...category.families);
+        }
+      });
+      
+      // Deduplicate families
+      const uniqueFamilies = allFamilies.filter((family, index, self) => 
+        index === self.findIndex(f => f._id === family._id)
+      );
+      
+      setFamilies(uniqueFamilies);
       
     } catch (error) {
       console.error('Categories and families loading error:', error);
@@ -669,15 +699,24 @@ const CreateAssociationPage: React.FC = () => {
                   <div>
                     <CascadeTreeSelector
                       data={buildCategoryTree}
-                      headerTitle="İzin Verilen Hedef Kategoriler"
-                      placeholder="Kategori seçin"
-                      mode="category-only"
-                      onSelectionChange={(selectedCategoryIds) => {
+                      headerTitle="İzin Verilen Hedef Kategoriler ve Aileler"
+                      placeholder="Kategori ve aile seçin"
+                      mode="unified"
+                      onCategorySelectionChange={(selectedCategoryIds) => {
                         setFormData(prev => ({
                           ...prev,
                           filterCriteria: {
                             ...prev.filterCriteria,
                             allowedTargetCategories: selectedCategoryIds
+                          }
+                        }));
+                      }}
+                      onFamilySelectionChange={(selectedFamilyIds) => {
+                        setFormData(prev => ({
+                          ...prev,
+                          filterCriteria: {
+                            ...prev.filterCriteria,
+                            allowedTargetFamilies: selectedFamilyIds
                           }
                         }));
                       }}
@@ -805,15 +844,24 @@ const CreateAssociationPage: React.FC = () => {
                     <div>
                       <CascadeTreeSelector
                         data={buildCategoryTree}
-                        headerTitle="İzin Verilen Kaynak Kategoriler"
-                        placeholder="Kategori seçin"
-                        mode="category-only"
-                        onSelectionChange={(selectedCategoryIds) => {
+                        headerTitle="İzin Verilen Kaynak Kategoriler ve Aileler"
+                        placeholder="Kategori ve aile seçin"
+                        mode="unified"
+                        onCategorySelectionChange={(selectedCategoryIds) => {
                           setFormData(prev => ({
                             ...prev,
                             filterCriteria: {
                               ...prev.filterCriteria,
                               allowedSourceCategories: selectedCategoryIds
+                            }
+                          }));
+                        }}
+                        onFamilySelectionChange={(selectedFamilyIds) => {
+                          setFormData(prev => ({
+                            ...prev,
+                            filterCriteria: {
+                              ...prev.filterCriteria,
+                              allowedSourceFamilies: selectedFamilyIds
                             }
                           }));
                         }}
@@ -855,10 +903,12 @@ const CreateAssociationPage: React.FC = () => {
                 <h5 className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-2">📋 Filter Özeti</h5>
                                     <div className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
                       <p><strong>Hedef Kategoriler:</strong> {formData.filterCriteria.allowedTargetCategories.length} seçili</p>
+                      <p><strong>Hedef Aileler:</strong> {formData.filterCriteria.allowedTargetFamilies.length} seçili</p>
                       <p><strong>Hedef Attribute Filtreleri:</strong> {formData.filterCriteria.targetAttributeFilters.length} tanımlı</p>
                       {!formData.isDirectional && (
                         <>
                           <p><strong>Kaynak Kategoriler:</strong> {formData.filterCriteria.allowedSourceCategories.length} seçili</p>
+                          <p><strong>Kaynak Aileler:</strong> {formData.filterCriteria.allowedSourceFamilies.length} seçili</p>
                         </>
                       )}
                     </div>

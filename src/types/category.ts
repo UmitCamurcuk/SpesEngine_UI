@@ -21,6 +21,8 @@ export interface Category {
   parentId?: string | null; // Üst kategori ID'si
   attributes?: string[];
   attributeGroups?: string[];
+  families?: any[]; // API'den gelen families array'i
+  subCategories?: Category[]; // Alt kategoriler
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

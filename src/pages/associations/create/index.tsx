@@ -6,6 +6,8 @@ import Breadcrumb from '../../../components/common/Breadcrumb';
 import Stepper from '../../../components/ui/Stepper';
 import associationService from '../../../services/api/associationService';
 import itemTypeService from '../../../services/api/itemTypeService';
+import categoryService from '../../../services/api/categoryService';
+import familyService from '../../../services/api/familyService';
 import { IAssociation } from '../../../types/association';
 import { useTranslation } from '../../../context/i18nContext';
 import { getEntityName } from '../../../utils/translationUtils';
@@ -29,7 +31,28 @@ interface Step3FormData {
   association: 'one-to-one' | 'one-to-many' | 'many-to-one' | 'many-to-many';
 }
 
-interface FormData extends Step1FormData, Step2FormData, Step3FormData {
+interface Step4FormData {
+  filterCriteria: {
+    allowedTargetCategories: string[];
+    allowedTargetFamilies: string[];
+    allowedSourceCategories: string[];
+    allowedSourceFamilies: string[];
+    targetAttributeFilters: {
+      attributeCode: string;
+      operator: 'equals' | 'contains' | 'in' | 'range' | 'exists';
+      value: any;
+      description?: string;
+    }[];
+    sourceAttributeFilters: {
+      attributeCode: string;
+      operator: 'equals' | 'contains' | 'in' | 'range' | 'exists';
+      value: any;
+      description?: string;
+    }[];
+  };
+}
+
+interface FormData extends Step1FormData, Step2FormData, Step3FormData, Step4FormData {
   metadata: Record<string, any>;
 }
 
@@ -41,6 +64,14 @@ const initialFormData: FormData = {
   allowedSourceTypes: [],
   allowedTargetTypes: [],
   association: 'one-to-many',
+  filterCriteria: {
+    allowedTargetCategories: [],
+    allowedTargetFamilies: [],
+    allowedSourceCategories: [],
+    allowedSourceFamilies: [],
+    targetAttributeFilters: [],
+    sourceAttributeFilters: []
+  },
   metadata: {}
 };
 
@@ -66,9 +97,11 @@ const CreateAssociationPage: React.FC = () => {
   
   // ItemTypes for source and target selection
   const [itemTypes, setItemTypes] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [families, setFamilies] = useState<any[]>([]);
   
   // Loading states
-  const [isLoadingItemTypes, setIsLoadingItemTypes] = useState<boolean>(true);
+  const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -78,28 +111,35 @@ const CreateAssociationPage: React.FC = () => {
     { title: t('general_info'), description: t('name_code_description') },
     { title: t('directionality'), description: t('relationship_direction') },
     { title: t('relationship_type_and_types'), description: t('relationship_type_and_types_short') },
+    { title: 'Filter Criteria', description: 'Kategori ve aile filtreleri' },
     { title: t('preview'), description: t('check_information') },
   ], [t]);
   
-  // Load ItemTypes for dropdown
+  // Load data for dropdowns
   useEffect(() => {
-    loadItemTypes();
+    loadData();
   }, []);
 
-  const loadItemTypes = async () => {
+  const loadData = async () => {
     try {
-      setIsLoadingItemTypes(true);
-      const response = await itemTypeService.getItemTypes();
-      setItemTypes(response.itemTypes || response);
+      setIsLoadingData(true);
+      const [itemTypesRes, categoriesRes, familiesRes] = await Promise.all([
+        itemTypeService.getItemTypes(),
+        categoryService.getCategories({ limit: 1000 }),
+        familyService.getFamilies({ limit: 1000 })
+      ]);
+      setItemTypes(itemTypesRes.itemTypes || itemTypesRes);
+      setCategories(categoriesRes.categories || categoriesRes);
+      setFamilies(familiesRes.families || familiesRes);
     } catch (error) {
-      console.error('ItemType\'lar yüklenirken hata:', error);
+      console.error('Data loading error:', error);
       showToast({
         title: 'Hata!',
-        message: 'Öğe tipleri yüklenirken hata oluştu',
+        message: 'Veriler yüklenirken hata oluştu',
         type: 'error'
       });
     } finally {
-      setIsLoadingItemTypes(false);
+      setIsLoadingData(false);
     }
   };
 
@@ -109,7 +149,6 @@ const CreateAssociationPage: React.FC = () => {
 
     switch (step) {
       case 0: // General info
-        // En az bir dilde isim olmalı
         const hasName = Object.values(translationData.nameTranslations).some(name => name.trim());
         if (!hasName) {
           errors.nameTranslations = 'En az bir dilde isim gereklidir';
@@ -133,6 +172,9 @@ const CreateAssociationPage: React.FC = () => {
         if (formData.allowedTargetTypes.length === 0) {
           errors.allowedTargetTypes = 'En az bir hedef tip seçmelisiniz';
         }
+        break;
+      case 3: // Filter criteria
+        // Optional step, no required validation
         break;
     }
     
@@ -174,8 +216,6 @@ const CreateAssociationPage: React.FC = () => {
     setCurrentStep(prev => Math.max(prev - 1, 0));
   };
 
-
-
   // Submit
   const handleSubmit = async () => {
     if (!validateStep(currentStep)) return;
@@ -195,36 +235,24 @@ const CreateAssociationPage: React.FC = () => {
         association: formData.association,
         allowedSourceTypes: formData.allowedSourceTypes,
         allowedTargetTypes: formData.allowedTargetTypes,
+        filterCriteria: formData.filterCriteria, // YENİ: Filter criteria eklendi
         metadata: formData.metadata
       };
 
-      console.log('🔍 Association Data:', {
-        allowedSourceTypes: formData.allowedSourceTypes,
-        allowedTargetTypes: formData.allowedTargetTypes,
-        itemTypes: itemTypes.map(it => ({ id: it._id, code: it.code }))
-      });
-
-      // ID'leri kontrol et
-      const sourceItemTypes = itemTypes.filter(it => formData.allowedSourceTypes.includes(it._id));
-      const targetItemTypes = itemTypes.filter(it => formData.allowedTargetTypes.includes(it._id));
-      
-      console.log('🔍 Selected Source Types:', sourceItemTypes.map(it => ({ id: it._id, code: it.code })));
-      console.log('🔍 Selected Target Types:', targetItemTypes.map(it => ({ id: it._id, code: it.code })));
-
-      console.log('🔍 API Request Data:', JSON.stringify(associationData, null, 2));
+      console.log('🔍 Association Data with Filter Criteria:', JSON.stringify(associationData, null, 2));
 
       await associationService.createAssociation(associationData);
       
       showToast({
         title: 'Başarılı!',
-        message: 'İlişki tipi başarıyla oluşturuldu',
+        message: 'Association başarıyla oluşturuldu',
         type: 'success'
       });
       
       navigate('/associations');
     } catch (error: any) {
-      console.error('İlişki tipi oluşturulurken hata:', error);
-      setError(error.response?.data?.message || error.message || 'İlişki tipi oluşturulurken hata oluştu');
+      console.error('Association oluşturulurken hata:', error);
+      setError(error.response?.data?.message || error.message || 'Association oluşturulurken hata oluştu');
     } finally {
       setIsSubmitting(false);
     }
@@ -234,7 +262,7 @@ const CreateAssociationPage: React.FC = () => {
   const renderStepContent = () => {
     switch (currentStep) {
       case 0:
-          return (
+        return (
           <div className="space-y-6">
             <div className="text-center">
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">{t('general_info')}</h3>
@@ -256,17 +284,17 @@ const CreateAssociationPage: React.FC = () => {
               />
             
               <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   {t('code')} *
                 </label>
-              <input
-                type="text"
-                value={formData.code}
+                <input
+                  type="text"
+                  value={formData.code}
                   onChange={(e) => handleInputChange('code', e.target.value)}
                   className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
                     formErrors.code ? 'border-red-500' : 'border-gray-300'
                   }`}
-                                    placeholder={t('unique_code')}
+                  placeholder={t('unique_code')}
                 />
                 {formErrors.code && (
                   <p className="mt-1 text-sm text-red-600">{formErrors.code}</p>
@@ -274,7 +302,7 @@ const CreateAssociationPage: React.FC = () => {
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                   {t('code_validation_message')}
                 </p>
-            </div>
+              </div>
             
               {/* DESCRIPTION TRANSLATIONS */}
               <TranslationFields
@@ -317,9 +345,9 @@ const CreateAssociationPage: React.FC = () => {
                         </svg>
                       </div>
                     </div>
-                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">{t('directional_relationship')}</h4>
+                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Yönlü İlişki (ÖNERİLEN)</h4>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {t('directional_relationship_description')}
+                      Sipariş → Stok gibi tek yönlü ilişkiler için. Sadece source item'dan target seçilebilir.
                     </p>
                   </div>
                 </div>
@@ -340,9 +368,9 @@ const CreateAssociationPage: React.FC = () => {
                         </svg>
                       </div>
                     </div>
-                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">{t('bidirectional_relationship')}</h4>
+                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Çift Yönlü İlişki</h4>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {t('bidirectional_relationship_description')}
+                      Her iki taraftan da seçim yapılabilir. Nadiren kullanılır.
                     </p>
                   </div>
                 </div>
@@ -537,7 +565,331 @@ const CreateAssociationPage: React.FC = () => {
           </div>
         );
 
-      case 3:
+      case 3: // YENİ: Filter Criteria Step
+        return (
+          <div className="space-y-8">
+            <div className="text-center">
+              <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+                🎯 Filter Criteria
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+                <strong>Hedef item'ları filtrelemek için</strong> kategori, aile ve attribute filtrelerini tanımlayın.<br/>
+                <span className="text-sm">Örnek: Sipariş oluştururken sadece "kumaş" kategorisindeki stokları seçebilmek için.</span>
+              </p>
+            </div>
+
+            <div className="max-w-5xl mx-auto space-y-6">
+              {/* Target Filters */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                  <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                  Hedef (Target) Filtreleri
+                </h4>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Target Categories */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      İzin Verilen Hedef Kategoriler
+                    </label>
+                    <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 space-y-2">
+                      {categories.map((category) => (
+                        <div key={category._id} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id={`target-cat-${category._id}`}
+                            checked={formData.filterCriteria.allowedTargetCategories.includes(category._id)}
+                            onChange={(e) => {
+                              const current = formData.filterCriteria.allowedTargetCategories;
+                              const newCategories = e.target.checked
+                                ? [...current, category._id]
+                                : current.filter(id => id !== category._id);
+                              setFormData(prev => ({
+                                ...prev,
+                                filterCriteria: {
+                                  ...prev.filterCriteria,
+                                  allowedTargetCategories: newCategories
+                                }
+                              }));
+                            }}
+                            className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                          />
+                          <label htmlFor={`target-cat-${category._id}`} className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                            {getEntityName(category, currentLanguage)}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Target Families */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      İzin Verilen Hedef Aileler
+                    </label>
+                    <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 space-y-2">
+                      {families.map((family) => (
+                        <div key={family._id} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id={`target-fam-${family._id}`}
+                            checked={formData.filterCriteria.allowedTargetFamilies.includes(family._id)}
+                            onChange={(e) => {
+                              const current = formData.filterCriteria.allowedTargetFamilies;
+                              const newFamilies = e.target.checked
+                                ? [...current, family._id]
+                                : current.filter(id => id !== family._id);
+                              setFormData(prev => ({
+                                ...prev,
+                                filterCriteria: {
+                                  ...prev.filterCriteria,
+                                  allowedTargetFamilies: newFamilies
+                                }
+                              }));
+                            }}
+                            className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                          />
+                          <label htmlFor={`target-fam-${family._id}`} className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                            {getEntityName(family, currentLanguage)}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Target Attribute Filters */}
+                <div className="mt-6">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Hedef Attribute Filtreleri
+                  </label>
+                  <div className="space-y-3">
+                    {formData.filterCriteria.targetAttributeFilters.map((filter, index) => (
+                      <div key={index} className="flex items-center space-x-2 p-3 border border-gray-200 rounded-md bg-gray-50 dark:bg-gray-700">
+                        <input
+                          type="text"
+                          value={filter.attributeCode}
+                          onChange={(e) => {
+                            const newFilters = [...formData.filterCriteria.targetAttributeFilters];
+                            newFilters[index] = { ...filter, attributeCode: e.target.value };
+                            setFormData(prev => ({
+                              ...prev,
+                              filterCriteria: {
+                                ...prev.filterCriteria,
+                                targetAttributeFilters: newFilters
+                              }
+                            }));
+                          }}
+                          placeholder="Attribute Code (ör: stok_durumu)"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        />
+                        <select
+                          value={filter.operator}
+                          onChange={(e) => {
+                            const newFilters = [...formData.filterCriteria.targetAttributeFilters];
+                            newFilters[index] = { ...filter, operator: e.target.value as any };
+                            setFormData(prev => ({
+                              ...prev,
+                              filterCriteria: {
+                                ...prev.filterCriteria,
+                                targetAttributeFilters: newFilters
+                              }
+                            }));
+                          }}
+                          className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        >
+                          <option value="equals">Equals</option>
+                          <option value="contains">Contains</option>
+                          <option value="in">In</option>
+                          <option value="exists">Exists</option>
+                        </select>
+                        <input
+                          type="text"
+                          value={filter.value}
+                          onChange={(e) => {
+                            const newFilters = [...formData.filterCriteria.targetAttributeFilters];
+                            newFilters[index] = { ...filter, value: e.target.value };
+                            setFormData(prev => ({
+                              ...prev,
+                              filterCriteria: {
+                                ...prev.filterCriteria,
+                                targetAttributeFilters: newFilters
+                              }
+                            }));
+                          }}
+                          placeholder="Value (ör: mevcut)"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const newFilters = formData.filterCriteria.targetAttributeFilters.filter((_, i) => i !== index);
+                            setFormData(prev => ({
+                              ...prev,
+                              filterCriteria: {
+                                ...prev.filterCriteria,
+                                targetAttributeFilters: newFilters
+                              }
+                            }));
+                          }}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          Sil
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newFilter = { attributeCode: '', operator: 'equals' as const, value: '' };
+                        setFormData(prev => ({
+                          ...prev,
+                          filterCriteria: {
+                            ...prev.filterCriteria,
+                            targetAttributeFilters: [...prev.filterCriteria.targetAttributeFilters, newFilter]
+                          }
+                        }));
+                      }}
+                      className="text-blue-600 hover:text-blue-700"
+                    >
+                      + Attribute Filter Ekle
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Source Filters - Sadece Bidirectional için */}
+              {!formData.isDirectional && (
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                    <svg className="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    Kaynak (Source) Filtreleri
+                  </h4>
+                  
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Source Categories */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        İzin Verilen Kaynak Kategoriler
+                      </label>
+                      <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 space-y-2">
+                        {categories.map((category) => (
+                          <div key={category._id} className="flex items-center">
+                            <input
+                              type="checkbox"
+                              id={`source-cat-${category._id}`}
+                              checked={formData.filterCriteria.allowedSourceCategories.includes(category._id)}
+                              onChange={(e) => {
+                                const current = formData.filterCriteria.allowedSourceCategories;
+                                const newCategories = e.target.checked
+                                  ? [...current, category._id]
+                                  : current.filter(id => id !== category._id);
+                                setFormData(prev => ({
+                                  ...prev,
+                                  filterCriteria: {
+                                    ...prev.filterCriteria,
+                                    allowedSourceCategories: newCategories
+                                  }
+                                }));
+                              }}
+                              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                            />
+                            <label htmlFor={`source-cat-${category._id}`} className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                              {getEntityName(category, currentLanguage)}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Source Families */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        İzin Verilen Kaynak Aileler
+                      </label>
+                      <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 space-y-2">
+                        {families.map((family) => (
+                          <div key={family._id} className="flex items-center">
+                            <input
+                              type="checkbox"
+                              id={`source-fam-${family._id}`}
+                              checked={formData.filterCriteria.allowedSourceFamilies.includes(family._id)}
+                              onChange={(e) => {
+                                const current = formData.filterCriteria.allowedSourceFamilies;
+                                const newFamilies = e.target.checked
+                                  ? [...current, family._id]
+                                  : current.filter(id => id !== family._id);
+                                setFormData(prev => ({
+                                  ...prev,
+                                  filterCriteria: {
+                                    ...prev.filterCriteria,
+                                    allowedSourceFamilies: newFamilies
+                                  }
+                                }));
+                              }}
+                              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                            />
+                            <label htmlFor={`source-fam-${family._id}`} className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                              {getEntityName(family, currentLanguage)}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Açıklama */}
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                <h5 className="text-sm font-medium text-yellow-900 dark:text-yellow-200 mb-2">
+                  💡 {formData.isDirectional ? 'Directional Association Mantığı' : 'Bidirectional Association Mantığı'}
+                </h5>
+                <div className="text-xs text-yellow-700 dark:text-yellow-300 space-y-1">
+                  {formData.isDirectional ? (
+                    <>
+                      <p><strong>Örnek:</strong> Sipariş → Stok (Yönlü ilişki)</p>
+                      <p>• Sipariş oluştururken: Stok seçebilirsiniz</p>
+                      <p>• Stok oluştururken: Sipariş seçemezsiniz</p>
+                      <p><strong>Bu nedenle sadece TARGET filtreleri önemlidir.</strong></p>
+                    </>
+                  ) : (
+                    <>
+                      <p><strong>Örnek:</strong> Sipariş ↔ Stok (Çift yönlü ilişki)</p>
+                      <p>• Sipariş oluştururken: Stok seçebilirsiniz</p>
+                      <p>• Stok oluştururken: Sipariş seçebilirsiniz</p>
+                      <p><strong>Bu durumda hem SOURCE hem TARGET filtreleri kullanılabilir.</strong></p>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Filter Preview */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <h5 className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-2">📋 Filter Özeti</h5>
+                <div className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
+                  <p><strong>Hedef Kategoriler:</strong> {formData.filterCriteria.allowedTargetCategories.length} seçili</p>
+                  <p><strong>Hedef Aileler:</strong> {formData.filterCriteria.allowedTargetFamilies.length} seçili</p>
+                  <p><strong>Hedef Attribute Filtreleri:</strong> {formData.filterCriteria.targetAttributeFilters.length} tanımlı</p>
+                  {!formData.isDirectional && (
+                    <>
+                      <p><strong>Kaynak Kategoriler:</strong> {formData.filterCriteria.allowedSourceCategories.length} seçili</p>
+                      <p><strong>Kaynak Aileler:</strong> {formData.filterCriteria.allowedSourceFamilies.length} seçili</p>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 4: // Preview
         return (
           <div className="space-y-6">
             <div className="text-center">
@@ -568,17 +920,6 @@ const CreateAssociationPage: React.FC = () => {
                         <p className="text-sm text-gray-900 dark:text-white">{formData.code}</p>
                       </div>
                       <div>
-                        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('description')}:</span>
-                        <div className="mt-1">
-                          {Object.entries(translationData.descriptionTranslations).map(([lang, value]) => (
-                            <div key={lang} className="flex items-center space-x-2">
-                              <span className="text-xs font-medium text-gray-400 uppercase">{lang}:</span>
-                              <span className="text-sm text-gray-900 dark:text-white">{value || '-'}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
                         <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('directionality')}:</span>
                         <p className="text-sm text-gray-900 dark:text-white">
                           {formData.isDirectional ? t('directional') : t('bidirectional')}
@@ -596,28 +937,53 @@ const CreateAssociationPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Allowed Types */}
+                  {/* Filter Criteria */}
                   <div>
-                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">{t('allowed_types')}</h4>
+                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">🎯 Filter Criteria</h4>
                     <div className="space-y-4">
                       <div>
-                        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('source_types')}:</span>
+                        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Hedef Kategoriler:</span>
                         <div className="flex flex-wrap gap-1 mt-1">
-                          {formData.allowedSourceTypes.map(type => (
-                            <span key={type} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
-                              {type}
-                            </span>
-                          ))}
+                          {formData.filterCriteria.allowedTargetCategories.map(catId => {
+                            const category = categories.find(c => c._id === catId);
+                            return category ? (
+                              <span key={catId} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
+                                {getEntityName(category, currentLanguage)}
+                              </span>
+                            ) : null;
+                          })}
+                          {formData.filterCriteria.allowedTargetCategories.length === 0 && (
+                            <span className="text-xs text-gray-400">Tümü</span>
+                          )}
                         </div>
                       </div>
                       <div>
-                        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('target_types')}:</span>
+                        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Hedef Aileler:</span>
                         <div className="flex flex-wrap gap-1 mt-1">
-                          {formData.allowedTargetTypes.map(type => (
-                            <span key={type} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">
-                              {type}
-                            </span>
+                          {formData.filterCriteria.allowedTargetFamilies.map(famId => {
+                            const family = families.find(f => f._id === famId);
+                            return family ? (
+                              <span key={famId} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">
+                                {getEntityName(family, currentLanguage)}
+                              </span>
+                            ) : null;
+                          })}
+                          {formData.filterCriteria.allowedTargetFamilies.length === 0 && (
+                            <span className="text-xs text-gray-400">Tümü</span>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Attribute Filtreleri:</span>
+                        <div className="space-y-1 mt-1">
+                          {formData.filterCriteria.targetAttributeFilters.map((filter, index) => (
+                            <div key={index} className="text-xs bg-gray-50 dark:bg-gray-700 p-2 rounded">
+                              <code>{filter.attributeCode} {filter.operator} {filter.value}</code>
+                            </div>
                           ))}
+                          {formData.filterCriteria.targetAttributeFilters.length === 0 && (
+                            <span className="text-xs text-gray-400">Yok</span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -639,27 +1005,27 @@ const CreateAssociationPage: React.FC = () => {
         <div className="space-y-6">
           {/* BREADCRUMB */}
           <div className="flex items-center justify-between">
-                        <Breadcrumb 
+            <Breadcrumb 
               items={[
                 { label: t('home'), path: '/' },
                 { label: t('associations'), path: '/associations' },
                 { label: t('create_new_relationship_type') }
               ]} 
             />
-                </div>
+          </div>
 
           {/* Header */}
           <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
-                <div>
+              <div>
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
                   <svg className="w-6 h-6 mr-2 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                   </svg>
-                  Yeni İlişki Tipi Oluştur
+                  Yeni Association Oluştur
                 </h1>
                 <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                  Varlıklar arasında yeni bir ilişki tipi tanımlayın
+                  Varlıklar arasında yeni bir association tanımlayın ve filter kriterlerini belirleyin
                 </p>
               </div>
               
@@ -689,8 +1055,15 @@ const CreateAssociationPage: React.FC = () => {
             {/* Form Content */}
             <div className="p-6">
               <div className="min-h-[500px]">
-                {renderStepContent()}
-                    </div>
+                {isLoadingData ? (
+                  <div className="flex items-center justify-center h-40">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                    <span className="ml-2 text-gray-600">Veriler yükleniyor...</span>
+                  </div>
+                ) : (
+                  renderStepContent()
+                )}
+              </div>
 
               {error && (
                 <div className="mt-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
@@ -699,7 +1072,7 @@ const CreateAssociationPage: React.FC = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <span className="text-sm text-red-700 dark:text-red-300">{error}</span>
-                    </div>
+                  </div>
                 </div>
               )}
 
@@ -718,21 +1091,21 @@ const CreateAssociationPage: React.FC = () => {
                 </Button>
 
                 <div className="flex space-x-3">
-                              <Button
-              onClick={() => navigate('/associations')}
-              variant="outline"
-            >
-              İptal
-            </Button>
+                  <Button
+                    onClick={() => navigate('/associations')}
+                    variant="outline"
+                  >
+                    İptal
+                  </Button>
 
                   {currentStep < steps.length - 1 ? (
                     <Button
                       onClick={handleNextStep}
-                      disabled={isLoadingItemTypes}
+                      disabled={isLoadingData}
                       className="flex items-center"
                     >
-                      {isLoadingItemTypes ? 'Yükleniyor...' : 'Sonraki'}
-                      {!isLoadingItemTypes && (
+                      {isLoadingData ? 'Yükleniyor...' : 'Sonraki'}
+                      {!isLoadingData && (
                         <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
@@ -757,7 +1130,7 @@ const CreateAssociationPage: React.FC = () => {
                           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
-                          İlişki Tipini Oluştur
+                          Association Oluştur
                         </>
                       )}
                     </Button>
@@ -766,7 +1139,7 @@ const CreateAssociationPage: React.FC = () => {
               </div>
             </div>
           </div>
-      </div>
+        </div>
       </div>
     </div>
   );

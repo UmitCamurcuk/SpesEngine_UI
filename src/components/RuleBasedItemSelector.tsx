@@ -82,7 +82,7 @@ interface AssociationRule {
     attributeFilters?: any[];
   };
   validationRules: any[];
-  uiConfig: any;
+
   isRequired: boolean;
 }
 

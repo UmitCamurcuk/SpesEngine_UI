@@ -64,7 +64,7 @@ interface AssociationRule {
     customQuery?: any;
   };
   validationRules: any[];
-  uiConfig: any;
+
   priority: number;
   isActive: boolean;
   isRequired: boolean;
@@ -214,7 +214,7 @@ const AssociationRuleManager: React.FC<AssociationRuleManagerProps> = ({
         relationshipType: rule.relationshipType,
         filterCriteria: rule.filterCriteria || {},
         validationRules: rule.validationRules || [],
-        uiConfig: rule.uiConfig || {},
+
         priority: rule.priority,
         isRequired: rule.isRequired,
         cascadeDelete: rule.cascadeDelete,
@@ -231,17 +231,7 @@ const AssociationRuleManager: React.FC<AssociationRuleManagerProps> = ({
         isActive: true,
         filterCriteria: {},
         validationRules: [],
-        uiConfig: {
-          displayMode: 'dropdown',
-          allowMultiSelect: true,
-          showInList: true,
-          showInDetail: true,
-          showSearchBox: true,
-          showFilters: true,
-          pageSize: 10,
-          sortBy: 'name',
-          sortOrder: 'asc'
-        }
+
       });
     }
     setErrors({});

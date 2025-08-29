@@ -7,7 +7,7 @@ export interface IAssociationRule {
   sourceItemTypeName?: string;          // Display name (incoming için)
   association?: 'one-to-one' | 'one-to-many' | 'many-to-one' | 'many-to-many';
   relationshipType?: 'one-to-one' | 'one-to-many' | 'many-to-one' | 'many-to-many';
-  cardinality: {
+  cardinality?: {
     min?: number;                       // Minimum ilişki sayısı
     max?: number;                       // Maximum ilişki sayısı (null = unlimited)
   };
@@ -16,6 +16,14 @@ export interface IAssociationRule {
   displayField?: string;                // Hangi attribute gösterilsin?
   searchableFields?: string[];          // Hangi attribute'larda arama yapılsın?
   filterBy?: Record<string, any>;       // Ek filtreleme kriterleri
+  filterCriteria?: {
+    allowedTargetCategories?: string[];
+    allowedTargetFamilies?: string[];
+    allowedSourceCategories?: string[];
+    allowedSourceFamilies?: string[];
+    targetAttributeFilters?: any[];
+    sourceAttributeFilters?: any[];
+  };
   validationRules?: Record<string, any>; // İlişki validation kuralları
   uiConfig?: {
     showInList?: boolean;               // Liste ekranında göster

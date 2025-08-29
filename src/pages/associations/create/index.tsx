@@ -96,17 +96,12 @@ const CreateAssociationPage: React.FC = () => {
   const buildCategoryTree = useMemo((): CascadeTreeNode[] => {
     if (!categories.length) return [];
 
-    // Debug: Kategorilerin nasıl geldiğini kontrol et
-    console.log('Categories data:', categories);
-    console.log('Current language:', currentLanguage);
-
     // Recursive function to build tree with subcategories and families
     const buildTreeRecursive = (category: any): CascadeTreeNode => {
       const categoryName = getEntityName(category, currentLanguage) || category.code;
-      console.log('Category:', category.code, 'Name:', categoryName, 'Raw name:', category.name);
       
       const node: CascadeTreeNode = {
-        id: category._id,
+        id: `category_${category._id}`,
         name: categoryName,
         label: `📁 ${categoryName}`,
         data: category,

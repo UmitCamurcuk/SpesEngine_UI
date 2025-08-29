@@ -48,11 +48,39 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
         ...rule.filterBy
       };
 
+      // Add association filter criteria if available
+      if (rule.filterCriteria) {
+        // Category filters
+        if (rule.filterCriteria.allowedTargetCategories && rule.filterCriteria.allowedTargetCategories.length > 0) {
+          queryParams.categories = rule.filterCriteria.allowedTargetCategories;
+        }
+        
+        // Family filters
+        if (rule.filterCriteria.allowedTargetFamilies && rule.filterCriteria.allowedTargetFamilies.length > 0) {
+          queryParams.families = rule.filterCriteria.allowedTargetFamilies;
+        }
+        
+        // Source category filters (for incoming associations)
+        if (rule.filterCriteria.allowedSourceCategories && rule.filterCriteria.allowedSourceCategories.length > 0) {
+          queryParams.sourceCategories = rule.filterCriteria.allowedSourceCategories;
+        }
+        
+        // Source family filters (for incoming associations)
+        if (rule.filterCriteria.allowedSourceFamilies && rule.filterCriteria.allowedSourceFamilies.length > 0) {
+          queryParams.sourceFamilies = rule.filterCriteria.allowedSourceFamilies;
+        }
+      }
+
       if (!itemTypeCode) {
         console.error('No itemTypeCode found in rule');
         setAvailableItems([]);
         return;
       }
+      
+      // Debug: Filtreleri kontrol et
+      console.log('AssociationSelector - ItemTypeCode:', itemTypeCode);
+      console.log('AssociationSelector - Rule filterCriteria:', rule.filterCriteria);
+      console.log('AssociationSelector - Query params:', queryParams);
       
       const response = await itemService.getItemsByType(itemTypeCode, queryParams);
       const items = response.items || response.data || response;
@@ -641,7 +669,7 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
         {displayLabel}
         {rule.isRequired && <span className="text-red-500 ml-1">*</span>}
-        {rule.cardinality.max && (
+        {rule.cardinality?.max && (
           <span className="text-xs text-gray-500 ml-2">
             (maks. {rule.cardinality.max})
           </span>
@@ -657,7 +685,7 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
       )}
 
       {/* Help text */}
-      {rule.cardinality.min && rule.cardinality.min > 0 && (
+      {rule.cardinality?.min && rule.cardinality.min > 0 && (
         <p className="text-xs text-gray-500">
           En az {rule.cardinality.min} seçim yapmalısınız
         </p>

@@ -318,7 +318,7 @@ const UnifiedTreeView: React.FC<UnifiedTreeViewProps> = ({
                   Alt
                 </span>
               )}
-              {node.label || node.name}
+              {node.label || (typeof node.name === 'string' ? node.name : 'Bilinmiyor')}
             </span>
             
             {/* Alt kategori sayısı belirteci */}

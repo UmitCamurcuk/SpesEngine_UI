@@ -105,7 +105,9 @@ const FamilyDetailsPage: React.FC = () => {
   const fetchFamilyTree = useCallback(async () => {
     setIsLoadingHierarchy(true);
     try {
-      const response = await familyService.getFamilies();
+      const response = await familyService.getFamilies({
+        limit: 1000
+      });
       const families = response.families || response;
       
       const buildFamilyTree = (parentId: string | null = null): any[] => {
@@ -773,7 +775,6 @@ const FamilyDetailsPage: React.FC = () => {
                     selectionMode="single"
                     onSelectionChange={(selectedIds) => {
                       const newParentId = selectedIds[0] || undefined;
-                      console.log("Seçilen üst aile ID:", newParentId);
                       setEditableFields(prev => ({ ...prev, parent: newParentId }));
                     }}
                     className="shadow-sm"
@@ -787,11 +788,6 @@ const FamilyDetailsPage: React.FC = () => {
                     maxHeight="300px"
                     showRelationLines={true}
                     variant="spectrum"
-                    onNodeClick={(node) => {
-                      if (node.id !== id) {
-                        navigate(`/families/details/${node.id}`);
-                      }
-                    }}
                     className="shadow-sm"
                     key={`family-tree-view-${id}`}
                   />

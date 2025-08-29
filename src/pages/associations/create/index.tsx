@@ -8,11 +8,12 @@ import associationService from '../../../services/api/associationService';
 import itemTypeService from '../../../services/api/itemTypeService';
 import categoryService from '../../../services/api/categoryService';
 import familyService from '../../../services/api/familyService';
-import { IAssociation } from '../../../types/association';
+import { IAssociation, IAssociationFilterCriteria } from '../../../types/association';
 import { useTranslation } from '../../../context/i18nContext';
 import { getEntityName } from '../../../utils/translationUtils';
 import TranslationFields from '../../../components/common/TranslationFields';
 import { useTranslationForm } from '../../../hooks/useTranslationForm';
+import CascadeTreeSelector, { CascadeTreeNode } from '../../../components/CascadeTreeSelector';
 
 // Form data interfaces
 interface Step1FormData {
@@ -32,24 +33,7 @@ interface Step3FormData {
 }
 
 interface Step4FormData {
-  filterCriteria: {
-    allowedTargetCategories: string[];
-    allowedTargetFamilies: string[];
-    allowedSourceCategories: string[];
-    allowedSourceFamilies: string[];
-    targetAttributeFilters: {
-      attributeCode: string;
-      operator: 'equals' | 'contains' | 'in' | 'range' | 'exists';
-      value: any;
-      description?: string;
-    }[];
-    sourceAttributeFilters: {
-      attributeCode: string;
-      operator: 'equals' | 'contains' | 'in' | 'range' | 'exists';
-      value: any;
-      description?: string;
-    }[];
-  };
+  filterCriteria: IAssociationFilterCriteria;
 }
 
 interface FormData extends Step1FormData, Step2FormData, Step3FormData, Step4FormData {
@@ -102,9 +86,29 @@ const CreateAssociationPage: React.FC = () => {
   
   // Loading states
   const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
+  const [isLoadingCategoriesAndFamilies, setIsLoadingCategoriesAndFamilies] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // Tree data için utility fonksiyonlar
+
+  const buildCategoryTree = useMemo((): CascadeTreeNode[] => {
+    if (!categories.length) return [];
+
+    // Sadece kategorileri tree yapısına dönüştür
+    const treeNodes: CascadeTreeNode[] = categories.map(category => ({
+      id: category._id,
+      name: getEntityName(category, currentLanguage),
+      label: `📁 ${getEntityName(category, currentLanguage)}`,
+      data: category,
+      children: []
+    }));
+
+    return treeNodes;
+  }, [categories, currentLanguage]);
+
+
 
   // Stepper adımları
   const steps = useMemo(() => [
@@ -123,23 +127,74 @@ const CreateAssociationPage: React.FC = () => {
   const loadData = async () => {
     try {
       setIsLoadingData(true);
-      const [itemTypesRes, categoriesRes, familiesRes] = await Promise.all([
-        itemTypeService.getItemTypes(),
-        categoryService.getCategories({ limit: 1000 }),
-        familyService.getFamilies({ limit: 1000 })
-      ]);
+      const itemTypesRes = await itemTypeService.getItemTypes();
       setItemTypes(itemTypesRes.itemTypes || itemTypesRes);
-      setCategories(categoriesRes.categories || categoriesRes);
-      setFamilies(familiesRes.families || familiesRes);
     } catch (error) {
-      console.error('Data loading error:', error);
+      console.error('ItemTypes loading error:', error);
       showToast({
         title: 'Hata!',
-        message: 'Veriler yüklenirken hata oluştu',
+        message: 'ItemTypes yüklenirken hata oluştu',
         type: 'error'
       });
     } finally {
       setIsLoadingData(false);
+    }
+  };
+
+  // Load categories and families based on selected itemTypes
+  const loadCategoriesAndFamilies = async (selectedItemTypes: string[]) => {
+    if (selectedItemTypes.length === 0) {
+      setCategories([]);
+      setFamilies([]);
+      return;
+    }
+
+    try {
+      setIsLoadingCategoriesAndFamilies(true);
+      
+      // Get unique categories for all selected itemTypes
+      const categoriesPromises = selectedItemTypes.map(itemTypeId => 
+        categoryService.getCategoriesByItemType(itemTypeId)
+      );
+      
+      const categoriesResults = await Promise.all(categoriesPromises);
+      
+      // Flatten and deduplicate categories
+      const allCategories = categoriesResults.flat();
+      const uniqueCategories = allCategories.filter((category, index, self) => 
+        index === self.findIndex(c => c._id === category._id)
+      );
+      
+      setCategories(uniqueCategories);
+      
+      // Get families for all unique categories
+      if (uniqueCategories.length > 0) {
+        const familiesPromises = uniqueCategories.map(category => 
+          familyService.getFamiliesByCategory(category._id)
+        );
+        
+        const familiesResults = await Promise.all(familiesPromises);
+        
+        // Flatten and deduplicate families
+        const allFamilies = familiesResults.flat();
+        const uniqueFamilies = allFamilies.filter((family, index, self) => 
+          index === self.findIndex(f => f._id === family._id)
+        );
+        
+        setFamilies(uniqueFamilies);
+      } else {
+        setFamilies([]);
+      }
+      
+    } catch (error) {
+      console.error('Categories and families loading error:', error);
+      showToast({
+        title: 'Hata!',
+        message: 'Kategoriler ve aileler yüklenirken hata oluştu',
+        type: 'error'
+      });
+    } finally {
+      setIsLoadingCategoriesAndFamilies(false);
     }
   };
 
@@ -204,9 +259,20 @@ const CreateAssociationPage: React.FC = () => {
   };
 
   // Navigation
-  const handleNextStep = () => {
+  const handleNextStep = async () => {
     if (validateStep(currentStep)) {
       const nextStep = currentStep + 1;
+      
+      // Eğer step 2'den step 3'e geçiyorsak (relationship_type_and_types'den Filter Criteria'ya)
+      // seçili itemTypes'lara göre categories ve families'i yükle
+      if (currentStep === 2 && nextStep === 3) {
+        const selectedItemTypes = [
+          ...formData.allowedSourceTypes,
+          ...formData.allowedTargetTypes
+        ];
+        await loadCategoriesAndFamilies(selectedItemTypes);
+      }
+      
       setCurrentStep(nextStep);
       setCompletedSteps(prev => [...new Set([...prev, currentStep])]);
     }
@@ -262,7 +328,7 @@ const CreateAssociationPage: React.FC = () => {
   const renderStepContent = () => {
     switch (currentStep) {
       case 0:
-        return (
+          return (
           <div className="space-y-6">
             <div className="text-center">
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">{t('general_info')}</h3>
@@ -284,17 +350,17 @@ const CreateAssociationPage: React.FC = () => {
               />
             
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   {t('code')} *
                 </label>
-                <input
-                  type="text"
-                  value={formData.code}
+              <input
+                type="text"
+                value={formData.code}
                   onChange={(e) => handleInputChange('code', e.target.value)}
                   className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
                     formErrors.code ? 'border-red-500' : 'border-gray-300'
                   }`}
-                  placeholder={t('unique_code')}
+                                    placeholder={t('unique_code')}
                 />
                 {formErrors.code && (
                   <p className="mt-1 text-sm text-red-600">{formErrors.code}</p>
@@ -302,7 +368,7 @@ const CreateAssociationPage: React.FC = () => {
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                   {t('code_validation_message')}
                 </p>
-              </div>
+            </div>
             
               {/* DESCRIPTION TRANSLATIONS */}
               <TranslationFields
@@ -578,7 +644,17 @@ const CreateAssociationPage: React.FC = () => {
               </p>
             </div>
 
-            <div className="max-w-5xl mx-auto space-y-6">
+            {/* Loading State */}
+            {isLoadingCategoriesAndFamilies && (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mb-4"></div>
+                <p className="text-gray-600 dark:text-gray-400">Kategoriler ve aileler yükleniyor...</p>
+              </div>
+            )}
+
+            {/* Content - Only show when not loading */}
+            {!isLoadingCategoriesAndFamilies && (
+              <div className="max-w-5xl mx-auto space-y-6">
               {/* Target Filters */}
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                 <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
@@ -588,75 +664,27 @@ const CreateAssociationPage: React.FC = () => {
                   Hedef (Target) Filtreleri
                 </h4>
                 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Target Categories */}
+                <div className="grid grid-cols-1 gap-6">
+                  {/* Category Tree */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      İzin Verilen Hedef Kategoriler
-                    </label>
-                    <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 space-y-2">
-                      {categories.map((category) => (
-                        <div key={category._id} className="flex items-center">
-                          <input
-                            type="checkbox"
-                            id={`target-cat-${category._id}`}
-                            checked={formData.filterCriteria.allowedTargetCategories.includes(category._id)}
-                            onChange={(e) => {
-                              const current = formData.filterCriteria.allowedTargetCategories;
-                              const newCategories = e.target.checked
-                                ? [...current, category._id]
-                                : current.filter(id => id !== category._id);
-                              setFormData(prev => ({
-                                ...prev,
-                                filterCriteria: {
-                                  ...prev.filterCriteria,
-                                  allowedTargetCategories: newCategories
-                                }
-                              }));
-                            }}
-                            className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                          />
-                          <label htmlFor={`target-cat-${category._id}`} className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                            {getEntityName(category, currentLanguage)}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Target Families */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      İzin Verilen Hedef Aileler
-                    </label>
-                    <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 space-y-2">
-                      {families.map((family) => (
-                        <div key={family._id} className="flex items-center">
-                          <input
-                            type="checkbox"
-                            id={`target-fam-${family._id}`}
-                            checked={formData.filterCriteria.allowedTargetFamilies.includes(family._id)}
-                            onChange={(e) => {
-                              const current = formData.filterCriteria.allowedTargetFamilies;
-                              const newFamilies = e.target.checked
-                                ? [...current, family._id]
-                                : current.filter(id => id !== family._id);
-                              setFormData(prev => ({
-                                ...prev,
-                                filterCriteria: {
-                                  ...prev.filterCriteria,
-                                  allowedTargetFamilies: newFamilies
-                                }
-                              }));
-                            }}
-                            className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                          />
-                          <label htmlFor={`target-fam-${family._id}`} className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                            {getEntityName(family, currentLanguage)}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
+                    <CascadeTreeSelector
+                      data={buildCategoryTree}
+                      headerTitle="İzin Verilen Hedef Kategoriler"
+                      placeholder="Kategori seçin"
+                      mode="category-only"
+                      onSelectionChange={(selectedCategoryIds) => {
+                        setFormData(prev => ({
+                          ...prev,
+                          filterCriteria: {
+                            ...prev.filterCriteria,
+                            allowedTargetCategories: selectedCategoryIds
+                          }
+                        }));
+                      }}
+                      maxHeight="400px"
+                      showRelationLines={true}
+                      expandAll={false}
+                    />
                   </div>
                 </div>
 
@@ -772,75 +800,27 @@ const CreateAssociationPage: React.FC = () => {
                     Kaynak (Source) Filtreleri
                   </h4>
                   
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Source Categories */}
+                  <div className="grid grid-cols-1 gap-6">
+                    {/* Source Category Tree */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        İzin Verilen Kaynak Kategoriler
-                      </label>
-                      <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 space-y-2">
-                        {categories.map((category) => (
-                          <div key={category._id} className="flex items-center">
-                            <input
-                              type="checkbox"
-                              id={`source-cat-${category._id}`}
-                              checked={formData.filterCriteria.allowedSourceCategories.includes(category._id)}
-                              onChange={(e) => {
-                                const current = formData.filterCriteria.allowedSourceCategories;
-                                const newCategories = e.target.checked
-                                  ? [...current, category._id]
-                                  : current.filter(id => id !== category._id);
-                                setFormData(prev => ({
-                                  ...prev,
-                                  filterCriteria: {
-                                    ...prev.filterCriteria,
-                                    allowedSourceCategories: newCategories
-                                  }
-                                }));
-                              }}
-                              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                            />
-                            <label htmlFor={`source-cat-${category._id}`} className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                              {getEntityName(category, currentLanguage)}
-                            </label>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Source Families */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        İzin Verilen Kaynak Aileler
-                      </label>
-                      <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 space-y-2">
-                        {families.map((family) => (
-                          <div key={family._id} className="flex items-center">
-                            <input
-                              type="checkbox"
-                              id={`source-fam-${family._id}`}
-                              checked={formData.filterCriteria.allowedSourceFamilies.includes(family._id)}
-                              onChange={(e) => {
-                                const current = formData.filterCriteria.allowedSourceFamilies;
-                                const newFamilies = e.target.checked
-                                  ? [...current, family._id]
-                                  : current.filter(id => id !== family._id);
-                                setFormData(prev => ({
-                                  ...prev,
-                                  filterCriteria: {
-                                    ...prev.filterCriteria,
-                                    allowedSourceFamilies: newFamilies
-                                  }
-                                }));
-                              }}
-                              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                            />
-                            <label htmlFor={`source-fam-${family._id}`} className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                              {getEntityName(family, currentLanguage)}
-                            </label>
-                          </div>
-                        ))}
-                      </div>
+                      <CascadeTreeSelector
+                        data={buildCategoryTree}
+                        headerTitle="İzin Verilen Kaynak Kategoriler"
+                        placeholder="Kategori seçin"
+                        mode="category-only"
+                        onSelectionChange={(selectedCategoryIds) => {
+                          setFormData(prev => ({
+                            ...prev,
+                            filterCriteria: {
+                              ...prev.filterCriteria,
+                              allowedSourceCategories: selectedCategoryIds
+                            }
+                          }));
+                        }}
+                        maxHeight="400px"
+                        showRelationLines={true}
+                        expandAll={false}
+                      />
                     </div>
                   </div>
                 </div>
@@ -873,19 +853,18 @@ const CreateAssociationPage: React.FC = () => {
               {/* Filter Preview */}
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                 <h5 className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-2">📋 Filter Özeti</h5>
-                <div className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
-                  <p><strong>Hedef Kategoriler:</strong> {formData.filterCriteria.allowedTargetCategories.length} seçili</p>
-                  <p><strong>Hedef Aileler:</strong> {formData.filterCriteria.allowedTargetFamilies.length} seçili</p>
-                  <p><strong>Hedef Attribute Filtreleri:</strong> {formData.filterCriteria.targetAttributeFilters.length} tanımlı</p>
-                  {!formData.isDirectional && (
-                    <>
-                      <p><strong>Kaynak Kategoriler:</strong> {formData.filterCriteria.allowedSourceCategories.length} seçili</p>
-                      <p><strong>Kaynak Aileler:</strong> {formData.filterCriteria.allowedSourceFamilies.length} seçili</p>
-                    </>
-                  )}
-                </div>
+                                    <div className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
+                      <p><strong>Hedef Kategoriler:</strong> {formData.filterCriteria.allowedTargetCategories.length} seçili</p>
+                      <p><strong>Hedef Attribute Filtreleri:</strong> {formData.filterCriteria.targetAttributeFilters.length} tanımlı</p>
+                      {!formData.isDirectional && (
+                        <>
+                          <p><strong>Kaynak Kategoriler:</strong> {formData.filterCriteria.allowedSourceCategories.length} seçili</p>
+                        </>
+                      )}
+                    </div>
               </div>
-            </div>
+              </div>
+            )}
           </div>
         );
 
@@ -949,7 +928,7 @@ const CreateAssociationPage: React.FC = () => {
                             return category ? (
                               <span key={catId} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
                                 {getEntityName(category, currentLanguage)}
-                              </span>
+                            </span>
                             ) : null;
                           })}
                           {formData.filterCriteria.allowedTargetCategories.length === 0 && (
@@ -965,7 +944,7 @@ const CreateAssociationPage: React.FC = () => {
                             return family ? (
                               <span key={famId} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">
                                 {getEntityName(family, currentLanguage)}
-                              </span>
+                            </span>
                             ) : null;
                           })}
                           {formData.filterCriteria.allowedTargetFamilies.length === 0 && (
@@ -1005,19 +984,19 @@ const CreateAssociationPage: React.FC = () => {
         <div className="space-y-6">
           {/* BREADCRUMB */}
           <div className="flex items-center justify-between">
-            <Breadcrumb 
+                        <Breadcrumb 
               items={[
                 { label: t('home'), path: '/' },
                 { label: t('associations'), path: '/associations' },
                 { label: t('create_new_relationship_type') }
               ]} 
             />
-          </div>
+                </div>
 
           {/* Header */}
           <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
-              <div>
+                <div>
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
                   <svg className="w-6 h-6 mr-2 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -1063,7 +1042,7 @@ const CreateAssociationPage: React.FC = () => {
                 ) : (
                   renderStepContent()
                 )}
-              </div>
+                    </div>
 
               {error && (
                 <div className="mt-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
@@ -1072,7 +1051,7 @@ const CreateAssociationPage: React.FC = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <span className="text-sm text-red-700 dark:text-red-300">{error}</span>
-                  </div>
+                    </div>
                 </div>
               )}
 
@@ -1091,12 +1070,12 @@ const CreateAssociationPage: React.FC = () => {
                 </Button>
 
                 <div className="flex space-x-3">
-                  <Button
-                    onClick={() => navigate('/associations')}
-                    variant="outline"
-                  >
-                    İptal
-                  </Button>
+                              <Button
+              onClick={() => navigate('/associations')}
+              variant="outline"
+            >
+              İptal
+            </Button>
 
                   {currentStep < steps.length - 1 ? (
                     <Button
@@ -1139,7 +1118,7 @@ const CreateAssociationPage: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+      </div>
       </div>
     </div>
   );

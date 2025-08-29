@@ -32,6 +32,25 @@ export interface IDisplayConfig {
   };
 }
 
+export interface IAssociationFilterCriteria {
+  allowedTargetCategories: string[];
+  allowedTargetFamilies: string[];
+  targetAttributeFilters: {
+    attributeCode: string;
+    operator: 'equals' | 'contains' | 'in' | 'range' | 'exists';
+    value: any;
+    description?: string;
+  }[];
+  allowedSourceCategories: string[];
+  allowedSourceFamilies: string[];
+  sourceAttributeFilters: {
+    attributeCode: string;
+    operator: 'equals' | 'contains' | 'in' | 'range' | 'exists';
+    value: any;
+    description?: string;
+  }[];
+}
+
 export interface IAssociation {
   _id: string;
   code: string;
@@ -41,6 +60,7 @@ export interface IAssociation {
   association?: 'one-to-one' | 'one-to-many' | 'many-to-one' | 'many-to-many';
   allowedSourceTypes: string[];
   allowedTargetTypes: string[];
+  filterCriteria?: IAssociationFilterCriteria;
   metadata?: Record<string, any>;
   displayConfig?: IDisplayConfig; // YENİ ALAN
   createdBy?: any;

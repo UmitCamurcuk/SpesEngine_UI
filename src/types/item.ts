@@ -49,20 +49,18 @@ export interface PopulatedAttribute {
 // Item modeli
 export interface Item {
   _id: string;
-  itemType: string;
-  family?: string | { 
-    _id: string; 
-    name: string | Localization; 
-    code: string; 
-    description?: string | Localization;
+  id?: string;
+  code?: string;
+  itemType: {
+    id: string;
+    name: Localization;
+    code: string;
+    attributeGroups?: any[];
   };
-  category?: string | { 
-    _id: string; 
-    name: string | Localization; 
-    code: string; 
-    description?: string | Localization;
-  };
-  attributes: PopulatedAttribute[];
+  categories?: any[];
+  families?: any[];
+  itemAttributes?: Record<string, any>;
+  attributes?: PopulatedAttribute[]; // Legacy support
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

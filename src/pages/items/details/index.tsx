@@ -63,7 +63,7 @@ const ItemDetailsPage: React.FC = () => {
         setItem(itemData);
         setFormData({
           ...itemData,
-          attributes: itemData.attributes || {}
+          attributes: itemData.itemAttributes || itemData.attributes || {} // Hem yeni hem eski yapı desteği
         });
       } catch (err: any) {
         console.error('❌ Error fetching item:', err);
@@ -183,13 +183,19 @@ const ItemDetailsPage: React.FC = () => {
 
   // Handle attribute changes
   const handleAttributeChange = (attributeId: string, value: any) => {
-    setFormData((prev: any) => ({
-      ...prev,
-      attributes: {
-        ...prev.attributes,
-        [attributeId]: value
-      }
-    }));
+    console.log('🔄 Attribute change:', { attributeId, value, currentFormData: formData.attributes });
+    
+    setFormData((prev: any) => {
+      const newFormData = {
+        ...prev,
+        attributes: {
+          ...prev.attributes,
+          [attributeId]: value
+        }
+      };
+      console.log('📝 New form data:', newFormData.attributes);
+      return newFormData;
+    });
     
     // Clear error for this attribute
     if (attributeErrors[attributeId]) {
@@ -221,24 +227,31 @@ const ItemDetailsPage: React.FC = () => {
 
   // Handle save
   const handleSave = async () => {
-    if (!item) return;
+    if (!item || !id) return;
     
     setIsSaving(true);
     setError(null);
     
     try {
-      console.log('💾 Saving item with data:', formData);
-      await itemService.updateItem(item._id, formData);
+      // Yeni API yapısına göre itemAttributes kullan
+      const saveData = {
+        ...formData,
+        itemAttributes: formData.attributes // Backend'e itemAttributes olarak gönder
+      };
+      
+      console.log('💾 Saving item with data:', saveData);
+      console.log('🆔 Item ID from URL:', id);
+      await itemService.updateItem(id, saveData);
       
       toast.success('Öğe başarıyla güncellendi');
       setIsEditing(false);
       
       // Refresh data
-      const updatedItem = await itemService.getItemById(item._id);
+      const updatedItem = await itemService.getItemById(id);
       setItem(updatedItem);
       setFormData({
         ...updatedItem,
-        attributes: updatedItem.attributes || {}
+        attributes: updatedItem.itemAttributes || updatedItem.attributes || {}
       });
     } catch (err: any) {
       console.error('❌ Error updating item:', err);
@@ -252,10 +265,10 @@ const ItemDetailsPage: React.FC = () => {
 
   // Handle delete
   const handleDelete = async () => {
-    if (!item) return;
+    if (!item || !id) return;
     
     try {
-      await itemService.deleteItem(item._id);
+      await itemService.deleteItem(id);
       toast.success('Öğe başarıyla silindi');
       navigate('/items/list');
     } catch (err: any) {
@@ -731,9 +744,19 @@ const ItemDetailsPage: React.FC = () => {
                                 <div className="p-4">
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {group.attributes.map((attribute: any) => {
-                                      // Yeni API yapısında attribute'ın içinde value var, yoksa formData'dan al
-                                      const value = attribute.value !== undefined ? attribute.value : formData.attributes?.[attribute._id];
+                                      // Edit mode'da formData'dan, view mode'da attribute.value'dan al
+                                      const value = isEditing 
+                                        ? formData.attributes?.[attribute._id] 
+                                        : (attribute.value !== undefined ? attribute.value : formData.attributes?.[attribute._id]);
                                       const error = attributeErrors[attribute._id];
+
+                                      console.log('🎯 Rendering attribute:', { 
+                                        attributeId: attribute._id, 
+                                        value, 
+                                        isEditing, 
+                                        formDataValue: formData.attributes?.[attribute._id],
+                                        attributeValue: attribute.value 
+                                      });
 
                                       return (
                                         <AttributeDetailDisplay

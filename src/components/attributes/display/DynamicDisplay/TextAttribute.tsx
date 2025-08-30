@@ -1,6 +1,6 @@
 import React from 'react';
-import { useTranslation } from '../../../context/i18nContext';
-import { getEntityName, getEntityDescription } from '../../../utils/translationUtils';
+import { useTranslation } from '../../../../context/i18nContext';
+import { getEntityName, getEntityDescription } from '../../../../utils/translationUtils';
 
 interface TextAttributeProps {
   attribute: any;

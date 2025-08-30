@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { useTranslation } from '../../../context/i18nContext';
-import { getEntityName, getEntityDescription } from '../../../utils/translationUtils';
-import Button from '../../ui/Button';
+import { useTranslation } from '../../../../context/i18nContext';
+import { getEntityName, getEntityDescription } from '../../../../utils/translationUtils';
+import Button from '../../../../ui/Button';
 
 interface TableAttributeProps {
   attribute: any;

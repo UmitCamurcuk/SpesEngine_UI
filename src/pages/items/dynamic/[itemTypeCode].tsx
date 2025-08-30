@@ -16,37 +16,8 @@ import SearchForm from '../../../components/common/SearchForm';
 import useListPage from '../../../hooks/useListPage';
 import UserDisplay from '../../../components/common/UserDisplay';
 
-// Yeni attribute display component'lerini import et
-import {
-  TextTableDisplay,
-  NumberTableDisplay,
-  BooleanTableDisplay,
-  EmailTableDisplay,
-  UrlTableDisplay,
-  DateTableDisplay,
-  DateTimeTableDisplay,
-  TimeTableDisplay,
-  SelectTableDisplay,
-  MultiSelectTableDisplay,
-  TableTableDisplay,
-  TextareaTableDisplay,
-  FileTableDisplay,
-  ImageTableDisplay,
-  AttachmentTableDisplay,
-  ColorTableDisplay,
-  RatingTableDisplay,
-  ReadonlyTableDisplay,
-  PhoneTableDisplay,
-  PasswordTableDisplay,
-  RichTextTableDisplay,
-  BarcodeTableDisplay,
-  QrTableDisplay,
-  ObjectTableDisplay,
-  ArrayTableDisplay,
-  JsonTableDisplay,
-  FormulaTableDisplay,
-  ExpressionTableDisplay
-} from '../../../components/attributes';
+// Yeni attribute display component'ini import et
+import { AttributeTableDisplay } from '../../../components/attributes';
 
 // UTILITY COMPONENTS
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
@@ -69,99 +40,12 @@ const DynamicItemListPage: React.FC = () => {
       return <span className="text-gray-400 italic">-</span>;
     }
 
-    // Attribute type'a göre uygun component'i seç
-    switch (attribute.type) {
-      case 'text':
-      case 'string':
-        return <TextTableDisplay value={value} />;
-      
-      case 'number':
-      case 'integer':
-      case 'decimal':
-        return <NumberTableDisplay value={value} />;
-      
-      case 'boolean':
-        return <BooleanTableDisplay value={value} />;
-      
-      case 'email':
-        return <EmailTableDisplay value={value} />;
-      
-      case 'url':
-        return <UrlTableDisplay value={value} />;
-      
-      case 'date':
-        return <DateTableDisplay value={value} />;
-      
-      case 'datetime':
-        return <DateTimeTableDisplay value={value} />;
-      
-      case 'time':
-        return <TimeTableDisplay value={value} />;
-      
-      case 'select':
-        return <SelectTableDisplay attribute={attribute} value={value} />;
-      
-      case 'multiselect':
-        return <MultiSelectTableDisplay attribute={attribute} value={value} />;
-      
-      case 'table':
-        return <TableTableDisplay value={value} />;
-      
-      case 'textarea':
-      case 'multiline':
-        return <TextareaTableDisplay value={value} />;
-      
-      case 'file':
-        return <FileTableDisplay value={value} />;
-      
-      case 'image':
-        return <ImageTableDisplay value={value} />;
-      
-      case 'attachment':
-        return <AttachmentTableDisplay value={value} />;
-      
-      case 'color':
-        return <ColorTableDisplay value={value} />;
-      
-      case 'rating':
-        return <RatingTableDisplay value={value} />;
-      
-      case 'readonly':
-        return <ReadonlyTableDisplay value={value} />;
-      
-      case 'phone':
-        return <PhoneTableDisplay value={value} />;
-      
-      case 'password':
-        return <PasswordTableDisplay value={value} />;
-      
-      case 'rich_text':
-        return <RichTextTableDisplay value={value} />;
-      
-      case 'barcode':
-        return <BarcodeTableDisplay value={value} />;
-      
-      case 'qr':
-        return <QrTableDisplay value={value} />;
-      
-      case 'object':
-        return <ObjectTableDisplay value={value} />;
-      
-      case 'array':
-        return <ArrayTableDisplay value={value} />;
-      
-      case 'json':
-        return <JsonTableDisplay value={value} />;
-      
-      case 'formula':
-        return <FormulaTableDisplay value={value} />;
-      
-      case 'expression':
-        return <ExpressionTableDisplay value={value} />;
-      
-      default:
-        return <TextTableDisplay value={value} />;
-    }
+    return (
+      <AttributeTableDisplay
+        attribute={attribute}
+        value={value}
+      />
+    );
   };
 
   // State

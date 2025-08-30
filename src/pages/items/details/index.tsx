@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import Button from '../../../components/ui/Button';
 import Breadcrumb from '../../../components/common/Breadcrumb';
-import AttributeDisplay from '../../../components/attributes/AttributeDisplay';
+import { AttributeDetailDisplay } from '../../../components/attributes';
 import itemService from '../../../services/api/itemService';
 import { useTranslation } from '../../../context/i18nContext';
 import { getEntityName, getEntityDescription } from '../../../utils/translationUtils';
@@ -691,7 +691,7 @@ const ItemDetailsPage: React.FC = () => {
                                       const error = attributeErrors[attribute._id];
 
                                       return (
-                                        <AttributeDisplay
+                                        <AttributeDetailDisplay
                                           key={attribute._id}
                                           attribute={attribute}
                                           value={value}

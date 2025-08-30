@@ -1,5 +1,14 @@
-// Display components (Her attribute type için 3 farklı component)
-export * from './display';
+// Display components (Ana component ve convenience component'ler)
+export {
+  AttributeDisplay,
+  AttributeTableDisplay,
+  AttributeEditInput,
+  AttributeDetailDisplay,
+  type DisplayType
+} from './display/index';
+
+// Individual components (doğrudan kullanım için)
+export * from './display/index';
 
 // Legacy components (for backward compatibility)
 export { default as AttributeBadge } from './AttributeBadge';

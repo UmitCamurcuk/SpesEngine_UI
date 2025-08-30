@@ -1,176 +1,201 @@
 # Attribute Display Components
 
-Bu klasör, her attribute type için 3 farklı component içerir:
+Bu klasör, tüm attribute type'ları için display component'lerini içerir.
 
-## Component Yapısı
+## Yapı
 
-Her attribute type için 3 component oluşturulmuştur:
+```
+display/
+├── DynamicDisplay/           # Her attribute type için ayrı dosyalar
+│   ├── TextAttribute.tsx
+│   ├── NumberAttribute.tsx
+│   ├── BooleanAttribute.tsx
+│   └── ... (30 attribute type)
+├── index.tsx                 # Ana component ve switch case logic
+└── README.md                 # Bu dosya
+```
 
-1. **TableDisplay** - Tablo sütunlarında kullanılır
-2. **EditInput** - Edit modunda kullanılır  
-3. **DetailDisplay** - Item detay sayfalarında kullanılır
+## Kullanım
 
-## Kullanım Örnekleri
+### Ana Component (Önerilen)
 
-### Text Attribute
+```tsx
+import { AttributeDisplay } from '../../../components/attributes';
+
+// Table display için
+<AttributeDisplay
+  attribute={attribute}
+  value={value}
+  displayType="table"
+/>
+
+// Edit input için
+<AttributeDisplay
+  attribute={attribute}
+  value={value}
+  onChange={handleChange}
+  displayType="edit"
+/>
+
+// Detail display için
+<AttributeDisplay
+  attribute={attribute}
+  value={value}
+  isEditing={isEditing}
+  onChange={handleChange}
+  displayType="detail"
+/>
+```
+
+### Convenience Components
+
+```tsx
+import { 
+  AttributeTableDisplay, 
+  AttributeEditInput, 
+  AttributeDetailDisplay 
+} from '../../../components/attributes';
+
+// Table display
+<AttributeTableDisplay attribute={attribute} value={value} />
+
+// Edit input
+<AttributeEditInput 
+  attribute={attribute} 
+  value={value} 
+  onChange={handleChange} 
+/>
+
+// Detail display
+<AttributeDetailDisplay 
+  attribute={attribute} 
+  value={value} 
+  isEditing={isEditing}
+  onChange={handleChange}
+/>
+```
+
+### Doğrudan Component Kullanımı
+
 ```tsx
 import { TextTableDisplay, TextEditInput, TextDetailDisplay } from '../../../components/attributes';
 
-// Tablo sütununda
-<TextTableDisplay value={item.textField} />
-
-// Edit modunda
-<TextEditInput 
-  attribute={attribute}
-  value={value}
-  onChange={handleChange}
-  error={error}
-  disabled={disabled}
-/>
-
-// Item detay sayfasında
-<TextDetailDisplay
-  attribute={attribute}
-  value={value}
-  isEditing={isEditing}
-  onChange={handleChange}
-  error={error}
-  disabled={disabled}
-/>
+<TextTableDisplay value={value} />
+<TextEditInput attribute={attribute} value={value} onChange={handleChange} />
+<TextDetailDisplay attribute={attribute} value={value} isEditing={isEditing} />
 ```
 
-### Number Attribute
-```tsx
-import { NumberTableDisplay, NumberEditInput, NumberDetailDisplay } from '../../../components/attributes';
+## Display Types
 
-// Tablo sütununda
-<NumberTableDisplay value={item.numberField} />
+- **table**: Tablo sütunlarında kısa gösterim
+- **edit**: Edit modunda input field
+- **detail**: Item detay sayfasında gösterim (view + edit)
 
-// Edit modunda
-<NumberEditInput 
-  attribute={attribute}
-  value={value}
-  onChange={handleChange}
-  error={error}
-  disabled={disabled}
-/>
+## Desteklenen Attribute Types
 
-// Item detay sayfasında
-<NumberDetailDisplay
-  attribute={attribute}
-  value={value}
-  isEditing={isEditing}
-  onChange={handleChange}
-  error={error}
-  disabled={disabled}
-/>
-```
+1. **Text** (`text`, `string`)
+2. **Number** (`number`, `integer`, `decimal`)
+3. **Boolean** (`boolean`)
+4. **Email** (`email`)
+5. **URL** (`url`)
+6. **Date** (`date`)
+7. **DateTime** (`datetime`)
+8. **Time** (`time`)
+9. **Select** (`select`)
+10. **MultiSelect** (`multiselect`)
+11. **Table** (`table`)
+12. **Textarea** (`textarea`, `multiline`)
+13. **File** (`file`)
+14. **Image** (`image`)
+15. **Attachment** (`attachment`)
+16. **Color** (`color`)
+17. **Rating** (`rating`)
+18. **Readonly** (`readonly`)
+19. **Phone** (`phone`)
+20. **Password** (`password`)
+21. **RichText** (`rich_text`)
+22. **Barcode** (`barcode`)
+23. **QR** (`qr`)
+24. **Object** (`object`)
+25. **Array** (`array`)
+26. **JSON** (`json`)
+27. **Formula** (`formula`)
+28. **Expression** (`expression`)
 
-### Select Attribute
-```tsx
-import { SelectTableDisplay, SelectEditInput, SelectDetailDisplay } from '../../../components/attributes';
-
-// Tablo sütununda
-<SelectTableDisplay attribute={attribute} value={item.selectField} />
-
-// Edit modunda
-<SelectEditInput 
-  attribute={attribute}
-  value={value}
-  onChange={handleChange}
-  error={error}
-  disabled={disabled}
-/>
-
-// Item detay sayfasında
-<SelectDetailDisplay
-  attribute={attribute}
-  value={value}
-  isEditing={isEditing}
-  onChange={handleChange}
-  error={error}
-  disabled={disabled}
-/>
-```
-
-### Table Attribute
-```tsx
-import { TableTableDisplay, TableEditInput, TableDetailDisplay } from '../../../components/attributes';
-
-// Tablo sütununda
-<TableTableDisplay value={item.tableField} />
-
-// Edit modunda
-<TableEditInput 
-  attribute={attribute}
-  value={value}
-  onChange={handleChange}
-  error={error}
-  disabled={disabled}
-/>
-
-// Item detay sayfasında
-<TableDetailDisplay
-  attribute={attribute}
-  value={value}
-  isEditing={isEditing}
-  onChange={handleChange}
-  error={error}
-  disabled={disabled}
-/>
-```
-
-## Mevcut Attribute Types
-
-- **TextAttribute** - Metin alanları
-- **NumberAttribute** - Sayısal alanlar
-- **BooleanAttribute** - Boolean değerler
-- **EmailAttribute** - E-posta adresleri
-- **UrlAttribute** - URL'ler
-- **DateAttribute** - Tarih alanları
-- **DateTimeAttribute** - Tarih ve saat alanları
-- **TimeAttribute** - Saat alanları
-- **SelectAttribute** - Tek seçim alanları
-- **MultiSelectAttribute** - Çoklu seçim alanları
-- **TableAttribute** - Tablo alanları
-- **TextareaAttribute** - Çok satırlı metin alanları
-- **FileAttribute** - Dosya yükleme alanları
-- **ImageAttribute** - Görsel yükleme alanları
-- **AttachmentAttribute** - Çoklu dosya yükleme alanları
-- **ColorAttribute** - Renk seçici alanları
-- **RatingAttribute** - Derecelendirme alanları
-- **ReadonlyAttribute** - Salt okunur alanlar
-- **PhoneAttribute** - Telefon numarası alanları
-- **PasswordAttribute** - Şifre alanları
-- **RichTextAttribute** - Zengin metin alanları
-- **BarcodeAttribute** - Barkod alanları
-- **QrAttribute** - QR kod alanları
-- **ObjectAttribute** - Nesne alanları
-- **ArrayAttribute** - Dizi alanları
-- **JsonAttribute** - JSON alanları
-- **FormulaAttribute** - Formül alanları
-- **ExpressionAttribute** - İfade alanları
-
-## Ortak Props
-
-Tüm component'ler aşağıdaki ortak props'ları kabul eder:
+## Component Props
 
 ```tsx
-interface AttributeProps {
-  attribute: any;           // Attribute tanımı
-  value: any;              // Değer
-  onChange?: (value: any) => void;  // Değişiklik handler'ı
-  error?: string;          // Hata mesajı
-  disabled?: boolean;      // Disabled durumu
-  isEditing?: boolean;     // Edit modu (sadece DetailDisplay için)
+interface AttributeDisplayProps {
+  attribute: any;                    // Attribute bilgisi
+  value: any;                        // Attribute değeri
+  onChange?: (value: any) => void;   // Değişiklik handler'ı
+  error?: string;                    // Hata mesajı
+  disabled?: boolean;                // Disabled durumu
+  isEditing?: boolean;               // Edit modu (sadece detail için)
 }
 ```
 
-## Stil ve Tema
+## Örnekler
 
-Tüm component'ler Tailwind CSS kullanır ve dark mode desteği vardır. Component'ler aşağıdaki stil sınıflarını kullanır:
+### Table Display
+```tsx
+// Basit text gösterimi
+<AttributeTableDisplay 
+  attribute={{ type: 'text', name: 'Başlık' }} 
+  value="Örnek başlık" 
+/>
 
-- **Base Input Classes**: `w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2`
-- **Error State**: `border-red-500 focus:ring-red-500`
-- **Disabled State**: `bg-gray-100 dark:bg-gray-700 cursor-not-allowed`
-- **Dark Mode**: `dark:bg-gray-800 dark:text-white dark:border-gray-600`
+// Boolean gösterimi
+<AttributeTableDisplay 
+  attribute={{ type: 'boolean', name: 'Aktif' }} 
+  value={true} 
+/>
+```
+
+### Edit Input
+```tsx
+// Text input
+<AttributeEditInput 
+  attribute={{ type: 'text', name: 'Başlık' }} 
+  value="Örnek başlık"
+  onChange={(value) => console.log(value)}
+/>
+
+// Select input
+<AttributeEditInput 
+  attribute={{ 
+    type: 'select', 
+    name: 'Kategori',
+    options: ['A', 'B', 'C']
+  }} 
+  value="A"
+  onChange={(value) => console.log(value)}
+/>
+```
+
+### Detail Display
+```tsx
+// View mode
+<AttributeDetailDisplay 
+  attribute={{ type: 'text', name: 'Başlık' }} 
+  value="Örnek başlık"
+  isEditing={false}
+/>
+
+// Edit mode
+<AttributeDetailDisplay 
+  attribute={{ type: 'text', name: 'Başlık' }} 
+  value="Örnek başlık"
+  isEditing={true}
+  onChange={(value) => console.log(value)}
+/>
+```
+
+## Avantajlar
+
+1. **Tek Component**: Tüm attribute type'ları için tek component
+2. **Type Safety**: TypeScript desteği
+3. **Flexibility**: Display type'a göre uygun component
+4. **Consistency**: Tutarlı görünüm ve davranış
+5. **Maintainability**: Kolay bakım ve güncelleme
+6. **Reusability**: Yeniden kullanılabilir component'ler

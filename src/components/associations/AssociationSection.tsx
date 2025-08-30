@@ -27,15 +27,35 @@ const AssociationSection: React.FC<AssociationSectionProps> = ({
   const { currentLanguage } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [validationResult, setValidationResult] = useState<AssociationValidationResult | null>(null);
+  
+  // Her association için ayrı state yönetimi
+  const [associationStates, setAssociationStates] = useState<Record<string, string | string[] | null>>({});
 
   // Generate association key
   const getAssociationKey = (rule: IAssociationRule): string => {
-    return `${rule.targetItemTypeCode}_${rule.association}`;
+    // Include more unique identifiers to prevent key conflicts
+    const key = rule._id || rule.code || 'unknown';
+    console.log('🔍 Generated key:', { key, rule: rule.targetItemTypeCode });
+    return key;
   };
 
   // Handle individual association change
   const handleAssociationChange = (rule: IAssociationRule, value: string | string[] | null) => {
     const key = getAssociationKey(rule);
+    console.log('🔍 Association change:', { 
+      key, 
+      value, 
+      ruleName: rule.targetItemTypeName || rule.targetItemTypeCode,
+      currentAssociations: associations 
+    });
+    
+    // Önce local state'i güncelle
+    setAssociationStates(prev => ({
+      ...prev,
+      [key]: value
+    }));
+    
+    // Sonra parent'a bildir
     const newAssociations = { ...associations };
     
     if (value === null || (Array.isArray(value) && value.length === 0)) {
@@ -44,13 +64,28 @@ const AssociationSection: React.FC<AssociationSectionProps> = ({
       newAssociations[key] = value;
     }
     
+    console.log('🔍 New associations:', newAssociations);
     onAssociationsChange(newAssociations);
+  };
+  
+  // Her association için ayrı state handler
+  const getAssociationStateHandler = (rule: IAssociationRule) => {
+    const key = getAssociationKey(rule);
+    
+    return {
+      value: associationStates[key] || null,
+      onChange: (value: string | string[] | null) => {
+        console.log('🔍 Individual handler:', { key, value, rule: rule.targetItemTypeCode });
+        handleAssociationChange(rule, value);
+      }
+    };
   };
 
   // Get association value for a rule
   const getAssociationValue = (rule: IAssociationRule): string | string[] | null => {
     const key = getAssociationKey(rule);
-    return associations[key] || null;
+    const value = associations[key] || null;
+    return value;
   };
 
   // Real-time validation
@@ -76,7 +111,7 @@ const AssociationSection: React.FC<AssociationSectionProps> = ({
       }
 
       // Check cardinality
-      if (value) {
+      if (value && rule.cardinality) {
         const count = Array.isArray(value) ? value.length : 1;
         
         // Min check
@@ -170,13 +205,18 @@ const AssociationSection: React.FC<AssociationSectionProps> = ({
               // DisplayConfig'i bul (association key ile)
               const displayConfig = displayConfigs[key];
               
+              // Her association için benzersiz key oluştur
+              const uniqueKey = `required_${rule.sourceItemTypeCode}_${rule.targetItemTypeCode}_${rule.association}_${index}`;
+              
+              // Her association için ayrı state handler
+              const stateHandler = getAssociationStateHandler(rule);
               
               return (
                 <AssociationSelector
-                  key={key}
+                  key={uniqueKey}
                   rule={rule}
-                  value={getAssociationValue(rule)}
-                  onChange={(value) => handleAssociationChange(rule, value)}
+                  value={stateHandler.value}
+                  onChange={stateHandler.onChange}
                   error={errors[key]}
                   disabled={disabled}
                   displayConfig={displayConfig}
@@ -199,14 +239,18 @@ const AssociationSection: React.FC<AssociationSectionProps> = ({
               // DisplayConfig'i bul (association key ile)
               const displayConfig = displayConfigs[key];
               
-           
+              // Her association için benzersiz key oluştur
+              const uniqueKey = `optional_${rule.sourceItemTypeCode}_${rule.targetItemTypeCode}_${rule.association}_${index}`;
+              
+              // Her association için ayrı state handler
+              const stateHandler = getAssociationStateHandler(rule);
               
               return (
                 <AssociationSelector
-                  key={key}
+                  key={uniqueKey}
                   rule={rule}
-                  value={getAssociationValue(rule)}
-                  onChange={(value) => handleAssociationChange(rule, value)}
+                  value={stateHandler.value}
+                  onChange={stateHandler.onChange}
                   error={errors[key]}
                   disabled={disabled}
                   displayConfig={displayConfig}

@@ -1,6 +1,8 @@
 // Association ile ilgili type tanımları
 
 export interface IAssociationRule {
+  _id?: string;                         // Association ID
+  code?: string;                        // Association code
   targetItemTypeCode?: string;          // Hedef ItemType kodu (outgoing için)
   targetItemTypeName?: string;          // Display name (outgoing için)
   sourceItemTypeCode?: string;          // Kaynak ItemType kodu (incoming için)

@@ -230,6 +230,14 @@ const ItemCreatePage: React.FC = () => {
       if (allAssociationRules.length > 0) {
         setAssociationRules(allAssociationRules);
         console.log('🔗 Association rules loaded:', allAssociationRules);
+        console.log('🔗 Association rules details:', allAssociationRules.map(rule => ({
+          _id: rule._id,
+          code: rule.code,
+          sourceItemTypeCode: rule.sourceItemTypeCode,
+          targetItemTypeCode: rule.targetItemTypeCode,
+          association: rule.association,
+          relationshipType: rule.relationshipType
+        })));
         
         // Load display configs for associations
         loadDisplayConfigs(allAssociationRules);
@@ -613,7 +621,9 @@ const ItemCreatePage: React.FC = () => {
     let isValid = true;
 
     associationRules.forEach(rule => {
-      const key = `${rule.targetItemTypeCode}_${rule.association}`;
+      // Backend ile uyumlu key oluştur
+      const key = rule._id || rule.code || 'unknown';
+      
       const value = formData.associations?.[key];
       
       // Check required associations
@@ -627,13 +637,13 @@ const ItemCreatePage: React.FC = () => {
         const count = Array.isArray(value) ? value.length : 1;
         
         // Min check
-        if (rule.cardinality.min && count < rule.cardinality.min) {
+        if (rule.cardinality?.min && count < rule.cardinality.min) {
           errors[key] = `En az ${rule.cardinality.min} ${rule.targetItemTypeName || rule.targetItemTypeCode} seçmelisiniz`;
           isValid = false;
         }
 
         // Max check
-        if (rule.cardinality.max && count > rule.cardinality.max) {
+        if (rule.cardinality?.max && count > rule.cardinality.max) {
           errors[key] = `En fazla ${rule.cardinality.max} ${rule.targetItemTypeName || rule.targetItemTypeCode} seçebilirsiniz`;
           isValid = false;
         }
@@ -649,7 +659,9 @@ const ItemCreatePage: React.FC = () => {
     let isValid = true;
 
     associationRules.forEach(rule => {
-      const key = `${rule.targetItemTypeCode}_${rule.association}`;
+      // Backend ile uyumlu key oluştur
+      const key = rule._id || rule.code || 'unknown';
+      
       const value = formData.associations?.[key];
       
       // Check required associations
@@ -663,13 +675,13 @@ const ItemCreatePage: React.FC = () => {
         const count = Array.isArray(value) ? value.length : 1;
         
         // Min check
-        if (rule.cardinality.min && count < rule.cardinality.min) {
+        if (rule.cardinality?.min && count < rule.cardinality.min) {
           errors[key] = `En az ${rule.cardinality.min} ${rule.targetItemTypeName || rule.targetItemTypeCode} seçmelisiniz`;
           isValid = false;
         }
 
         // Max check
-        if (rule.cardinality.max && count > rule.cardinality.max) {
+        if (rule.cardinality?.max && count > rule.cardinality.max) {
           errors[key] = `En fazla ${rule.cardinality.max} ${rule.targetItemTypeName || rule.targetItemTypeCode} seçebilirsiniz`;
           isValid = false;
         }

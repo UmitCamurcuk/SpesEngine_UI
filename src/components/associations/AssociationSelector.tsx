@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { AssociationSelectorProps, AssociationItem } from './types';
 import itemService from '../../services/api/itemService';
 import { useTranslation } from '../../context/i18nContext';
@@ -32,114 +32,109 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
 
 
 
-  // Load available items for target item type
+  // Load available items when dependencies change
   useEffect(() => {
-    loadAvailableItems();
-  }, [itemTypeCode, rule.filterBy]);
-
-  const loadAvailableItems = async () => {
-    try {
-      setLoading(true);
-      
-      // Build query params
-      const queryParams: any = {
-        limit: 1000,
-        isActive: true,
-        ...rule.filterBy
-      };
-
-      // Add association filter criteria if available
-      if (rule.filterCriteria) {
-        // Category filters
-        if (rule.filterCriteria.allowedTargetCategories && rule.filterCriteria.allowedTargetCategories.length > 0) {
-          queryParams.categories = rule.filterCriteria.allowedTargetCategories;
-        }
+    const loadAvailableItems = async () => {
+      try {
+        setLoading(true);
         
-        // Family filters
-        if (rule.filterCriteria.allowedTargetFamilies && rule.filterCriteria.allowedTargetFamilies.length > 0) {
-          queryParams.families = rule.filterCriteria.allowedTargetFamilies;
-        }
-        
-        // Source category filters (for incoming associations)
-        if (rule.filterCriteria.allowedSourceCategories && rule.filterCriteria.allowedSourceCategories.length > 0) {
-          queryParams.sourceCategories = rule.filterCriteria.allowedSourceCategories;
-        }
-        
-        // Source family filters (for incoming associations)
-        if (rule.filterCriteria.allowedSourceFamilies && rule.filterCriteria.allowedSourceFamilies.length > 0) {
-          queryParams.sourceFamilies = rule.filterCriteria.allowedSourceFamilies;
-        }
-      }
-
-      if (!itemTypeCode) {
-        console.error('No itemTypeCode found in rule');
-        setAvailableItems([]);
-        return;
-      }
-      
-      // Debug: Filtreleri kontrol et
-      console.log('AssociationSelector - ItemTypeCode:', itemTypeCode);
-      console.log('AssociationSelector - Rule filterCriteria:', rule.filterCriteria);
-      console.log('AssociationSelector - Query params:', queryParams);
-      
-      const response = await itemService.getItemsByType(itemTypeCode, queryParams);
-      const items = response.items || response.data || response;
-
-      // Transform items to AssociationItem format
-      const transformedItems: AssociationItem[] = items.map((item: any) => {
-        // Extract display value from rule.displayField
-        let displayValue = '';
-        if (rule.displayField && item.attributes) {
-          const attrValue = item.attributes[rule.displayField];
-          // Handle different types of attribute values
-          if (typeof attrValue === 'string' || typeof attrValue === 'number') {
-            displayValue = String(attrValue);
-          } else if (attrValue && typeof attrValue === 'object') {
-            // If it's an object (like select option), try to get the display value
-            displayValue = attrValue.name || attrValue.label || attrValue.value || JSON.stringify(attrValue);
-          } else {
-            displayValue = String(attrValue || '');
-          }
-        }
-        
-        // If no display field specified or value not found, use first available attribute
-        if (!displayValue && item.attributes) {
-          const firstAttr = Object.values(item.attributes)[0];
-          if (typeof firstAttr === 'string' || typeof firstAttr === 'number') {
-            displayValue = String(firstAttr);
-          } else if (firstAttr && typeof firstAttr === 'object') {
-            displayValue = firstAttr.name || firstAttr.label || firstAttr.value || JSON.stringify(firstAttr);
-          } else {
-            displayValue = String(firstAttr || item._id);
-          }
-        }
-
-        // Build searchable text from searchableFields
-        let searchableText = displayValue;
-        if (rule.searchableFields && item.attributes) {
-          const searchValues = rule.searchableFields
-            .map(field => item.attributes[field])
-            .filter(Boolean)
-            .join(' ');
-          searchableText = `${displayValue} ${searchValues}`.toLowerCase();
-        }
-
-        return {
-          _id: item._id,
-          displayValue: displayValue || 'Unnamed Item',
-          searchableText: searchableText.toLowerCase(),
-          item
+        // Build query params
+        const queryParams: any = {
+          limit: 1000,
+          isActive: true,
+          ...rule.filterBy
         };
-      });
 
-      setAvailableItems(transformedItems);
-    } catch (error) {
-      console.error('Association items yüklenirken hata:', error);
-      setAvailableItems([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+        // Add association filter criteria if available
+        if (rule.filterCriteria) {
+          // Category filters
+          if (rule.filterCriteria.allowedTargetCategories && rule.filterCriteria.allowedTargetCategories.length > 0) {
+            queryParams.categories = rule.filterCriteria.allowedTargetCategories;
+          }
+          
+          // Family filters
+          if (rule.filterCriteria.allowedTargetFamilies && rule.filterCriteria.allowedTargetFamilies.length > 0) {
+            queryParams.families = rule.filterCriteria.allowedTargetFamilies;
+          }
+          
+          // Source category filters (for incoming associations)
+          if (rule.filterCriteria.allowedSourceCategories && rule.filterCriteria.allowedSourceCategories.length > 0) {
+            queryParams.sourceCategories = rule.filterCriteria.allowedSourceCategories;
+          }
+          
+          // Source family filters (for incoming associations)
+          if (rule.filterCriteria.allowedSourceFamilies && rule.filterCriteria.allowedSourceFamilies.length > 0) {
+            queryParams.sourceFamilies = rule.filterCriteria.allowedSourceFamilies;
+          }
+        }
+
+        if (!itemTypeCode) {
+          console.error('No itemTypeCode found in rule');
+          setAvailableItems([]);
+          return;
+        }
+        
+        const response = await itemService.getItemsByType(itemTypeCode, queryParams);
+        const items = response.items || (response as any).data || response;
+
+        // Transform items to AssociationItem format
+        const transformedItems: AssociationItem[] = items.map((item: any) => {
+          // Extract display value from rule.displayField
+          let displayValue = '';
+          if (rule.displayField && item.attributes) {
+            const attrValue = item.attributes[rule.displayField];
+            // Handle different types of attribute values
+            if (typeof attrValue === 'string' || typeof attrValue === 'number') {
+              displayValue = String(attrValue);
+            } else if (attrValue && typeof attrValue === 'object') {
+              // If it's an object (like select option), try to get the display value
+              displayValue = (attrValue as any).name || (attrValue as any).label || (attrValue as any).value || JSON.stringify(attrValue);
+            } else {
+              displayValue = String(attrValue || '');
+            }
+          }
+          
+          // If no display field specified or value not found, use first available attribute
+          if (!displayValue && item.attributes) {
+            const firstAttr = Object.values(item.attributes)[0];
+            if (typeof firstAttr === 'string' || typeof firstAttr === 'number') {
+              displayValue = String(firstAttr);
+            } else if (firstAttr && typeof firstAttr === 'object') {
+              displayValue = (firstAttr as any).name || (firstAttr as any).label || (firstAttr as any).value || JSON.stringify(firstAttr);
+            } else {
+              displayValue = String(firstAttr || item._id);
+            }
+          }
+
+          // Build searchable text from searchableFields
+          let searchableText = displayValue;
+          if (rule.searchableFields && item.attributes) {
+            const searchValues = rule.searchableFields
+              .map(field => item.attributes[field])
+              .filter(Boolean)
+              .join(' ');
+            searchableText = `${displayValue} ${searchValues}`.toLowerCase();
+          }
+
+          return {
+            _id: item._id,
+            displayValue: displayValue || 'Unnamed Item',
+            searchableText: searchableText.toLowerCase(),
+            item
+          };
+        });
+
+        setAvailableItems(transformedItems);
+      } catch (error) {
+        console.error('Association items yüklenirken hata:', error);
+        setAvailableItems([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAvailableItems();
+  }, [itemTypeCode, rule.filterBy, rule.filterCriteria, rule.association, rule.targetItemTypeCode, rule.sourceItemTypeCode]);
 
   // Filter items based on search
   const filteredItems = useMemo(() => {
@@ -180,12 +175,13 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
       onChange(newValue.length > 0 ? newValue : null);
     } else {
       // Add to selection (check cardinality)
-      const maxItems = rule.cardinality.max;
+      const maxItems = rule.cardinality?.max;
       if (maxItems && currentValue.length >= maxItems) {
         return; // Don't add more than max allowed
       }
       
-      onChange([...currentValue, itemId]);
+      const newValue = [...currentValue, itemId];
+      onChange(newValue);
     }
   };
 
@@ -208,7 +204,7 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
 
   // Check if max items reached
   const isMaxReached = () => {
-    if (!rule.cardinality.max) return false;
+    if (!rule.cardinality?.max) return false;
     const currentCount = Array.isArray(value) ? value.length : (value ? 1 : 0);
     return currentCount >= rule.cardinality.max;
   };
@@ -361,38 +357,6 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
                         <span>Seç</span>
                       </div>
                     </th>
-                    {(() => {
-                      // displayConfig.enabled kontrol et (sourceToTarget veya targetToSource için)
-                      const isEnabled = displayConfig?.enabled || 
-                                      (displayConfig?.sourceToTarget?.enabled) || 
-                                      (displayConfig?.targetToSource?.enabled);
-                      
-                      // Hangi direction'ın kullanılacağını belirle
-                      const direction = displayConfig?.sourceToTarget?.enabled ? 'sourceToTarget' : 'targetToSource';
-                      const columns = displayConfig?.[direction]?.columns || displayConfig?.columns || [];
-                      
-                      return isEnabled && columns.length > 0 ? (
-                        // DisplayConfig varsa onun sütunlarını kullan
-                        columns.map((column, index) => (
-                        <th 
-                          key={index}
-                          className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider"
-                          style={{ width: column.width || 'auto' }}
-                        >
-                          <div className="flex items-center space-x-2">
-                            <span>{column.displayName}</span>
-                            {column.isRequired && <span className="text-red-500">*</span>}
-                            {column.sortable && (
-                              <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-                              </svg>
-                            )}
-                          </div>
-                        </th>
-                      ))
-                    ) : (
-                      // Default sütunlar
-                      <>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
                           Kategori
                         </th>
@@ -405,8 +369,6 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
                           Tarih
                         </th>
-                      </>
-                    )})()}
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-800">
@@ -422,29 +384,41 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
                                      itemData.family?.name?.translations?.en || 
                                      itemData.family?.code || 'N/A';
                     
-                    // Extract key attributes for display
-                    const keyAttributes: string[] = [];
+                    // Get key attributes for display (first 3 important ones)
+                    const keyAttributes = [];
                     if (itemData.attributes) {
-                      Object.values(itemData.attributes).forEach((attr: any) => {
-                        if (attr.definition && attr.displayValue) {
-                          const attrName = attr.definition.name?.translations?.tr || 
-                                         attr.definition.name?.translations?.en || 
-                                         attr.definition.code || '';
-                          if (attrName && attr.displayValue !== 'N/A') {
-                            keyAttributes.push(`${attrName}: ${attr.displayValue}`);
+                      const attrEntries = Object.entries(itemData.attributes);
+                      for (const [key, attr] of attrEntries.slice(0, 3)) {
+                        if (attr && typeof attr === 'object' && 'value' in attr) {
+                          const attrName = attr.definition?.name?.translations?.tr || 
+                                         attr.definition?.name?.translations?.en || 
+                                         attr.definition?.code || key;
+                          const attrValue = attr.value;
+                          
+                          if (attrValue !== undefined && attrValue !== null && attrValue !== '') {
+                            let displayValue = '';
+                            
+                            // Handle different attribute types
+                            if (attr.definition?.type === 'select' && attr.definition?.options) {
+                              const option = attr.definition.options.find((opt: any) => 
+                                opt._id === attrValue || opt.code === attrValue
+                              );
+                              displayValue = option?.name?.translations?.tr || option?.code || String(attrValue);
+                            } else if (attr.definition?.type === 'date') {
+                              displayValue = new Date(attrValue).toLocaleDateString('tr-TR');
+                            } else if (attr.definition?.type === 'boolean') {
+                              displayValue = attrValue ? 'Evet' : 'Hayır';
+                            } else {
+                              displayValue = String(attrValue);
+                            }
+                            
+                            if (displayValue && displayValue !== 'N/A') {
+                              keyAttributes.push({ name: attrName, value: displayValue });
+                            }
                           }
                         }
-                      });
+                      }
                     }
-                    
-                    // displayConfig.enabled kontrol et (sourceToTarget veya targetToSource için)
-                    const isEnabled = displayConfig?.enabled || 
-                                    (displayConfig?.sourceToTarget?.enabled) || 
-                                    (displayConfig?.targetToSource?.enabled);
-                    
-                    // Hangi direction'ın kullanılacağını belirle
-                    const direction = displayConfig?.sourceToTarget?.enabled ? 'sourceToTarget' : 'targetToSource';
-                    const columns = displayConfig?.[direction]?.columns || displayConfig?.columns || [];
                     
                     return (
                       <tr 
@@ -462,171 +436,43 @@ const AssociationSelector: React.FC<AssociationSelectorProps> = ({
                             className="text-blue-600 focus:ring-blue-500"
                           />
                         </td>
-                        {isEnabled && columns.length > 0 ? (
-                          // DisplayConfig varsa onun sütunlarını kullan
-                          columns.map((column, colIndex) => {
-                            let cellValue = '';
-                            // Column type'ına göre değer extract et
-                            switch (column.attributeId) {
-                              case 'category':
-                                cellValue = categoryName;
-                                break;
-                              case 'family':
-                                cellValue = familyName;
-                                break;
-                              case 'createdAt':
-                                cellValue = new Date(itemData.createdAt).toLocaleDateString('tr-TR');
-                                break;
-                              default: {
-                                // Dinamik liste sayfasındaki mantığı uygula
-                                const attr = itemData.attributes?.[column.attributeId];
-                                if (!attr) { cellValue = 'N/A'; break; }
-                                // Referans isimlendirme
-                                if (attr.referencedValue) {
-                                  cellValue = getEntityName(attr.referencedValue, currentLanguage);
-                                  break;
-                                }
-                                // Table özeti
-                                if ((attr.type || attr?.definition?.type) === 'table' && Array.isArray(attr.value)) {
-                                  const rows = attr.value;
-                                  const rowCount = rows.length;
-                                  const columnCount = rows[0]?.length || 0;
-                                  cellValue = `${rowCount} Satır, ${columnCount} Sütun`;
-                                  break;
-                                }
-                                // Select/metin/sayı vb.
-                                const type = attr.type || attr?.definition?.type;
-                                const val = attr.value;
-                                switch (type) {
-                                  case 'boolean':
-                                    cellValue = val ? 'Evet' : 'Hayır';
-                                    break;
-                                  case 'date':
-                                    cellValue = val ? new Date(val).toLocaleDateString('tr-TR') : 'N/A';
-                                    break;
-                                  case 'datetime':
-                                    cellValue = val ? new Date(val).toLocaleString('tr-TR') : 'N/A';
-                                    break;
-                                  case 'number':
-                                  case 'integer':
-                                  case 'decimal':
-                                    cellValue = typeof val === 'number' ? val.toLocaleString('tr-TR') : String(val ?? '');
-                                    break;
-                                  case 'select': {
-                                    const options = attr?.definition?.options;
-                                    if (options && Array.isArray(options)) {
-                                      const selected = options.find((opt: any) => opt?._id === val || opt?.code === val);
-                                      const name = selected?.name?.translations?.[currentLanguage] || selected?.name?.translations?.tr || selected?.name?.translations?.en;
-                                      cellValue = name || selected?.code || String(val ?? '');
-                                    } else {
-                                      cellValue = String(val ?? '');
-                                    }
-                                    break;
-                                  }
-                                  case 'multiselect': {
-                                    if (Array.isArray(val)) {
-                                      const options = attr?.definition?.options;
-                                      if (options && Array.isArray(options)) {
-                                        const names = val.map((v: any) => {
-                                          const opt = options.find((o: any) => o?._id === v || o?.code === v);
-                                          return opt?.name?.translations?.[currentLanguage] || opt?.name?.translations?.tr || opt?.name?.translations?.en || opt?.code || String(v);
-                                        });
-                                        cellValue = names.join(', ');
-                                      } else {
-                                        cellValue = val.join(', ');
-                                      }
-                                    } else {
-                                      cellValue = String(val ?? '');
-                                    }
-                                    break;
-                                  }
-                                  default:
-                                    cellValue = attr.displayValue || String(val ?? '');
-                                }
-                                break;
-                              }
-                            }
-
-                            return (
-                              <td
-                                key={colIndex}
-                                className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100"
-                                style={{ width: column.width || 'auto' }}
-                              >
-                                {/* AttributeDisplay kullanımı: AttributeDisplay, detail/form için tasarlandı. 
-                                    Burada sadece display modunda küçük bir kapsayıcıyla render ediyoruz. */}
-                                {(() => {
-                                  const attr = itemData.attributes?.[column.attributeId];
-                                  if (attr) {
-                                    return (
-                                      <div className="max-w-[420px] truncate">
-                                        <AttributeDisplay
-                                          attribute={{
-                                            _id: attr._id,
-                                            name: attr.definition?.name || attr.name,
-                                            code: attr.definition?.code || attr.code,
-                                            type: attr.definition?.type || attr.type,
-                                            options: attr.definition?.options || attr.options,
-                                            validations: attr.definition?.validations || attr.validations,
-                                            isRequired: false
-                                          }}
-                                          value={attr.value}
-                                          isEditing={false}
-                                        />
-                                      </div>
-                                    );
-                                  }
-                                  // Default plain text fallback
-                                  return cellValue || 'N/A';
-                                })()}
-                              </td>
-                            );
-                          })
-                        ) : (
-                          // Default sütunlar
-                          <>
-                            <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
-                              <div className="flex items-center space-x-2">
-                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                <span className="font-medium">{categoryName}</span>
+                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                            <span className="font-medium">{categoryName}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <span className="font-medium">{familyName}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                          <div className="space-y-1">
+                            {keyAttributes.map((attr, attrIndex) => (
+                              <div key={attrIndex} className="flex items-center space-x-2">
+                                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
+                                <span className="text-xs text-gray-700 dark:text-gray-300">
+                                  <span className="font-medium">{attr.name}:</span> {attr.value}
+                                </span>
                               </div>
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
-                              <div className="flex items-center space-x-2">
-                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                <span className="font-medium">{familyName}</span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                              <div className="space-y-2">
-                                {keyAttributes.slice(0, 3).map((attr, index) => (
-                                  <div key={index} className="flex items-center space-x-2">
-                                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
-                                    <span className="text-xs text-gray-700 dark:text-gray-300">
-                                      {attr}
-                                    </span>
-                                  </div>
-                                ))}
-                                {keyAttributes.length > 3 && (
-                                  <div className="flex items-center space-x-2 pt-1 border-t border-gray-100 dark:border-gray-700">
-                                    <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
-                                    <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
-                                      +{keyAttributes.length - 3} daha...
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                              <div className="flex items-center space-x-2">
-                                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                                <span>{new Date(itemData.createdAt).toLocaleDateString('tr-TR')}</span>
-                              </div>
-                            </td>
-                          </>
-                        )}
+                            ))}
+                            {keyAttributes.length === 0 && (
+                              <span className="text-xs text-gray-500 dark:text-gray-500 italic">
+                                Özellik bulunamadı
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                          <div className="flex items-center space-x-2">
+                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span>{new Date(itemData.createdAt).toLocaleDateString('tr-TR')}</span>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}

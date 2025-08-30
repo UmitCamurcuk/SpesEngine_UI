@@ -76,7 +76,7 @@ const ItemDetailsPage: React.FC = () => {
     fetchItemDetails();
   }, [id]);
 
-  // Collect all attributes from hierarchy
+  // Collect all attributes from hierarchy - Updated for new API structure
   const getAllAttributeGroups = () => {
     if (!item) return [];
     
@@ -96,46 +96,90 @@ const ItemDetailsPage: React.FC = () => {
       });
     }
     
-    // 2. Category attribute groups (including parent categories)
-    if (item.categoryHierarchy) {
-      item.categoryHierarchy.forEach((category: any) => {
-        if (category.attributeGroups) {
-          category.attributeGroups.forEach((group: any) => {
-            if (group.attributes && group.attributes.length > 0) {
-              groups.push({
-                ...group,
-                source: 'category',
-                sourceName: getEntityName(category, currentLanguage),
-                sourceIcon: '📁'
-              });
-            }
-          });
-        }
-      });
+    // 2. Categories attribute groups (including subcategories)
+    if (item.categories) {
+      const processCategories = (categories: any[]) => {
+        categories.forEach((category: any) => {
+          if (category.attributeGroups) {
+            category.attributeGroups.forEach((group: any) => {
+              if (group.attributes && group.attributes.length > 0) {
+                groups.push({
+                  ...group,
+                  source: 'category',
+                  sourceName: getEntityName(category, currentLanguage),
+                  sourceIcon: '📁'
+                });
+              }
+            });
+          }
+          // Process subcategories recursively
+          if (category.subCategories && category.subCategories.length > 0) {
+            processCategories(category.subCategories);
+          }
+        });
+      };
+      processCategories(item.categories);
     }
     
-    // 3. Family attribute groups (including parent families)
-    if (item.familyHierarchy) {
-      item.familyHierarchy.forEach((family: any) => {
-        if (family.attributeGroups) {
-          family.attributeGroups.forEach((group: any) => {
-            if (group.attributes && group.attributes.length > 0) {
-              groups.push({
-                ...group,
-                source: 'family',
-                sourceName: getEntityName(family, currentLanguage),
-                sourceIcon: '👥'
-              });
-            }
-          });
-        }
-      });
+    // 3. Families attribute groups (including subfamilies)
+    if (item.families) {
+      const processFamilies = (families: any[]) => {
+        families.forEach((family: any) => {
+          if (family.attributeGroups) {
+            family.attributeGroups.forEach((group: any) => {
+              if (group.attributes && group.attributes.length > 0) {
+                groups.push({
+                  ...group,
+                  source: 'family',
+                  sourceName: getEntityName(family, currentLanguage),
+                  sourceIcon: '👥'
+                });
+              }
+            });
+          }
+          // Process subfamilies recursively
+          if (family.subFamilies && family.subFamilies.length > 0) {
+            processFamilies(family.subFamilies);
+          }
+        });
+      };
+      processFamilies(item.families);
     }
     
     return groups;
   };
 
   const attributeGroups = getAllAttributeGroups();
+
+  // Render hierarchy recursively
+  const renderHierarchy = (items: any[], type: 'category' | 'family', level: number = 0) => {
+    return items.map((item: any, index: number) => (
+      <div key={item._id || item.id}>
+        <div className="flex items-center space-x-2">
+          <span className="text-gray-400">
+            {level > 0 ? '└─' : ''}
+          </span>
+          <span className="text-sm font-medium text-gray-900 dark:text-white">
+            {getEntityName(item, currentLanguage)}
+          </span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">
+            ({item.code})
+          </span>
+        </div>
+        {/* Render subcategories/subfamilies */}
+        {item.subCategories && item.subCategories.length > 0 && (
+          <div className="ml-4 mt-1">
+            {renderHierarchy(item.subCategories, type, level + 1)}
+          </div>
+        )}
+        {item.subFamilies && item.subFamilies.length > 0 && (
+          <div className="ml-4 mt-1">
+            {renderHierarchy(item.subFamilies, type, level + 1)}
+          </div>
+        )}
+      </div>
+    ));
+  };
 
   // Handle attribute changes
   const handleAttributeChange = (attributeId: string, value: any) => {
@@ -687,7 +731,8 @@ const ItemDetailsPage: React.FC = () => {
                                 <div className="p-4">
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {group.attributes.map((attribute: any) => {
-                                      const value = formData.attributes?.[attribute._id];
+                                      // Yeni API yapısında attribute'ın içinde value var, yoksa formData'dan al
+                                      const value = attribute.value !== undefined ? attribute.value : formData.attributes?.[attribute._id];
                                       const error = attributeErrors[attribute._id];
 
                                       return (
@@ -740,19 +785,9 @@ const ItemDetailsPage: React.FC = () => {
                   <span className="text-xl mr-2">📁</span>
                   Kategori Hiyerarşisi
                 </h4>
-                {item?.categoryHierarchy && item.categoryHierarchy.length > 0 ? (
+                {item?.categories && item.categories.length > 0 ? (
                   <div className="space-y-2">
-                    {item.categoryHierarchy.map((category: any, index: number) => (
-                      <div key={category._id} className="flex items-center space-x-2">
-                        <span className="text-gray-400">{index > 0 ? '└─' : ''}</span>
-                        <span className="text-sm font-medium text-gray-900 dark:text-white">
-                          {getEntityName(category, currentLanguage)}
-                        </span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          ({category.code})
-                        </span>
-                      </div>
-                    ))}
+                    {renderHierarchy(item.categories, 'category')}
                   </div>
                 ) : (
                   <p className="text-gray-400 italic">Hiyerarşi bilgisi yok</p>
@@ -765,19 +800,9 @@ const ItemDetailsPage: React.FC = () => {
                   <span className="text-xl mr-2">👥</span>
                   Aile Hiyerarşisi
                 </h4>
-                {item?.familyHierarchy && item.familyHierarchy.length > 0 ? (
+                {item?.families && item.families.length > 0 ? (
                   <div className="space-y-2">
-                    {item.familyHierarchy.map((family: any, index: number) => (
-                      <div key={family._id} className="flex items-center space-x-2">
-                        <span className="text-gray-400">{index > 0 ? '└─' : ''}</span>
-                        <span className="text-sm font-medium text-gray-900 dark:text-white">
-                          {getEntityName(family, currentLanguage)}
-                        </span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          ({family.code})
-                        </span>
-                      </div>
-                    ))}
+                    {renderHierarchy(item.families, 'family')}
                   </div>
                 ) : (
                   <p className="text-gray-400 italic">Hiyerarşi bilgisi yok</p>

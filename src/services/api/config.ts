@@ -2,6 +2,10 @@ import axios from 'axios';
 import { TokenService } from '../auth/tokenService';
 import { TokenInterceptor } from '../auth/tokenInterceptor';
 
+// Permission refresh için debounce mekanizması
+let lastPermissionRefresh = 0;
+const PERMISSION_REFRESH_COOLDOWN = 5000; // 5 saniye
+
 // API temel URL'sini tanımlıyoruz - gerçek projenizde değiştirmeniz gerekecek
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:1903/api';
 
@@ -59,6 +63,9 @@ api.interceptors.request.use(
     const token = TokenService.getAccessToken();
     if (token && !TokenService.isTokenExpired(token)) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('🔑 Token gönderiliyor:', token.substring(0, 20) + '...');
+    } else {
+      console.log('❌ Token bulunamadı veya süresi dolmuş');
     }
     
     // Mevcut dil bilgisini localStorage'dan al ve Accept-Language header'ına ekle
@@ -110,10 +117,20 @@ api.interceptors.response.use(
       }
       
       // Permission version hatası - izinler güncellenmiş
-      if (error.response?.data?.needsPermissionRefresh) {
-        originalRequest._retry = true;
+      if (error.response?.data?.needsPermissionRefresh && !originalRequest._permissionRefreshRetry) {
+        const now = Date.now();
+        
+        // Debounce kontrolü - son refresh'ten 5 saniye geçmemişse bekle
+        if (now - lastPermissionRefresh < PERMISSION_REFRESH_COOLDOWN) {
+          console.log('Permission refresh debounced - too frequent requests');
+          return Promise.reject(error);
+        }
+        
+        lastPermissionRefresh = now;
+        originalRequest._permissionRefreshRetry = true;
         
         try {
+          console.log('🔄 Refreshing permissions...');
           // Permission refresh yap
           const authService = await import('../auth/authService');
           const refreshedUser = await authService.default.refreshPermissions();
@@ -125,10 +142,11 @@ api.interceptors.response.use(
             payload: refreshedUser 
           });
           
+          console.log('✅ Permissions refreshed successfully');
           // İsteği yeniden gönder
           return api(originalRequest);
         } catch (permissionError) {
-          console.error('Permission refresh hatası:', permissionError);
+          console.error('❌ Permission refresh hatası:', permissionError);
           // Permission refresh başarısızsa logout yap
           TokenService.clearTokens();
           window.location.href = '/auth/logout';

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from '../../../../context/i18nContext';
 import { getEntityName, getEntityDescription } from '../../../../utils/translationUtils';
-import Button from '../../../../ui/Button';
+import Button from '../../../ui/Button';
 
 interface TableAttributeProps {
   attribute: any;
@@ -41,8 +41,6 @@ export const TableEditInput: React.FC<TableAttributeProps> = ({
   error,
   disabled = false
 }) => {
-  const [showFullTable, setShowFullTable] = useState(false);
-
   // Table Input Logic
   const handleTableCellChange = useCallback((rowIndex: number, colIndex: number, cellValue: any) => {
     if (disabled) return;
@@ -138,7 +136,38 @@ export const TableEditInput: React.FC<TableAttributeProps> = ({
   }, [value, handleTableCellChange, disabled]);
 
   const currentValue = value || [];
-  const columns = attribute.validations?.columns || [];
+  
+  // Farklı sütun kaynaklarını kontrol et
+  let columns = attribute.validations?.columns || 
+                attribute.columns || 
+                attribute.settings?.columns || 
+                [];
+
+  // Eğer sütunlar tanımlanmamışsa ama veri varsa, veriden sütun sayısını çıkar
+  if ((!columns || columns.length === 0) && currentValue && currentValue.length > 0) {
+    const maxColumns = Math.max(...currentValue.map((row: any[]) => row.length));
+    if (maxColumns > 0) {
+      columns = Array.from({ length: maxColumns }, (_, index) => ({
+        name: `Sütun ${index + 1}`,
+        type: 'text',
+        required: false
+      }));
+    }
+  }
+
+  // Debug için console.log
+  console.log('TableEditInput Debug:', {
+    attribute,
+    columns,
+    currentValue,
+    hasColumns: columns && columns.length > 0,
+    validationsColumns: attribute.validations?.columns,
+    directColumns: attribute.columns,
+    settingsColumns: attribute.settings?.columns,
+    attributeKeys: Object.keys(attribute),
+    attributeValidations: attribute.validations,
+    attributeSettings: attribute.settings
+  });
 
   // Initialize with one empty row if completely empty
   useEffect(() => {
@@ -147,6 +176,27 @@ export const TableEditInput: React.FC<TableAttributeProps> = ({
       onChange?.([newRow]);
     }
   }, []); // Empty dependency array - only run once on mount
+
+  // If no columns defined, show a message
+  if (!columns || columns.length === 0) {
+    return (
+      <div className="space-y-3">
+        <div className="text-center py-8 bg-gray-50 dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-600">
+          <div className="text-center">
+            <svg className="w-8 h-8 mx-auto text-gray-400 dark:text-gray-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Tablo sütunları tanımlanmamış</p>
+          </div>
+        </div>
+        {error && (
+          <p className="text-sm text-red-600 dark:text-red-400">
+            {error}
+          </p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
@@ -203,15 +253,15 @@ export const TableEditInput: React.FC<TableAttributeProps> = ({
         </table>
       </div>
 
-      {/* Add Row Button */}
+      {/* Add Row Button - Sadece Satır Ekle butonu */}
       <div className="flex justify-start">
         <Button
           size="sm"
-          variant="outline"
+          variant="primary"
           type="button"
           onClick={addTableRow}
           disabled={disabled}
-          className="flex items-center space-x-1"
+          className="flex items-center space-x-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
         >
           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />

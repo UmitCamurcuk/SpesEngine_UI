@@ -16,6 +16,38 @@ import SearchForm from '../../../components/common/SearchForm';
 import useListPage from '../../../hooks/useListPage';
 import UserDisplay from '../../../components/common/UserDisplay';
 
+// Yeni attribute display component'lerini import et
+import {
+  TextTableDisplay,
+  NumberTableDisplay,
+  BooleanTableDisplay,
+  EmailTableDisplay,
+  UrlTableDisplay,
+  DateTableDisplay,
+  DateTimeTableDisplay,
+  TimeTableDisplay,
+  SelectTableDisplay,
+  MultiSelectTableDisplay,
+  TableTableDisplay,
+  TextareaTableDisplay,
+  FileTableDisplay,
+  ImageTableDisplay,
+  AttachmentTableDisplay,
+  ColorTableDisplay,
+  RatingTableDisplay,
+  ReadonlyTableDisplay,
+  PhoneTableDisplay,
+  PasswordTableDisplay,
+  RichTextTableDisplay,
+  BarcodeTableDisplay,
+  QrTableDisplay,
+  ObjectTableDisplay,
+  ArrayTableDisplay,
+  JsonTableDisplay,
+  FormulaTableDisplay,
+  ExpressionTableDisplay
+} from '../../../components/attributes';
+
 // UTILITY COMPONENTS
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
   <div className={`bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden ${className}`}>
@@ -31,36 +63,104 @@ const DynamicItemListPage: React.FC = () => {
   const { t, currentLanguage } = useTranslation();
   const { showToast } = useNotification();
 
-  // Basit attribute render fonksiyonu
+  // Yeni attribute render fonksiyonu - yeni component'leri kullanır
   const renderAttributeValue = (value: any, attribute: any) => {
     if (value === null || value === undefined || value === '') {
       return <span className="text-gray-400 italic">-</span>;
     }
 
+    // Attribute type'a göre uygun component'i seç
     switch (attribute.type) {
-      case 'boolean':
-        return (
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-            value ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
-                  : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-          }`}>
-            {value ? 'Evet' : 'Hayır'}
-          </span>
-        );
-      case 'date':
-        return new Date(value).toLocaleDateString('tr-TR');
-      case 'datetime':
-        return new Date(value).toLocaleString('tr-TR');
+      case 'text':
+      case 'string':
+        return <TextTableDisplay value={value} />;
+      
       case 'number':
       case 'integer':
       case 'decimal':
-        return (
-          <span className="font-mono">
-            {typeof value === 'number' ? value.toLocaleString('tr-TR') : value}
-          </span>
-        );
+        return <NumberTableDisplay value={value} />;
+      
+      case 'boolean':
+        return <BooleanTableDisplay value={value} />;
+      
+      case 'email':
+        return <EmailTableDisplay value={value} />;
+      
+      case 'url':
+        return <UrlTableDisplay value={value} />;
+      
+      case 'date':
+        return <DateTableDisplay value={value} />;
+      
+      case 'datetime':
+        return <DateTimeTableDisplay value={value} />;
+      
+      case 'time':
+        return <TimeTableDisplay value={value} />;
+      
+      case 'select':
+        return <SelectTableDisplay attribute={attribute} value={value} />;
+      
+      case 'multiselect':
+        return <MultiSelectTableDisplay attribute={attribute} value={value} />;
+      
+      case 'table':
+        return <TableTableDisplay value={value} />;
+      
+      case 'textarea':
+      case 'multiline':
+        return <TextareaTableDisplay value={value} />;
+      
+      case 'file':
+        return <FileTableDisplay value={value} />;
+      
+      case 'image':
+        return <ImageTableDisplay value={value} />;
+      
+      case 'attachment':
+        return <AttachmentTableDisplay value={value} />;
+      
+      case 'color':
+        return <ColorTableDisplay value={value} />;
+      
+      case 'rating':
+        return <RatingTableDisplay value={value} />;
+      
+      case 'readonly':
+        return <ReadonlyTableDisplay value={value} />;
+      
+      case 'phone':
+        return <PhoneTableDisplay value={value} />;
+      
+      case 'password':
+        return <PasswordTableDisplay value={value} />;
+      
+      case 'rich_text':
+        return <RichTextTableDisplay value={value} />;
+      
+      case 'barcode':
+        return <BarcodeTableDisplay value={value} />;
+      
+      case 'qr':
+        return <QrTableDisplay value={value} />;
+      
+      case 'object':
+        return <ObjectTableDisplay value={value} />;
+      
+      case 'array':
+        return <ArrayTableDisplay value={value} />;
+      
+      case 'json':
+        return <JsonTableDisplay value={value} />;
+      
+      case 'formula':
+        return <FormulaTableDisplay value={value} />;
+      
+      case 'expression':
+        return <ExpressionTableDisplay value={value} />;
+      
       default:
-        return <span className="whitespace-pre-wrap">{String(value)}</span>;
+        return <TextTableDisplay value={value} />;
     }
   };
 
@@ -310,7 +410,7 @@ const DynamicItemListPage: React.FC = () => {
                 );
               }
               
-              // Diğer attribute tipleri için normal render
+              // Diğer attribute tipleri için yeni render fonksiyonunu kullan
               return renderAttributeValue(attributeData.value, {
                 _id: attributeData._id,
                 name: attributeData.name,
